@@ -38,3 +38,25 @@ out/
 
 ### Kotlin ###
 .kotlin
+
+### Local config ###
+gradle.properties
+local.properties
+
+### Env / secrets ###
+.env
+.env.*
+application-local.properties
+application-dev.properties
+application-prod.properties
+
+### Logs ###
+*.log
+logs/
+hs_err_pid*
+replay_pid*
+
+### OS files ###
+.DS_Store
+Thumbs.db
+desktop.ini

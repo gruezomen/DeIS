@@ -32,3 +32,91 @@ google-services.json
 
 # Android Profiling
 *.hprof
+# =========================
+# General
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+logs/
+*.tmp
+*.swp
+*.swo
+
+# =========================
+# Environment / secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# IDEs / Editors
+# =========================
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+out/
+
+# =========================
+# Java / Kotlin / Gradle
+# =========================
+.gradle/
+build/
+**/build/
+.kotlin/
+bin/
+
+# Gradle local machine config
+**/gradle.properties
+**/local.properties
+
+# Keep wrapper
+!**/gradle/wrapper/gradle-wrapper.jar
+!**/gradle/wrapper/gradle-wrapper.properties
+!**/gradlew
+!**/gradlew.bat
+
+# =========================
+# Spring Boot
+# =========================
+**/target/
+**/application-local.properties
+**/application-dev.properties
+**/application-prod.properties
+
+# =========================
+# Node.js
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Frontend build outputs
+# =========================
+.next/
+dist/
+coverage/
+.cache/
+
+# =========================
+# Android
+# =========================
+**/.cxx/
+**/.externalNativeBuild/
+**/captures/
+**/.navigation/
+**/app/release/
+**/app/debug/
+
+# =========================
+# OS / misc crash files
+# =========================
+hs_err_pid*
+replay_pid*
