@@ -1,10 +1,9 @@
 package com.conference.deis
 
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,7 +42,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
@@ -77,6 +80,9 @@ fun DeISApp() {
                 composable("login") {
                     LoginScreen(navController)
                 }
+                composable("register") {
+                    RegisterScreen(navController)
+                }
                 composable("success") {
                     SuccessLoadingScreen(navController)
                 }
@@ -92,6 +98,7 @@ private val BlueBackground = Color(0xFF4D92E8)
 private val FieldBackground = Color(0xFFF1F1F1)
 private val CardColorBox = Color(0xFFB7A9A9)
 private val ActionBoxColor = Color(0xFFD9D9D9)
+private val LinkRed = Color(0xFFD60000)
 
 @Composable
 fun LogoSection() {
@@ -100,7 +107,7 @@ fun LogoSection() {
     ) {
         Image(
             painter = painterResource(id = R.drawable.delfin),
-            contentDescription = "Logo delfín",
+            contentDescription = "Logo Delfín",
             modifier = Modifier.size(140.dp)
         )
 
@@ -108,6 +115,22 @@ fun LogoSection() {
             text = "DelIS",
             fontSize = 22.sp,
             color = Color.Black
+        )
+    }
+}
+
+@Composable
+fun RegisterHeaderIcon() {
+    Box(
+        modifier = Modifier
+            .size(100.dp)
+            .background(Color.Transparent, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.usuario),
+            contentDescription = "Icono usuario",
+            modifier = Modifier.size(90.dp)
         )
     }
 }
@@ -214,7 +237,9 @@ fun LoginScreen(navController: NavHostController) {
             Spacer(modifier = Modifier.height(18.dp))
 
             Button(
-                onClick = { },
+                onClick = {
+                    navController.navigate("register")
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
@@ -225,6 +250,122 @@ fun LoginScreen(navController: NavHostController) {
                 )
             ) {
                 Text("Crear una cuenta")
+            }
+        }
+    }
+}
+
+@Composable
+fun RegisterScreen(navController: NavHostController) {
+    var nombreCompleto by remember { mutableStateOf("") }
+    var correoElectronico by remember { mutableStateOf("") }
+    var contrasena by remember { mutableStateOf("") }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BlueBackground)
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 70.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            RegisterHeaderIcon()
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            OutlinedTextField(
+                value = nombreCompleto,
+                onValueChange = { nombreCompleto = it },
+                placeholder = { Text("Nombre completo") },
+                singleLine = true,
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = FieldBackground,
+                    unfocusedContainerColor = FieldBackground,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            OutlinedTextField(
+                value = correoElectronico,
+                onValueChange = { correoElectronico = it },
+                placeholder = { Text("Correo electronico") },
+                singleLine = true,
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = FieldBackground,
+                    unfocusedContainerColor = FieldBackground,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            OutlinedTextField(
+                value = contrasena,
+                onValueChange = { contrasena = it },
+                placeholder = { Text("Contraseña") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = FieldBackground,
+                    unfocusedContainerColor = FieldBackground,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Tienes una cuenta? ",
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+
+                Text(
+                    text = "Inicia Sesión",
+                    color = LinkRed,
+                    fontSize = 14.sp,
+                    modifier = Modifier.clickable {
+                        navController.navigate("login")
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Button(
+                onClick = {
+                    // Aquí luego conectaremos el registro real con backend
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Black,
+                    contentColor = Color.White
+                )
+            ) {
+                Text("Registrarse", fontSize = 20.sp)
             }
         }
     }
