@@ -1,6 +1,7 @@
 package com.conference.deis
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -23,6 +24,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -38,22 +40,25 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.conference.deis.network.RetrofitInstance
+import com.conference.deis.network.model.LoginRequest
+import com.conference.deis.network.model.RegisterRequest
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -102,9 +107,7 @@ private val LinkRed = Color(0xFFD60000)
 
 @Composable
 fun LogoSection() {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Image(
             painter = painterResource(id = R.drawable.delfin),
             contentDescription = "Logo Delfín",
@@ -122,9 +125,7 @@ fun LogoSection() {
 @Composable
 fun RegisterHeaderIcon() {
     Box(
-        modifier = Modifier
-            .size(100.dp)
-            .background(Color.Transparent, CircleShape),
+        modifier = Modifier.size(100.dp),
         contentAlignment = Alignment.Center
     ) {
         Image(
@@ -156,8 +157,12 @@ fun SplashScreen(navController: NavHostController) {
 
 @Composable
 fun LoginScreen(navController: NavHostController) {
-    var usuario by remember { mutableStateOf("") }
+    var correo by remember { mutableStateOf("") }
     var contrasena by remember { mutableStateOf("") }
+    var cargando by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Box(
         modifier = Modifier
@@ -175,9 +180,9 @@ fun LoginScreen(navController: NavHostController) {
             Spacer(modifier = Modifier.height(24.dp))
 
             OutlinedTextField(
-                value = usuario,
-                onValueChange = { usuario = it },
-                placeholder = { Text("Usuario") },
+                value = correo,
+                onValueChange = { correo = it },
+                placeholder = { Text("Correo electrónico") },
                 singleLine = true,
                 shape = RoundedCornerShape(8.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -211,8 +216,47 @@ fun LoginScreen(navController: NavHostController) {
 
             Button(
                 onClick = {
-                    navController.navigate("success")
+                    if (correo.isBlank() || contrasena.isBlank()) {
+                        Toast.makeText(context, "Completa todos los campos", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    scope.launch {
+                        cargando = true
+                        try {
+                            val response = RetrofitInstance.api.iniciarSesion(
+                                LoginRequest(
+                                    correo = correo.trim(),
+                                    contrasena = contrasena
+                                )
+                            )
+
+                            if (response.isSuccessful && response.body() != null) {
+                                Toast.makeText(
+                                    context,
+                                    response.body()!!.mensaje,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                navController.navigate("success")
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "Correo o contraseña incorrectos",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(
+                                context,
+                                "No se pudo conectar al servidor",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } finally {
+                            cargando = false
+                        }
+                    }
                 },
+                enabled = !cargando,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
@@ -222,7 +266,15 @@ fun LoginScreen(navController: NavHostController) {
                     contentColor = Color.White
                 )
             ) {
-                Text("Iniciar Sesión")
+                if (cargando) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Iniciar Sesión")
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -260,6 +312,10 @@ fun RegisterScreen(navController: NavHostController) {
     var nombreCompleto by remember { mutableStateOf("") }
     var correoElectronico by remember { mutableStateOf("") }
     var contrasena by remember { mutableStateOf("") }
+    var cargando by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Box(
         modifier = Modifier
@@ -354,8 +410,48 @@ fun RegisterScreen(navController: NavHostController) {
 
             Button(
                 onClick = {
-                    // Aquí luego conectaremos el registro real con backend
+                    if (nombreCompleto.isBlank() || correoElectronico.isBlank() || contrasena.isBlank()) {
+                        Toast.makeText(context, "Completa todos los campos", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    scope.launch {
+                        cargando = true
+                        try {
+                            val response = RetrofitInstance.api.registrarUsuario(
+                                RegisterRequest(
+                                    nombre = nombreCompleto.trim(),
+                                    correo = correoElectronico.trim(),
+                                    contrasena = contrasena
+                                )
+                            )
+
+                            if (response.isSuccessful && response.body() != null) {
+                                Toast.makeText(
+                                    context,
+                                    response.body()!!.mensaje,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                navController.navigate("login")
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "No se pudo registrar el usuario",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(
+                                context,
+                                "No se pudo conectar al servidor",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } finally {
+                            cargando = false
+                        }
+                    }
                 },
+                enabled = !cargando,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -365,7 +461,15 @@ fun RegisterScreen(navController: NavHostController) {
                     contentColor = Color.White
                 )
             ) {
-                Text("Registrarse", fontSize = 20.sp)
+                if (cargando) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Registrarse", fontSize = 20.sp)
+                }
             }
         }
     }
@@ -386,9 +490,7 @@ fun SuccessLoadingScreen(navController: NavHostController) {
             .background(BlueBackground),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
                 painter = painterResource(id = R.drawable.delfin),
                 contentDescription = "Logo Delfín",
@@ -412,9 +514,7 @@ fun AdminHomeScreen() {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text("DelIS")
-                },
+                title = { Text("DelIS") },
                 navigationIcon = {
                     Image(
                         painter = painterResource(id = R.drawable.delfin),
@@ -441,9 +541,7 @@ fun AdminHomeScreen() {
             )
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = Color.White
-            ) {
+            NavigationBar(containerColor = Color.White) {
                 NavigationBarItem(
                     selected = true,
                     onClick = { },
@@ -480,9 +578,7 @@ fun AdminHomeScreen() {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 InfoCard("20\npreguntas")
                 InfoCard("3\nbancos")
             }
@@ -509,9 +605,7 @@ fun InfoCard(texto: String) {
     Card(
         modifier = Modifier.size(width = 90.dp, height = 72.dp),
         shape = RoundedCornerShape(6.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = CardColorBox
-        )
+        colors = CardDefaults.cardColors(containerColor = CardColorBox)
     ) {
         Box(
             modifier = Modifier
