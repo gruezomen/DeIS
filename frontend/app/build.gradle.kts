@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
-
+val baseUrl = project.findProperty("BASE_URL") as String? ?: "http://192.168.1.19:8080/"
 android {
     namespace = "com.conference.deis"
     compileSdk = 35
@@ -14,6 +14,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+	buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -38,6 +39,7 @@ android {
     }
 
     buildFeatures {
+	buildConfig = true
         compose = true
     }
 }

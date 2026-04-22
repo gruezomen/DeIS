@@ -42,6 +42,7 @@ out/
 ### Local config ###
 gradle.properties
 local.properties
+.env
 
 ### Env / secrets ###
 .env
