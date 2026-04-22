@@ -17,7 +17,7 @@ class UsuarioService(
     private val passwordEncoder = BCryptPasswordEncoder()
 
     fun registrarUsuario(request: RegistroUsuarioRequest): RegistroUsuarioResponse {
-        val gmailNormalizado = request.correo.trim().lowercase()
+        val gmailNormalizado = request.gmail.trim().lowercase()
 
         if (usuarioRepository.existsByGmail(gmailNormalizado)) {
             throw IllegalArgumentException("Ya existe un usuario registrado con ese correo")
