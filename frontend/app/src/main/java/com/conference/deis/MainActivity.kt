@@ -59,6 +59,8 @@ import com.conference.deis.network.model.LoginRequest
 import com.conference.deis.network.model.RegisterRequest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,7 +94,10 @@ fun DeISApp() {
                     SuccessLoadingScreen(navController)
                 }
                 composable("home") {
-                    AdminHomeScreen()
+                    AdminHomeScreen(navController)
+                }
+                composable("crear_pregunta") {
+                    CrearPreguntaScreen(navController)
                 }
             }
         }
@@ -510,7 +515,7 @@ fun SuccessLoadingScreen(navController: NavHostController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminHomeScreen() {
+fun AdminHomeScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -593,11 +598,283 @@ fun AdminHomeScreen() {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            ActionBox("Crear pregunta")
+            ActionBox(
+                texto = "Crear pregunta",
+                onClick = { navController.navigate("crear_pregunta") }
+            )
+
             Spacer(modifier = Modifier.height(10.dp))
-            ActionBox("Ver lista de banco de preguntas")
+
+            ActionBox(
+                texto = "Ver lista de banco de preguntas",
+                onClick = { }
+            )
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CrearPreguntaScreen(navController: NavHostController) {
+    var categoria by remember { mutableStateOf("") }
+    var enunciado by remember { mutableStateOf("Enunciado1") }
+    var opcionA by remember { mutableStateOf("A) Ra") }
+    var opcionB by remember { mutableStateOf("A) Rb") }
+    var opcionC by remember { mutableStateOf("A) Rc") }
+    var opcionD by remember { mutableStateOf("A) Rd") }
+    var explicacion by remember { mutableStateOf("Ejemplo explicacion") }
+    var dificultadSeleccionada by remember { mutableStateOf("Facil") }
+    var opcionCorrecta by remember { mutableStateOf("A") }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("DelIS") },
+                navigationIcon = {
+                    Image(
+                        painter = painterResource(id = R.drawable.delfin),
+                        contentDescription = "Logo Delfín",
+                        modifier = Modifier
+                            .padding(start = 12.dp)
+                            .size(32.dp)
+                    )
+                },
+                actions = {
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(34.dp)
+                            .background(Color(0xFFE6E6E6), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("U")
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = BlueBackground
+                )
+            )
+        },
+        bottomBar = {
+            NavigationBar(containerColor = Color(0xFFE6E6E6)) {
+                NavigationBarItem(
+                    selected = true,
+                    onClick = { navController.navigate("home") },
+                    icon = { },
+                    label = { Text("Inicio") }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { },
+                    icon = { },
+                    label = { Text("Simulacro") }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { },
+                    icon = { },
+                    label = { Text("Banco") }
+                )
+            }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(Color.White)
+                .verticalScroll(rememberScrollState())
+                .padding(14.dp)
+        ) {
+            Text("Categoria", fontSize = 14.sp, color = Color.Black)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            CampoGris(
+                valor = categoria,
+                placeholder = "Seleccionar categoria",
+                onValueChange = { categoria = it }
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text("Dificultad", fontSize = 14.sp, color = Color.Black)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                BotonDificultad(
+                    texto = "Facil",
+                    seleccionado = dificultadSeleccionada == "Facil",
+                    onClick = { dificultadSeleccionada = "Facil" },
+                    modifier = Modifier.weight(1f)
+                )
+                BotonDificultad(
+                    texto = "Medio",
+                    seleccionado = dificultadSeleccionada == "Medio",
+                    onClick = { dificultadSeleccionada = "Medio" },
+                    modifier = Modifier.weight(1f)
+                )
+                BotonDificultad(
+                    texto = "Dificil",
+                    seleccionado = dificultadSeleccionada == "Dificil",
+                    onClick = { dificultadSeleccionada = "Dificil" },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text("Enunciado", fontSize = 14.sp, color = Color.Black)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            CampoGris(
+                valor = enunciado,
+                placeholder = "Enunciado",
+                onValueChange = { enunciado = it }
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text("Opciones (marca la correcta)", fontSize = 14.sp, color = Color.Black)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OpcionEditable(
+                texto = opcionA,
+                seleccionada = opcionCorrecta == "A",
+                onTextoChange = { opcionA = it },
+                onClick = { opcionCorrecta = "A" }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OpcionEditable(
+                texto = opcionB,
+                seleccionada = opcionCorrecta == "B",
+                onTextoChange = { opcionB = it },
+                onClick = { opcionCorrecta = "B" }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OpcionEditable(
+                texto = opcionC,
+                seleccionada = opcionCorrecta == "C",
+                onTextoChange = { opcionC = it },
+                onClick = { opcionCorrecta = "C" }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OpcionEditable(
+                texto = opcionD,
+                seleccionada = opcionCorrecta == "D",
+                onTextoChange = { opcionD = it },
+                onClick = { opcionCorrecta = "D" }
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text("Explicacion", fontSize = 14.sp, color = Color.Black)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            CampoGris(
+                valor = explicacion,
+                placeholder = "Ejemplo explicacion",
+                onValueChange = { explicacion = it }
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Button(
+                onClick = { },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Black,
+                    contentColor = Color.White
+                )
+            ) {
+                Text("Guardar Pregunta", fontSize = 18.sp)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+fun CampoGris(
+    valor: String,
+    placeholder: String,
+    onValueChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = valor,
+        onValueChange = onValueChange,
+        placeholder = { Text(placeholder) },
+        singleLine = true,
+        shape = RoundedCornerShape(10.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = Color(0xFFD9D9D9),
+            unfocusedContainerColor = Color(0xFFD9D9D9),
+            focusedBorderColor = Color.Transparent,
+            unfocusedBorderColor = Color.Transparent
+        ),
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+fun BotonDificultad(
+    texto: String,
+    seleccionado: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .background(
+                if (seleccionado) Color(0xFFB7A9A9) else Color(0xFFD9D9D9),
+                RoundedCornerShape(10.dp)
+            )
+            .clickable { onClick() }
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = texto,
+            color = Color.Black,
+            fontSize = 13.sp
+        )
+    }
+}
+
+@Composable
+fun OpcionEditable(
+    texto: String,
+    seleccionada: Boolean,
+    onTextoChange: (String) -> Unit,
+    onClick: () -> Unit
+) {
+    OutlinedTextField(
+        value = texto,
+        onValueChange = onTextoChange,
+        singleLine = true,
+        shape = RoundedCornerShape(10.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = Color(0xFFD9D9D9),
+            unfocusedContainerColor = Color(0xFFD9D9D9),
+            focusedBorderColor = if (seleccionada) Color(0xFF19B51F) else Color.Transparent,
+            unfocusedBorderColor = if (seleccionada) Color(0xFF19B51F) else Color.Transparent
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    )
 }
 
 @Composable
@@ -623,11 +900,15 @@ fun InfoCard(texto: String) {
 }
 
 @Composable
-fun ActionBox(texto: String) {
+fun ActionBox(
+    texto: String,
+    onClick: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ActionBoxColor)
+            .background(ActionBoxColor, RoundedCornerShape(4.dp))
+            .clickable { onClick() }
             .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         Text(
