@@ -61,6 +61,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import com.conference.deis.network.model.CreateQuestionRequest
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -616,15 +617,19 @@ fun AdminHomeScreen(navController: NavHostController) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrearPreguntaScreen(navController: NavHostController) {
-    var categoria by remember { mutableStateOf("") }
-    var enunciado by remember { mutableStateOf("Enunciado1") }
-    var opcionA by remember { mutableStateOf("A) Ra") }
-    var opcionB by remember { mutableStateOf("A) Rb") }
-    var opcionC by remember { mutableStateOf("A) Rc") }
-    var opcionD by remember { mutableStateOf("A) Rd") }
-    var explicacion by remember { mutableStateOf("Ejemplo explicacion") }
-    var dificultadSeleccionada by remember { mutableStateOf("Facil") }
-    var opcionCorrecta by remember { mutableStateOf("A") }
+    var categoriaSeleccionada by remember { mutableStateOf("") }
+    var enunciado by remember { mutableStateOf("") }
+    var opcionA by remember { mutableStateOf("") }
+    var opcionB by remember { mutableStateOf("") }
+    var opcionC by remember { mutableStateOf("") }
+    var opcionD by remember { mutableStateOf("") }
+    var explicacion by remember { mutableStateOf("") }
+    var dificultadSeleccionada by remember { mutableStateOf("") }
+    var indiceCorrecta by remember { mutableStateOf(-1) }
+    var cargando by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -689,11 +694,43 @@ fun CrearPreguntaScreen(navController: NavHostController) {
             Text("Categoria", fontSize = 14.sp, color = Color.Black)
             Spacer(modifier = Modifier.height(8.dp))
 
-            CampoGris(
-                valor = categoria,
-                placeholder = "Seleccionar categoria",
-                onValueChange = { categoria = it }
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                BotonCategoria(
+                    texto = "Matematicas",
+                    seleccionado = categoriaSeleccionada == "Matematicas",
+                    onClick = { categoriaSeleccionada = "Matematicas" },
+                    modifier = Modifier.weight(1f)
+                )
+                BotonCategoria(
+                    texto = "Fisica",
+                    seleccionado = categoriaSeleccionada == "Fisica",
+                    onClick = { categoriaSeleccionada = "Fisica" },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                BotonCategoria(
+                    texto = "Quimica",
+                    seleccionado = categoriaSeleccionada == "Quimica",
+                    onClick = { categoriaSeleccionada = "Quimica" },
+                    modifier = Modifier.weight(1f)
+                )
+                BotonCategoria(
+                    texto = "Biologia",
+                    seleccionado = categoriaSeleccionada == "Biologia",
+                    onClick = { categoriaSeleccionada = "Biologia" },
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -706,20 +743,20 @@ fun CrearPreguntaScreen(navController: NavHostController) {
             ) {
                 BotonDificultad(
                     texto = "Facil",
-                    seleccionado = dificultadSeleccionada == "Facil",
-                    onClick = { dificultadSeleccionada = "Facil" },
+                    seleccionado = dificultadSeleccionada == "FACIL",
+                    onClick = { dificultadSeleccionada = "FACIL" },
                     modifier = Modifier.weight(1f)
                 )
                 BotonDificultad(
                     texto = "Medio",
-                    seleccionado = dificultadSeleccionada == "Medio",
-                    onClick = { dificultadSeleccionada = "Medio" },
+                    seleccionado = dificultadSeleccionada == "MEDIO",
+                    onClick = { dificultadSeleccionada = "MEDIO" },
                     modifier = Modifier.weight(1f)
                 )
                 BotonDificultad(
                     texto = "Dificil",
-                    seleccionado = dificultadSeleccionada == "Dificil",
-                    onClick = { dificultadSeleccionada = "Dificil" },
+                    seleccionado = dificultadSeleccionada == "DIFICIL",
+                    onClick = { dificultadSeleccionada = "DIFICIL" },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -731,7 +768,7 @@ fun CrearPreguntaScreen(navController: NavHostController) {
 
             CampoGris(
                 valor = enunciado,
-                placeholder = "Enunciado",
+                placeholder = "Escribe el enunciado",
                 onValueChange = { enunciado = it }
             )
 
@@ -742,36 +779,36 @@ fun CrearPreguntaScreen(navController: NavHostController) {
 
             OpcionEditable(
                 texto = opcionA,
-                seleccionada = opcionCorrecta == "A",
+                seleccionada = indiceCorrecta == 0,
                 onTextoChange = { opcionA = it },
-                onClick = { opcionCorrecta = "A" }
+                onClick = { indiceCorrecta = 0 }
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
             OpcionEditable(
                 texto = opcionB,
-                seleccionada = opcionCorrecta == "B",
+                seleccionada = indiceCorrecta == 1,
                 onTextoChange = { opcionB = it },
-                onClick = { opcionCorrecta = "B" }
+                onClick = { indiceCorrecta = 1 }
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
             OpcionEditable(
                 texto = opcionC,
-                seleccionada = opcionCorrecta == "C",
+                seleccionada = indiceCorrecta == 2,
                 onTextoChange = { opcionC = it },
-                onClick = { opcionCorrecta = "C" }
+                onClick = { indiceCorrecta = 2 }
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
             OpcionEditable(
                 texto = opcionD,
-                seleccionada = opcionCorrecta == "D",
+                seleccionada = indiceCorrecta == 3,
                 onTextoChange = { opcionD = it },
-                onClick = { opcionCorrecta = "D" }
+                onClick = { indiceCorrecta = 3 }
             )
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -781,14 +818,86 @@ fun CrearPreguntaScreen(navController: NavHostController) {
 
             CampoGris(
                 valor = explicacion,
-                placeholder = "Ejemplo explicacion",
+                placeholder = "Escribe la explicacion",
                 onValueChange = { explicacion = it }
             )
 
             Spacer(modifier = Modifier.height(18.dp))
 
             Button(
-                onClick = { },
+                onClick = {
+                    if (categoriaSeleccionada.isBlank()) {
+                        Toast.makeText(context, "Selecciona una categoria", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    if (dificultadSeleccionada.isBlank()) {
+                        Toast.makeText(context, "Selecciona una dificultad", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    if (enunciado.isBlank()) {
+                        Toast.makeText(context, "El enunciado es obligatorio", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    if (opcionA.isBlank() || opcionB.isBlank() || opcionC.isBlank() || opcionD.isBlank()) {
+                        Toast.makeText(context, "Completa las 4 opciones", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    if (indiceCorrecta !in 0..3) {
+                        Toast.makeText(context, "Selecciona la opcion correcta", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    if (explicacion.isBlank()) {
+                        Toast.makeText(context, "La explicacion es obligatoria", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    scope.launch {
+                        cargando = true
+                        try {
+                            val request = CreateQuestionRequest(
+                                enunciado = enunciado.trim(),
+                                solucion = explicacion.trim(),
+                                dificultad = dificultadSeleccionada,
+                                categoria = categoriaSeleccionada,
+                                opciones = listOf(
+                                    opcionA.trim(),
+                                    opcionB.trim(),
+                                    opcionC.trim(),
+                                    opcionD.trim()
+                                ),
+                                indiceCorrecta = indiceCorrecta
+                            )
+
+                            val response = RetrofitInstance.api.crearPregunta(request)
+
+                            if (response.isSuccessful) {
+                                Toast.makeText(context, "Pregunta creada correctamente", Toast.LENGTH_SHORT).show()
+
+                                categoriaSeleccionada = ""
+                                dificultadSeleccionada = ""
+                                enunciado = ""
+                                opcionA = ""
+                                opcionB = ""
+                                opcionC = ""
+                                opcionD = ""
+                                explicacion = ""
+                                indiceCorrecta = -1
+                            } else {
+                                Toast.makeText(context, "No se pudo crear la pregunta", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "No se pudo conectar al servidor", Toast.LENGTH_SHORT).show()
+                        } finally {
+                            cargando = false
+                        }
+                    }
+                },
+                enabled = !cargando,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -798,11 +907,44 @@ fun CrearPreguntaScreen(navController: NavHostController) {
                     contentColor = Color.White
                 )
             ) {
-                Text("Guardar Pregunta", fontSize = 18.sp)
+                if (cargando) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Guardar Pregunta", fontSize = 18.sp)
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+}
+
+@Composable
+fun BotonCategoria(
+    texto: String,
+    seleccionado: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .background(
+                if (seleccionado) Color(0xFFB7A9A9) else Color(0xFFD9D9D9),
+                RoundedCornerShape(10.dp)
+            )
+            .clickable { onClick() }
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = texto,
+            color = Color.Black,
+            fontSize = 13.sp
+        )
     }
 }
 
@@ -860,21 +1002,45 @@ fun OpcionEditable(
     onTextoChange: (String) -> Unit,
     onClick: () -> Unit
 ) {
-    OutlinedTextField(
-        value = texto,
-        onValueChange = onTextoChange,
-        singleLine = true,
-        shape = RoundedCornerShape(10.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = Color(0xFFD9D9D9),
-            unfocusedContainerColor = Color(0xFFD9D9D9),
-            focusedBorderColor = if (seleccionada) Color(0xFF19B51F) else Color.Transparent,
-            unfocusedBorderColor = if (seleccionada) Color(0xFF19B51F) else Color.Transparent
-        ),
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
-    )
+            .clickable { onClick() },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .background(
+                    if (seleccionada) Color(0xFF19B51F) else Color(0xFFD9D9D9),
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (seleccionada) {
+                Text(
+                    text = "✓",
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+            }
+        }
+
+        OutlinedTextField(
+            value = texto,
+            onValueChange = onTextoChange,
+            singleLine = true,
+            shape = RoundedCornerShape(10.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color(0xFFD9D9D9),
+                unfocusedContainerColor = Color(0xFFD9D9D9),
+                focusedBorderColor = if (seleccionada) Color(0xFF19B51F) else Color.Transparent,
+                unfocusedBorderColor = if (seleccionada) Color(0xFF19B51F) else Color.Transparent
+            ),
+            modifier = Modifier.weight(1f)
+        )
+    }
 }
 
 @Composable
