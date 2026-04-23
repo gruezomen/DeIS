@@ -28,4 +28,23 @@ class PreguntaController(
             )
         }
     }
+
+    @PutMapping("/{id}")
+    fun actualizarPregunta(
+        @PathVariable id: String,
+        @RequestBody request: CrearPreguntaRequest
+    ): ResponseEntity<Any> {
+        return try {
+            val preguntaActualizada = preguntaService.actualizarPregunta(id, request)
+            ResponseEntity.ok(preguntaActualizada)
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(
+                mapOf("mensaje" to (e.message ?: "Datos invalidos"))
+            )
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                mapOf("mensaje" to "Error interno al actualizar la pregunta")
+            )
+        }
+    }
 }
