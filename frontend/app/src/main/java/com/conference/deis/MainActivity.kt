@@ -53,16 +53,25 @@ fun DeISApp() {
                 composable("crear_pregunta") {
                     CrearPreguntaScreen(navController)
                 }
-                composable("editar_pregunta/{id}") { backStackEntry ->
-                    val id = backStackEntry.arguments?.getString("id")
-                    // Aquí normalmente recuperarías la pregunta de una base de datos local o estado global
-                    // Por ahora, la pantalla está lista para recibir los datos iniciales
-                    CrearPreguntaScreen(
-                        navController = navController,
-                        preguntaId = id
-                        // Los demás datos (enunciadoInicial, etc.) se pasarían aquí
-                    )
-                }
+               composable("editar_pregunta/{id}") { backStackEntry ->
+    val id = backStackEntry.arguments?.getString("id")
+
+    CrearPreguntaScreen(
+        navController = navController,
+        preguntaId = id
+    )
+}
+
+composable("organizar_pregunta/{id}") { backStackEntry ->
+    val id = backStackEntry.arguments?.getString("id")
+
+    if (id != null) {
+        OrganizarPreguntaScreen(
+            navController = navController,
+            preguntaId = id
+        )
+    }
+}
             }
         }
     }

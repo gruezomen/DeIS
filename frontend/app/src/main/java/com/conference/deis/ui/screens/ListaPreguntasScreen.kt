@@ -79,12 +79,9 @@ fun ListaPreguntasScreen(navController: NavHostController) {
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(preguntas) { pregunta ->
-                        CardPregunta(pregunta) {
-                            // Al hacer clic, navegamos a editar pasando los datos
-                            // Por simplicidad en la navegación, pasamos el ID 
-                            // En una app real, podrías pasar el objeto o recuperarlo por ID
-                            navController.navigate("editar_pregunta/${pregunta.id}")
-                        }
+                      CardPregunta(pregunta) {
+                         navController.navigate("organizar_pregunta/${pregunta.id}")
+                          }
                     }
                 }
             }
@@ -123,4 +120,5 @@ fun CardPregunta(pregunta: Question, onClick: () -> Unit) {
             )
         }
     }
+
 }
