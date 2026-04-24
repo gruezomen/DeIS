@@ -42,10 +42,90 @@ fun CrearPreguntaScreen(
     var indiceCorrecta by remember { mutableStateOf(-1) }
     var cargando by remember { mutableStateOf(false) }
     var cargandoDatos by remember { mutableStateOf(preguntaId != null) }
+    var mostrarDialogoConfirmacion by remember { mutableStateOf(false) }
 
     val esEdicion = preguntaId != null
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    // Función para ejecutar la actualización/creación
+    val ejecutarAccion = {
+        scope.launch {
+            cargando = true
+            try {
+                val request = CreateQuestionRequest(
+                    enunciado = enunciado.trim(),
+                    solucion = explicacion.trim(),
+                    dificultad = dificultadSeleccionada,
+                    categoria = categoriaSeleccionada,
+                    opciones = listOf(
+                        opcionA.trim(),
+                        opcionB.trim(),
+                        opcionC.trim(),
+                        opcionD.trim()
+                    ),
+                    indiceCorrecta = indiceCorrecta
+                )
+
+                val response = if (esEdicion) {
+                    RetrofitInstance.api.actualizarPregunta(preguntaId!!, request)
+                } else {
+                    RetrofitInstance.api.crearPregunta(request)
+                }
+
+                if (response.isSuccessful) {
+                    val mensaje = if (esEdicion) "Pregunta actualizada" else "Pregunta creada"
+                    Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
+
+                    if (esEdicion) {
+                        navController.popBackStack()
+                    } else {
+                        categoriaSeleccionada = ""
+                        dificultadSeleccionada = ""
+                        enunciado = ""
+                        opcionA = ""
+                        opcionB = ""
+                        opcionC = ""
+                        opcionD = ""
+                        explicacion = ""
+                        indiceCorrecta = -1
+                    }
+                } else {
+                    Toast.makeText(context, "Error en el servidor", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "No se pudo conectar al servidor", Toast.LENGTH_SHORT).show()
+            } finally {
+                cargando = false
+            }
+        }
+    }
+
+    if (mostrarDialogoConfirmacion) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoConfirmacion = false },
+            title = { Text("Confirmar actualización") },
+            text = { Text("¿Estás seguro de que deseas guardar los cambios realizados en esta pregunta?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        mostrarDialogoConfirmacion = false
+                        ejecutarAccion()
+                    }
+                ) {
+                    Text("Confirmar", color = BlueBackground)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoConfirmacion = false }) {
+                    Text("Cancelar", color = Color.Gray)
+                }
+            },
+            containerColor = Color.White,
+            titleContentColor = Color.Black,
+            textContentColor = Color.DarkGray
+        )
+    }
 
     // Cargar datos si es edición
     LaunchedEffect(preguntaId) {
@@ -310,54 +390,10 @@ fun CrearPreguntaScreen(
                             return@Button
                         }
 
-                        scope.launch {
-                            cargando = true
-                            try {
-                                val request = CreateQuestionRequest(
-                                    enunciado = enunciado.trim(),
-                                    solucion = explicacion.trim(),
-                                    dificultad = dificultadSeleccionada,
-                                    categoria = categoriaSeleccionada,
-                                    opciones = listOf(
-                                        opcionA.trim(),
-                                        opcionB.trim(),
-                                        opcionC.trim(),
-                                        opcionD.trim()
-                                    ),
-                                    indiceCorrecta = indiceCorrecta
-                                )
-
-                                val response = if (esEdicion) {
-                                    RetrofitInstance.api.actualizarPregunta(preguntaId!!, request)
-                                } else {
-                                    RetrofitInstance.api.crearPregunta(request)
-                                }
-
-                                if (response.isSuccessful) {
-                                    val mensaje = if (esEdicion) "Pregunta actualizada" else "Pregunta creada"
-                                    Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
-
-                                    if (esEdicion) {
-                                        navController.popBackStack()
-                                    } else {
-                                        categoriaSeleccionada = ""
-                                        dificultadSeleccionada = ""
-                                        enunciado = ""
-                                        opcionA = ""
-                                        opcionB = ""
-                                        opcionC = ""
-                                        opcionD = ""
-                                        explicacion = ""
-                                        indiceCorrecta = -1
-                                    }
-                                } else {
-                                    Toast.makeText(context, "Error en el servidor", Toast.LENGTH_SHORT).show()
-                                }
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "No se pudo conectar al servidor", Toast.LENGTH_SHORT).show()
-                            } finally {
-                                cargando = false
-                            }
+                        if (esEdicion) {
+                            mostrarDialogoConfirmacion = true
+                        } else {
+                            ejecutarAccion()
                         }
                     },
                     enabled = !cargando,
