@@ -43,6 +43,42 @@ class PreguntaService(
         return preguntaRepository.save(pregunta)
     }
 
+    fun obtenerTodasLasPreguntas(): List<Pregunta> {
+        return preguntaRepository.findAll()
+    }
+
+    fun obtenerPreguntaPorId(id: String): Pregunta {
+        return preguntaRepository.findById(id).orElseThrow {
+            IllegalArgumentException("Pregunta no encontrada")
+        }
+    }
+
+    fun actualizarPregunta(id: String, request: CrearPreguntaRequest): Pregunta {
+        val preguntaExistente = preguntaRepository.findById(id).orElseThrow {
+            IllegalArgumentException("Pregunta no encontrada")
+        }
+
+        validarRequest(request)
+
+        val preguntaActualizada = preguntaExistente.copy(
+            enunciado = request.enunciado.trim(),
+            solucion = request.solucion.trim(),
+            dificultad = Dificultad.valueOf(request.dificultad.trim().uppercase()),
+            categoria = Categoria(
+                nombre = request.categoria.trim(),
+                descripcion = ""
+            ),
+            opciones = request.opciones.mapIndexed { index, texto ->
+                Opcion(
+                    texto = texto.trim(),
+                    esCorrecta = index == request.indiceCorrecta
+                )
+            }
+        )
+
+        return preguntaRepository.save(preguntaActualizada)
+    }
+
     private fun validarRequest(request: CrearPreguntaRequest) {
         if (request.enunciado.isBlank()) {
             throw IllegalArgumentException("El enunciado es obligatorio")
