@@ -1,5 +1,7 @@
 package com.conference.deis.ui.screens
 
+import com.conference.deis.network.model.AsociarPreguntaBancoRequest
+import com.conference.deis.network.model.BancoPregunta
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -36,6 +38,8 @@ fun OrganizarPreguntaScreen(
     var categoriaSeleccionada by remember { mutableStateOf("") }
     var cargandoDatos by remember { mutableStateOf(true) }
     var guardando by remember { mutableStateOf(false) }
+    var bancosPregunta by remember { mutableStateOf<List<BancoPregunta>>(emptyList()) }
+    var bancoSeleccionadoId by remember { mutableStateOf("") }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -50,6 +54,13 @@ fun OrganizarPreguntaScreen(
                 categoriaSeleccionada = preguntaCargada.categoria.nombre
             } else {
                 Toast.makeText(context, "No se pudo cargar la pregunta", Toast.LENGTH_SHORT).show()
+            }
+            val bancosResponse = RetrofitInstance.api.obtenerBancosPreguntas()
+
+            if (bancosResponse.isSuccessful) {
+                bancosPregunta = bancosResponse.body() ?: emptyList()
+            } else {
+                  Toast.makeText(context, "No se pudieron cargar los bancos de preguntas", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
@@ -96,6 +107,36 @@ fun OrganizarPreguntaScreen(
             }
         }
     }
+    
+     fun asociarABanco() {
+       if (bancoSeleccionadoId.isBlank()) {
+           Toast.makeText(context, "Selecciona un banco de preguntas", Toast.LENGTH_SHORT).show()
+           return
+        }
+
+        scope.launch {
+           guardando = true
+
+           try {
+               val response = RetrofitInstance.api.asociarPreguntaABanco(
+                   preguntaId,
+                   AsociarPreguntaBancoRequest(
+                      bancoPreguntaId = bancoSeleccionadoId
+                    )
+                )
+
+                 if (response.isSuccessful) {
+                   Toast.makeText(context, "Pregunta asociada al banco correctamente", Toast.LENGTH_SHORT).show()
+                   } else {
+                     Toast.makeText(context, "No se pudo asociar la pregunta al banco", Toast.LENGTH_SHORT).show()
+                   }
+                   } catch (e: Exception) {
+                     Toast.makeText(context, "Error al asociar la pregunta al banco", Toast.LENGTH_SHORT).show()
+                 } finally {
+                     guardando = false
+                }
+            }
+         }
 
     Scaffold(
         topBar = {
@@ -268,6 +309,82 @@ fun OrganizarPreguntaScreen(
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
+                    
+                     Spacer(modifier = Modifier.height(20.dp))
+
+Text(
+    text = "Asignar banco de preguntas",
+    fontSize = 16.sp,
+    color = Color.Black
+)
+
+Spacer(modifier = Modifier.height(10.dp))
+
+if (bancosPregunta.isEmpty()) {
+    Text(
+        text = "No hay bancos de preguntas disponibles",
+        fontSize = 13.sp,
+        color = Color.Gray
+    )
+} else {
+    bancosPregunta.forEach { banco ->
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            shape = RoundedCornerShape(10.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (bancoSeleccionadoId == banco.id) {
+                    Color(0xFFDDEBFF)
+                } else {
+                    Color(0xFFF2F2F2)
+                }
+            ),
+            onClick = {
+                bancoSeleccionadoId = banco.id
+            }
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Text(
+                    text = "Banco de preguntas",
+                    fontSize = 14.sp,
+                    color = Color.Black
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Facultad: ${banco.facultadId}",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+
+                Text(
+                    text = "Preguntas asociadas: ${banco.preguntaIds.size}",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+            }
+        }
+    }
+}
+
+Spacer(modifier = Modifier.height(12.dp))
+
+Button(
+    onClick = { asociarABanco() },
+    enabled = !guardando,
+    modifier = Modifier
+        .fillMaxWidth()
+        .height(52.dp),
+    shape = RoundedCornerShape(10.dp),
+    colors = ButtonDefaults.buttonColors(
+        containerColor = BlueBackground,
+        contentColor = Color.White
+    )
+) {
+    Text("Asociar a banco", fontSize = 18.sp)
+}
 
                     Button(
                         onClick = { guardarCategoria() },

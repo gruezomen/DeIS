@@ -1,5 +1,6 @@
 package com.deis.backend.controller
 
+import com.deis.backend.dto.AsociarPreguntaBancoRequest
 import com.deis.backend.dto.CrearPreguntaRequest
 import com.deis.backend.model.Pregunta
 import com.deis.backend.service.PreguntaService
@@ -64,4 +65,29 @@ class PreguntaController(
             )
         }
     }
+
+    @PatchMapping("/{id}/banco")
+    fun asociarPreguntaABanco(
+       @PathVariable id: String,
+       @RequestBody request: AsociarPreguntaBancoRequest
+       ): ResponseEntity<Any> {
+          return try {
+            val pregunta = preguntaService.asociarPreguntaABanco(id, request.bancoPreguntaId)
+
+        ResponseEntity.ok(
+            mapOf(
+                "mensaje" to "Pregunta asociada al banco correctamente",
+                "pregunta" to pregunta
+            )
+        )
+          } catch (e: IllegalArgumentException) {
+               ResponseEntity.badRequest().body(
+            mapOf("mensaje" to (e.message ?: "Datos invalidos"))
+         )
+    } catch (e: Exception) {
+        ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+            mapOf("mensaje" to "Error interno al asociar la pregunta al banco")
+        )
+    }
+  }
 }
