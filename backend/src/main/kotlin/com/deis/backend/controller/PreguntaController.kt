@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
-@RequestMapping("/preguntas")
+@RequestMapping("/api/preguntas")
 class PreguntaController(
     private val preguntaService: PreguntaService
 ) {
@@ -25,6 +25,23 @@ class PreguntaController(
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 mapOf("mensaje" to "Error interno al crear la pregunta")
+            )
+        }
+    }
+
+    @GetMapping
+    fun obtenerTodasLasPreguntas(): ResponseEntity<List<Pregunta>> {
+        return ResponseEntity.ok(preguntaService.obtenerTodasLasPreguntas())
+    }
+
+    @GetMapping("/{id}")
+    fun obtenerPreguntaPorId(@PathVariable("id") id: String): ResponseEntity<Any> {
+        return try {
+            val pregunta = preguntaService.obtenerPreguntaPorId(id)
+            ResponseEntity.ok(pregunta)
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                mapOf("mensaje" to "Pregunta no encontrada")
             )
         }
     }

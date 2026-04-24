@@ -1,14 +1,8 @@
 package com.conference.deis.network
 
-import com.conference.deis.network.model.LoginRequest
-import com.conference.deis.network.model.LoginResponse
-import com.conference.deis.network.model.RegisterRequest
-import com.conference.deis.network.model.RegisterResponse
-import com.conference.deis.network.model.CreateQuestionRequest
-import com.conference.deis.network.model.CreateQuestionResponse
+import com.conference.deis.network.model.*
 import retrofit2.Response
-import retrofit2.http.Body
-import retrofit2.http.POST
+import retrofit2.http.*
 
 interface ApiService {
 
@@ -22,8 +16,20 @@ interface ApiService {
         @Body request: LoginRequest
     ): Response<LoginResponse>
 
-    @POST("preguntas")
+    @POST("api/preguntas")
     suspend fun crearPregunta(
+        @Body request: CreateQuestionRequest
+    ): Response<CreateQuestionResponse>
+
+    @GET("api/preguntas")
+    suspend fun obtenerPreguntas(): Response<List<Question>>
+
+    @GET("api/preguntas/{id}")
+    suspend fun obtenerPreguntaPorId(@Path("id") id: String): Response<Question>
+
+    @PUT("api/preguntas/{id}")
+    suspend fun actualizarPregunta(
+        @Path("id") id: String,
         @Body request: CreateQuestionRequest
     ): Response<CreateQuestionResponse>
 }

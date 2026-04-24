@@ -43,9 +43,19 @@ class PreguntaService(
         return preguntaRepository.save(pregunta)
     }
 
+    fun obtenerTodasLasPreguntas(): List<Pregunta> {
+        return preguntaRepository.findAll()
+    }
+
+    fun obtenerPreguntaPorId(id: String): Pregunta {
+        return preguntaRepository.findById(id).orElseThrow {
+            IllegalArgumentException("Pregunta no encontrada")
+        }
+    }
+
     fun actualizarPregunta(id: String, request: CrearPreguntaRequest): Pregunta {
         val preguntaExistente = preguntaRepository.findById(id).orElseThrow {
-            IllegalArgumentException("No se encontró la pregunta con ID: $id")
+            IllegalArgumentException("Pregunta no encontrada")
         }
 
         validarRequest(request)
