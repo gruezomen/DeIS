@@ -40,6 +40,8 @@ fun OrganizarPreguntaScreen(
     var guardando by remember { mutableStateOf(false) }
     var bancosPregunta by remember { mutableStateOf<List<BancoPregunta>>(emptyList()) }
     var bancoSeleccionadoId by remember { mutableStateOf("") }
+    var mostrarConfirmacion by remember { mutableStateOf(false) }
+    var mensajeConfirmacion by remember { mutableStateOf("") }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -126,10 +128,11 @@ fun OrganizarPreguntaScreen(
                 )
 
                  if (response.isSuccessful) {
-                   Toast.makeText(context, "Pregunta asociada al banco correctamente", Toast.LENGTH_SHORT).show()
-                   } else {
-                     Toast.makeText(context, "No se pudo asociar la pregunta al banco", Toast.LENGTH_SHORT).show()
-                   }
+                   mensajeConfirmacion = "La categoría fue asignada correctamente a la pregunta."
+                   mostrarConfirmacion = true
+                 } else {
+                    Toast.makeText(context, "No se pudo asignar la categoría", Toast.LENGTH_SHORT).show()
+                 }
                    } catch (e: Exception) {
                      Toast.makeText(context, "Error al asociar la pregunta al banco", Toast.LENGTH_SHORT).show()
                  } finally {
@@ -137,6 +140,33 @@ fun OrganizarPreguntaScreen(
                 }
             }
          }
+         if (mostrarConfirmacion) {
+              AlertDialog(
+                onDismissRequest = {
+                  mostrarConfirmacion = false
+                   navController.popBackStack()
+               },
+               title = {
+               Text("Organización completada")
+               },
+               text = {
+                  Text(mensajeConfirmacion)
+                },
+                confirmButton = {
+                   TextButton(
+                   onClick = {
+                      mostrarConfirmacion = false
+                      navController.popBackStack()
+                }
+                ) {
+                   Text("Aceptar", color = BlueBackground)
+                  }
+                },
+                     containerColor = Color.White,
+                     titleContentColor = Color.Black,
+                     textContentColor = Color.DarkGray
+                   )
+               }
 
     Scaffold(
         topBar = {
