@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 fun ListaPreguntasScreen(navController: NavHostController) {
     var preguntas by remember { mutableStateOf<List<Question>>(emptyList()) }
     var cargando by remember { mutableStateOf(true) }
+
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -34,6 +35,7 @@ fun ListaPreguntasScreen(navController: NavHostController) {
         scope.launch {
             try {
                 val response = RetrofitInstance.api.obtenerPreguntas()
+
                 if (response.isSuccessful) {
                     preguntas = response.body() ?: emptyList()
                 } else {
@@ -64,24 +66,36 @@ fun ListaPreguntasScreen(navController: NavHostController) {
                 .padding(paddingValues)
                 .background(Color.White)
         ) {
-            if (cargando) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (preguntas.isEmpty()) {
-                Text(
-                    text = "No hay preguntas registradas",
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color.Gray
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(preguntas) { pregunta ->
-                      CardPregunta(pregunta) {
-                         navController.navigate("organizar_pregunta/${pregunta.id}")
-                          }
+            when {
+                cargando -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+
+                preguntas.isEmpty() -> {
+                    Text(
+                        text = "No hay preguntas registradas",
+                        modifier = Modifier.align(Alignment.Center),
+                        color = Color.Gray
+                    )
+                }
+
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(preguntas) { pregunta ->
+                            CardPregunta(
+                                pregunta = pregunta,
+                                onEditarClick = {
+                                    navController.navigate("editar_pregunta/${pregunta.id}")
+                                },
+                                onOrganizarClick = {
+                                    navController.navigate("organizar_pregunta/${pregunta.id}")
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -90,11 +104,15 @@ fun ListaPreguntasScreen(navController: NavHostController) {
 }
 
 @Composable
-fun CardPregunta(pregunta: Question, onClick: () -> Unit) {
+fun CardPregunta(
+    pregunta: Question,
+    onEditarClick: () -> Unit,
+    onOrganizarClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable { onEditarClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = FieldBackground)
     ) {
@@ -103,22 +121,54 @@ fun CardPregunta(pregunta: Question, onClick: () -> Unit) {
                 text = pregunta.categoria.nombre,
                 fontSize = 12.sp,
                 color = BlueBackground,
-                modifier = Modifier.background(Color.White, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp)
+                modifier = Modifier
+                    .background(Color.White, RoundedCornerShape(4.dp))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
             )
+
             Spacer(modifier = Modifier.height(8.dp))
+
             Text(
                 text = pregunta.enunciado,
                 fontSize = 14.sp,
                 color = Color.Black,
                 maxLines = 2
             )
+
             Spacer(modifier = Modifier.height(4.dp))
+
             Text(
                 text = "Dificultad: ${pregunta.dificultad}",
                 fontSize = 11.sp,
                 color = Color.Gray
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onOrganizarClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Organizar banco", fontSize = 12.sp)
+                }
+
+                Button(
+                    onClick = onEditarClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BlueBackground,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Editar categoría", fontSize = 12.sp)
+                }
+            }
         }
     }
-
 }

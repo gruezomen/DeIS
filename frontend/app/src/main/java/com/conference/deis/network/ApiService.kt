@@ -6,7 +6,7 @@ import retrofit2.http.*
 
 interface ApiService {
 
-    @POST("api/usuarios/registro")
+   @POST("api/usuarios/registro")
     suspend fun registrarUsuario(
         @Body request: RegisterRequest
     ): Response<RegisterResponse>
@@ -25,7 +25,9 @@ interface ApiService {
     suspend fun obtenerPreguntas(): Response<List<Question>>
 
     @GET("api/preguntas/{id}")
-    suspend fun obtenerPreguntaPorId(@Path("id") id: String): Response<Question>
+    suspend fun obtenerPreguntaPorId(
+        @Path("id") id: String
+    ): Response<Question>
 
     @PUT("api/preguntas/{id}")
     suspend fun actualizarPregunta(
@@ -38,7 +40,8 @@ interface ApiService {
 
     @PATCH("api/preguntas/{id}/banco")
     suspend fun asociarPreguntaABanco(
-    @Path("id") id: String,
-    @Body request: AsociarPreguntaBancoRequest
+        @Path("id") id: String,
+        @Body request: AsociarPreguntaBancoRequest
     ): Response<Map<String, Any>>
+
 }

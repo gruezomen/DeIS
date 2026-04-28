@@ -1,11 +1,11 @@
 package com.deis.backend.service
 
-import com.deis.backend.repository.BancoPreguntaRepository
 import com.deis.backend.dto.CrearPreguntaRequest
 import com.deis.backend.model.Categoria
 import com.deis.backend.model.Dificultad
 import com.deis.backend.model.Opcion
 import com.deis.backend.model.Pregunta
+import com.deis.backend.repository.BancoPreguntaRepository
 import com.deis.backend.repository.PreguntaRepository
 import org.springframework.stereotype.Service
 
@@ -14,7 +14,6 @@ class PreguntaService(
     private val preguntaRepository: PreguntaRepository,
     private val bancoPreguntaRepository: BancoPreguntaRepository
 ) {
-
     private val categoriasPermitidas = setOf(
         "Matematicas",
         "Fisica",
@@ -81,6 +80,46 @@ class PreguntaService(
         return preguntaRepository.save(preguntaActualizada)
     }
 
+    fun asociarPreguntaABanco(preguntaId: String, bancoPreguntaId: String): Pregunta {
+        if (preguntaId.isBlank()) {
+            throw IllegalArgumentException("El id de la pregunta es obligatorio")
+        }
+
+        if (bancoPreguntaId.isBlank()) {
+            throw IllegalArgumentException("El id del banco de preguntas es obligatorio")
+        }
+
+        val pregunta = preguntaRepository.findById(preguntaId).orElseThrow {
+            IllegalArgumentException("Pregunta no encontrada")
+        }
+
+        val bancoSeleccionado = bancoPreguntaRepository.findById(bancoPreguntaId).orElseThrow {
+            IllegalArgumentException("Banco de preguntas no encontrado")
+        }
+
+        bancoPreguntaRepository.findAll()
+            .filter { banco ->
+                banco.id != bancoPreguntaId && banco.preguntaIds.contains(preguntaId)
+            }
+            .forEach { banco ->
+                val bancoActualizado = banco.copy(
+                    preguntaIds = banco.preguntaIds.filterNot { id -> id == preguntaId }
+                )
+
+                bancoPreguntaRepository.save(bancoActualizado)
+            }
+
+        if (!bancoSeleccionado.preguntaIds.contains(preguntaId)) {
+            val bancoActualizado = bancoSeleccionado.copy(
+                preguntaIds = bancoSeleccionado.preguntaIds + preguntaId
+            )
+
+            bancoPreguntaRepository.save(bancoActualizado)
+        }
+
+        return pregunta
+    }
+
     private fun validarRequest(request: CrearPreguntaRequest) {
         if (request.enunciado.isBlank()) {
             throw IllegalArgumentException("El enunciado es obligatorio")
@@ -117,32 +156,4 @@ class PreguntaService(
             throw IllegalArgumentException("La opcion correcta no es valida")
         }
     }
-    
-    fun asociarPreguntaABanco(preguntaId: String, bancoPreguntaId: String): Pregunta {
-    if (preguntaId.isBlank()) {
-        throw IllegalArgumentException("El id de la pregunta es obligatorio")
-    }
-
-    if (bancoPreguntaId.isBlank()) {
-        throw IllegalArgumentException("El id del banco de preguntas es obligatorio")
-    }
-
-    val pregunta = preguntaRepository.findById(preguntaId).orElseThrow {
-        IllegalArgumentException("Pregunta no encontrada")
-    }
-
-    val banco = bancoPreguntaRepository.findById(bancoPreguntaId).orElseThrow {
-        IllegalArgumentException("Banco de preguntas no encontrado")
-    }
-
-    if (!banco.preguntaIds.contains(preguntaId)) {
-        val bancoActualizado = banco.copy(
-            preguntaIds = banco.preguntaIds + preguntaId
-        )
-
-        bancoPreguntaRepository.save(bancoActualizado)
-    }
-
-    return pregunta
-}
 }
