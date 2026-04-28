@@ -32,4 +32,13 @@ interface ApiService {
         @Path("id") id: String,
         @Body request: CreateQuestionRequest
     ): Response<CreateQuestionResponse>
+
+    @GET("api/bancos-preguntas")
+    suspend fun obtenerBancosPreguntas(): Response<List<BancoPregunta>>
+
+    @PATCH("api/preguntas/{id}/banco")
+    suspend fun asociarPreguntaABanco(
+    @Path("id") id: String,
+    @Body request: AsociarPreguntaBancoRequest
+    ): Response<Map<String, Any>>
 }
