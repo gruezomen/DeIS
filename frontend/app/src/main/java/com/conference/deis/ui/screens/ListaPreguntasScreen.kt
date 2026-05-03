@@ -17,47 +17,65 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.conference.deis.network.RetrofitInstance
-import com.conference.deis.network.model.Question
+import com.conference.deis.network.model.BancoPregunta
 import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListaPreguntasScreen(navController: NavHostController) {
-    var preguntas by remember { mutableStateOf<List<Question>>(emptyList()) }
+    var bancos by remember { mutableStateOf<List<BancoPregunta>>(emptyList()) }
     var cargando by remember { mutableStateOf(true) }
 
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        scope.launch {
-            try {
-                val response = RetrofitInstance.api.obtenerPreguntas()
+        try {
+            val response = RetrofitInstance.api.obtenerBancosPreguntas()
 
-                if (response.isSuccessful) {
-                    preguntas = response.body() ?: emptyList()
-                } else {
-                    Toast.makeText(context, "Error al cargar preguntas", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
-            } finally {
-                cargando = false
+            if (response.isSuccessful) {
+                bancos = response.body() ?: emptyList()
+            } else {
+                Toast.makeText(context, "Error al cargar bancos", Toast.LENGTH_SHORT).show()
             }
+        } catch (e: Exception) {
+            Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
+        } finally {
+            cargando = false
         }
     }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Lista de Preguntas") },
+                title = { Text("Bancos de preguntas") },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = BlueBackground,
                     titleContentColor = Color.White
                 )
             )
+        },
+        bottomBar = {
+            NavigationBar(containerColor = Color.White) {
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { navController.navigate("home") },
+                    icon = { },
+                    label = { Text("Inicio") }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { },
+                    icon = { },
+                    label = { Text("Simulacro") }
+                )
+                NavigationBarItem(
+                    selected = true,
+                    onClick = { },
+                    icon = { },
+                    label = { Text("Banco") }
+                )
+            }
         }
     ) { paddingValues ->
         Box(
@@ -68,12 +86,14 @@ fun ListaPreguntasScreen(navController: NavHostController) {
         ) {
             when {
                 cargando -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
                 }
 
-                preguntas.isEmpty() -> {
+                bancos.isEmpty() -> {
                     Text(
-                        text = "No hay preguntas registradas",
+                        text = "No hay bancos de preguntas registrados",
                         modifier = Modifier.align(Alignment.Center),
                         color = Color.Gray
                     )
@@ -85,14 +105,11 @@ fun ListaPreguntasScreen(navController: NavHostController) {
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(preguntas) { pregunta ->
-                            CardPregunta(
-                                pregunta = pregunta,
-                                onEditarClick = {
-                                    navController.navigate("editar_pregunta/${pregunta.id}")
-                                },
-                                onOrganizarClick = {
-                                    navController.navigate("organizar_pregunta/${pregunta.id}")
+                        items(bancos) { banco ->
+                            CardBancoPregunta(
+                                banco = banco,
+                                onClick = {
+                                    navController.navigate("detalle_banco/${banco.id}")
                                 }
                             )
                         }
@@ -104,71 +121,53 @@ fun ListaPreguntasScreen(navController: NavHostController) {
 }
 
 @Composable
-fun CardPregunta(
-    pregunta: Question,
-    onEditarClick: () -> Unit,
-    onOrganizarClick: () -> Unit
+fun CardBancoPregunta(
+    banco: BancoPregunta,
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onEditarClick() },
-        shape = RoundedCornerShape(8.dp),
+            .clickable { onClick() },
+        shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = FieldBackground)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
             Text(
-                text = pregunta.categoria.nombre,
-                fontSize = 12.sp,
-                color = BlueBackground,
-                modifier = Modifier
-                    .background(Color.White, RoundedCornerShape(4.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                text = "Banco de preguntas",
+                fontSize = 16.sp,
+                color = Color.Black
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "Facultad: ${banco.facultadId}",
+                fontSize = 13.sp,
+                color = Color.DarkGray
+            )
+
+            Text(
+                text = "Administrador: ${banco.administradorId}",
+                fontSize = 13.sp,
+                color = Color.DarkGray
+            )
+
+            Text(
+                text = "Preguntas asociadas: ${banco.preguntaIds.size}",
+                fontSize = 13.sp,
+                color = Color.DarkGray
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = pregunta.enunciado,
-                fontSize = 14.sp,
-                color = Color.Black,
-                maxLines = 2
+                text = "Ver detalle",
+                fontSize = 13.sp,
+                color = BlueBackground
             )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "Dificultad: ${pregunta.dificultad}",
-                fontSize = 11.sp,
-                color = Color.Gray
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onOrganizarClick,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Organizar banco", fontSize = 12.sp)
-                }
-
-                Button(
-                    onClick = onEditarClick,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = BlueBackground,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("Editar categoría", fontSize = 12.sp)
-                }
-            }
         }
     }
 }

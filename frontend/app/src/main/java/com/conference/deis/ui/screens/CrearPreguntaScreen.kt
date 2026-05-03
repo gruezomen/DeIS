@@ -24,6 +24,7 @@ import com.conference.deis.network.model.CreateQuestionRequest
 import com.conference.deis.ui.components.*
 import com.conference.deis.ui.theme.BlueBackground
 import kotlinx.coroutines.launch
+import com.conference.deis.network.model.AsociarPreguntaBancoRequest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +49,7 @@ fun CrearPreguntaScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    val bancoFcytId = "69f7c14f26a68699ef0504c0"
     // Función para ejecutar la actualización/creación
     val ejecutarAccion = {
         scope.launch {
@@ -74,23 +76,51 @@ fun CrearPreguntaScreen(
                 }
 
                 if (response.isSuccessful) {
-                    val mensaje = if (esEdicion) "Pregunta actualizada" else "Pregunta creada"
-                    Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
+                val preguntaCreada = response.body()
 
-                    if (esEdicion) {
-                        navController.popBackStack()
+                if (!esEdicion && preguntaCreada?.id != null) {
+                    val asociarResponse = RetrofitInstance.api.asociarPreguntaABanco(
+                        id = preguntaCreada.id,
+                        request = AsociarPreguntaBancoRequest(
+                            bancoPreguntaId = bancoFcytId
+                        )
+                    )
+
+                    if (asociarResponse.isSuccessful) {
+                        Toast.makeText(
+                            context,
+                            "Pregunta creada y asociada al banco FCYT",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     } else {
-                        categoriaSeleccionada = ""
-                        dificultadSeleccionada = ""
-                        enunciado = ""
-                        opcionA = ""
-                        opcionB = ""
-                        opcionC = ""
-                        opcionD = ""
-                        explicacion = ""
-                        indiceCorrecta = -1
+                        Toast.makeText(
+                            context,
+                            "Pregunta creada, pero no se pudo asociar al banco",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 } else {
+                    Toast.makeText(
+                        context,
+                        "Pregunta actualizada",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                if (esEdicion) {
+                    navController.popBackStack()
+                } else {
+                    categoriaSeleccionada = ""
+                    dificultadSeleccionada = ""
+                    enunciado = ""
+                    opcionA = ""
+                    opcionB = ""
+                    opcionC = ""
+                    opcionD = ""
+                    explicacion = ""
+                    indiceCorrecta = -1
+                }
+            } else {
                     Toast.makeText(context, "Error en el servidor", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
