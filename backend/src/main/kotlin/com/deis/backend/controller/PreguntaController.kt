@@ -90,4 +90,26 @@ class PreguntaController(
         )
     }
   }
+  @DeleteMapping("/{id}")
+    fun eliminarPregunta(@PathVariable id: String): ResponseEntity<Any> {
+        return try {
+            preguntaService.eliminarPregunta(id)
+
+            ResponseEntity.ok(
+                mapOf("mensaje" to "Pregunta eliminada correctamente")
+            )
+        } catch (e: NoSuchElementException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                mapOf("mensaje" to (e.message ?: "Pregunta no encontrada"))
+            )
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(
+                mapOf("mensaje" to (e.message ?: "Datos invalidos"))
+            )
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                mapOf("mensaje" to "Error interno al eliminar la pregunta")
+            )
+        }
+    }
 }

@@ -21,6 +21,28 @@ class PreguntaService(
         "Biologia"
     )
 
+    fun eliminarPregunta(id: String) {
+        if (id.isBlank()) {
+            throw IllegalArgumentException("El id de la pregunta es obligatorio")
+        }
+
+        if (!preguntaRepository.existsById(id)) {
+            throw NoSuchElementException("Pregunta no encontrada")
+        }
+
+        bancoPreguntaRepository.findAll()
+            .filter { banco -> banco.preguntaIds.contains(id) }
+            .forEach { banco ->
+                val bancoActualizado = banco.copy(
+                    preguntaIds = banco.preguntaIds.filterNot { preguntaId -> preguntaId == id }
+                )
+
+                bancoPreguntaRepository.save(bancoActualizado)
+            }
+
+        preguntaRepository.deleteById(id)
+    }
+
     fun crearPregunta(request: CrearPreguntaRequest): Pregunta {
         validarRequest(request)
 

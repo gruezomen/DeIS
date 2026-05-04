@@ -11,6 +11,11 @@ interface ApiService {
         @Body request: RegisterRequest
     ): Response<RegisterResponse>
 
+    @DELETE("api/preguntas/{id}")
+    suspend fun eliminarPregunta(
+        @Path("id") id: String
+    ): Response<Map<String, String>>
+
     @POST("api/usuarios/login")
     suspend fun iniciarSesion(
         @Body request: LoginRequest
