@@ -27,12 +27,16 @@ import kotlinx.coroutines.launch
 fun ListaPreguntasScreen(navController: NavHostController) {
     var preguntas by remember { mutableStateOf<List<Question>>(emptyList()) }
     var cargando by remember { mutableStateOf(true) }
+    var eliminando by remember { mutableStateOf(false) }
+    var preguntaAEliminar by remember { mutableStateOf<Question?>(null) }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    LaunchedEffect(Unit) {
+    fun cargarPreguntas() {
         scope.launch {
+            cargando = true
+
             try {
                 val response = RetrofitInstance.api.obtenerPreguntas()
 
@@ -49,10 +53,98 @@ fun ListaPreguntasScreen(navController: NavHostController) {
         }
     }
 
+    fun confirmarEliminacion(pregunta: Question) {
+        scope.launch {
+            eliminando = true
+
+            try {
+                val response = RetrofitInstance.api.eliminarPregunta(pregunta.id)
+
+                if (response.isSuccessful) {
+                    preguntas = preguntas.filterNot { it.id == pregunta.id }
+                    preguntaAEliminar = null
+                    Toast.makeText(
+                        context,
+                        "Pregunta eliminada correctamente",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else if (response.code() == 404) {
+                    preguntas = preguntas.filterNot { it.id == pregunta.id }
+                    preguntaAEliminar = null
+                    Toast.makeText(
+                        context,
+                        "La pregunta ya no existe",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        context,
+                        "No se pudo eliminar la pregunta",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    context,
+                    "Error de conexión al eliminar",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } finally {
+                eliminando = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        cargarPreguntas()
+    }
+
+    preguntaAEliminar?.let { pregunta ->
+        AlertDialog(
+            onDismissRequest = {
+                if (!eliminando) {
+                    preguntaAEliminar = null
+                }
+            },
+            title = {
+                Text("Confirmar eliminación")
+            },
+            text = {
+                Text("¿Seguro que deseas eliminar esta pregunta? Esta acción no se puede deshacer.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmarEliminacion(pregunta)
+                    },
+                    enabled = !eliminando,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Red,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(if (eliminando) "Eliminando..." else "Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        preguntaAEliminar = null
+                    },
+                    enabled = !eliminando
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Lista de Preguntas") },
+                title = {
+                    Text("Lista de Preguntas")
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = BlueBackground,
                     titleContentColor = Color.White
@@ -68,7 +160,9 @@ fun ListaPreguntasScreen(navController: NavHostController) {
         ) {
             when {
                 cargando -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
                 }
 
                 preguntas.isEmpty() -> {
@@ -93,6 +187,9 @@ fun ListaPreguntasScreen(navController: NavHostController) {
                                 },
                                 onOrganizarClick = {
                                     navController.navigate("organizar_pregunta/${pregunta.id}")
+                                },
+                                onEliminarClick = {
+                                    preguntaAEliminar = pregunta
                                 }
                             )
                         }
@@ -107,16 +204,23 @@ fun ListaPreguntasScreen(navController: NavHostController) {
 fun CardPregunta(
     pregunta: Question,
     onEditarClick: () -> Unit,
-    onOrganizarClick: () -> Unit
+    onOrganizarClick: () -> Unit,
+    onEliminarClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onEditarClick() },
+            .clickable {
+                onEditarClick()
+            },
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = FieldBackground)
+        colors = CardDefaults.cardColors(
+            containerColor = FieldBackground
+        )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
             Text(
                 text = pregunta.categoria.nombre,
                 fontSize = 12.sp,
@@ -168,6 +272,19 @@ fun CardPregunta(
                 ) {
                     Text("Editar categoría", fontSize = 12.sp)
                 }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedButton(
+                onClick = onEliminarClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color.Red
+                )
+            ) {
+                Text("Eliminar", fontSize = 12.sp)
             }
         }
     }
