@@ -37,16 +37,6 @@ interface ApiService {
 
     @GET("api/bancos-preguntas")
     suspend fun obtenerBancosPreguntas(): Response<List<BancoPregunta>>
-    
-    @GET("api/bancos-preguntas/{id}")
-    suspend fun obtenerBancoPreguntaPorId(
-        @Path("id") id: String
-    ): Response<BancoPregunta>
-
-    @GET("api/bancos-preguntas/{id}/preguntas")
-    suspend fun obtenerPreguntasDelBanco(
-        @Path("id") id: String
-    ): Response<List<Question>>
 
     @PATCH("api/preguntas/{id}/banco")
     suspend fun asociarPreguntaABanco(

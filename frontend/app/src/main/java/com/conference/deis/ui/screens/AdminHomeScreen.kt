@@ -66,7 +66,7 @@ fun AdminHomeScreen(navController: NavHostController) {
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { navController.navigate("lista_bancos") },
+                    onClick = { },
                     icon = { },
                     label = { Text("Banco") }
                 )
@@ -119,7 +119,7 @@ fun AdminHomeScreen(navController: NavHostController) {
 
             ActionBox(
                 texto = "Ver lista de banco de preguntas",
-                onClick = { navController.navigate("lista_bancos") }
+                onClick = { navController.navigate("lista_preguntas") }
             )
         }
     }

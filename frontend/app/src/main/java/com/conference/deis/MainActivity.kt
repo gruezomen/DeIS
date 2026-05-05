@@ -13,7 +13,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.conference.deis.ui.screens.*
 
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,27 +47,8 @@ fun DeISApp() {
                 composable("home") {
                     AdminHomeScreen(navController)
                 }
-
                 composable("lista_preguntas") {
                     ListaPreguntasScreen(navController)
-                }
-
-                composable("lista_bancos") {
-                    ListaPreguntasScreen(navController)
-                }
-
-                composable("detalle_banco/{id}") { backStackEntry ->
-                    val id = backStackEntry.arguments?.getString("id")
-
-                    if (id != null) {
-                        DetalleBancoScreen(
-                            navController = navController,
-                            bancoId = id
-                        )
-                    }
-                }
-                composable("crear_pregunta") {
-                    CrearPreguntaScreen(navController)
                 }
                 composable("crear_pregunta") {
                     CrearPreguntaScreen(navController)
