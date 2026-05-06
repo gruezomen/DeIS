@@ -41,12 +41,14 @@ import com.conference.deis.network.model.Option
 import com.conference.deis.network.model.Question
 import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResolverPreguntaScreen(navController: NavHostController) {
     var pregunta by remember { mutableStateOf<Question?>(null) }
     var cargando by remember { mutableStateOf(true) }
+    var opcionSeleccionadaIndex by remember { mutableStateOf<Int?>(null) }
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -112,7 +114,11 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
 
                 else -> {
                     PreguntaPracticaContenido(
-                        pregunta = pregunta!!
+                        pregunta = pregunta!!,
+                        opcionSeleccionadaIndex = opcionSeleccionadaIndex,
+                        onOpcionSeleccionada = { index ->
+                        opcionSeleccionadaIndex = index
+                      }
                     )
                 }
             }
@@ -121,7 +127,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
 }
 
 @Composable
-private fun PreguntaPracticaContenido(pregunta: Question) {
+private fun PreguntaPracticaContenido(pregunta: Question,opcionSeleccionadaIndex: Int?,onOpcionSeleccionada: (Int) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -186,7 +192,11 @@ private fun PreguntaPracticaContenido(pregunta: Question) {
             itemsIndexed(pregunta.opciones) { index, opcion ->
                 OpcionDisponibleItem(
                     index = index,
-                    opcion = opcion
+                    opcion = opcion,
+                    seleccionada = opcionSeleccionadaIndex == index,
+                    onClick = {
+                        onOpcionSeleccionada(index)
+                     }
                 )
             }
         }
@@ -196,20 +206,32 @@ private fun PreguntaPracticaContenido(pregunta: Question) {
 @Composable
 private fun OpcionDisponibleItem(
     index: Int,
-    opcion: Option
+    opcion: Option,
+    seleccionada: Boolean,
+    onClick: () -> Unit
 ) {
     val letra = ('A'.code + index).toChar()
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = if (seleccionada) FieldBackground else Color.White
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (seleccionada) 6.dp else 2.dp
+        )
     ) {
         Text(
-            text = "$letra. ${opcion.texto}",
+            text = if (seleccionada) {
+                "$letra. ${opcion.texto}  ✓"
+            } else {
+                "$letra. ${opcion.texto}"
+            },
             fontSize = 15.sp,
-            color = Color.Black,
+            color = if (seleccionada) BlueBackground else Color.Black,
             modifier = Modifier.padding(14.dp)
         )
     }
