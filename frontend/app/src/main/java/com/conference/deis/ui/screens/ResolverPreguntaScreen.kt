@@ -139,10 +139,14 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                             respuestaCorrecta = null
                          } else {
                                val opcionSeleccionada = preguntaActual.opciones[indiceSeleccionado]
-
+                               val esCorrecta = opcionSeleccionada.esCorrecta
                                respuestaCorrecta = opcionSeleccionada.esCorrecta
                                respuestaEnviada = true
-                               mensajeValidacion = "Respuesta enviada"
+                               mensajeValidacion = if (esCorrecta) {
+                                                       "Respuesta correcta"
+                                                         } else {
+                                                          "Respuesta enviada"
+                                                         }
                                 }
 
                     }
