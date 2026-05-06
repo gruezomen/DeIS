@@ -53,6 +53,9 @@ fun DeISApp() {
                 composable("crear_pregunta") {
                     CrearPreguntaScreen(navController)
                 }
+                composable("resolver_pregunta") {
+                 ResolverPreguntaScreen(navController)
+                }
                composable("editar_pregunta/{id}") { backStackEntry ->
     val id = backStackEntry.arguments?.getString("id")
 
