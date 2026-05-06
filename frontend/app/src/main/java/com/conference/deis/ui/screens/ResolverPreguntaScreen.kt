@@ -42,6 +42,8 @@ import com.conference.deis.network.model.Question
 import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +51,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
     var pregunta by remember { mutableStateOf<Question?>(null) }
     var cargando by remember { mutableStateOf(true) }
     var opcionSeleccionadaIndex by remember { mutableStateOf<Int?>(null) }
+    var mensajeValidacion by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -114,12 +117,19 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
 
                 else -> {
                     PreguntaPracticaContenido(
-                        pregunta = pregunta!!,
-                        opcionSeleccionadaIndex = opcionSeleccionadaIndex,
-                        onOpcionSeleccionada = { index ->
-                        opcionSeleccionadaIndex = index
-                      }
-                    )
+                    pregunta = pregunta!!,
+                    opcionSeleccionadaIndex = opcionSeleccionadaIndex,
+                    mensajeValidacion = mensajeValidacion,
+                    onOpcionSeleccionada = { index ->
+                    opcionSeleccionadaIndex = index
+                    mensajeValidacion = null
+                    },
+                    onEnviarRespuesta = {
+                         if (opcionSeleccionadaIndex == null) {
+                             mensajeValidacion = "Selecciona una opción antes de enviar tu respuesta"
+                            }
+                    }
+                )
                 }
             }
         }
@@ -127,7 +137,8 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
 }
 
 @Composable
-private fun PreguntaPracticaContenido(pregunta: Question,opcionSeleccionadaIndex: Int?,onOpcionSeleccionada: (Int) -> Unit) {
+private fun PreguntaPracticaContenido(pregunta: Question,opcionSeleccionadaIndex: Int?,
+mensajeValidacion: String?,onOpcionSeleccionada: (Int) -> Unit,onEnviarRespuesta: () -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -197,6 +208,28 @@ private fun PreguntaPracticaContenido(pregunta: Question,opcionSeleccionadaIndex
                     onClick = {
                         onOpcionSeleccionada(index)
                      }
+                )
+            }
+        }
+        item {
+            Button(
+                onClick = onEnviarRespuesta,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = BlueBackground,
+                    contentColor = Color.White
+                )
+            ) {
+                Text("Enviar respuesta")
+            }
+
+            if (mensajeValidacion != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = mensajeValidacion,
+                    color = Color.Red,
+                    fontSize = 13.sp
                 )
             }
         }
