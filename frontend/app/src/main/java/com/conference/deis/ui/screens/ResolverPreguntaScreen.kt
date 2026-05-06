@@ -52,6 +52,8 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
     var cargando by remember { mutableStateOf(true) }
     var opcionSeleccionadaIndex by remember { mutableStateOf<Int?>(null) }
     var mensajeValidacion by remember { mutableStateOf<String?>(null) }
+    var respuestaEnviada by remember { mutableStateOf(false) }
+    var respuestaCorrecta by remember { mutableStateOf<Boolean?>(null) }
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -116,18 +118,33 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                 }
 
                 else -> {
-                    PreguntaPracticaContenido(
-                    pregunta = pregunta!!,
-                    opcionSeleccionadaIndex = opcionSeleccionadaIndex,
-                    mensajeValidacion = mensajeValidacion,
-                    onOpcionSeleccionada = { index ->
-                    opcionSeleccionadaIndex = index
-                    mensajeValidacion = null
-                    },
+                   val preguntaActual = pregunta!!
+
+                   PreguntaPracticaContenido(
+                      pregunta = preguntaActual,
+                      opcionSeleccionadaIndex = opcionSeleccionadaIndex,
+                      mensajeValidacion = mensajeValidacion,
+                      respuestaEnviada = respuestaEnviada,
+                      onOpcionSeleccionada = { index ->
+                       opcionSeleccionadaIndex = index
+                       mensajeValidacion = null
+                       respuestaEnviada = false
+                       respuestaCorrecta = null
+                     },
                     onEnviarRespuesta = {
-                         if (opcionSeleccionadaIndex == null) {
-                             mensajeValidacion = "Selecciona una opción antes de enviar tu respuesta"
-                            }
+                        val indiceSeleccionado = opcionSeleccionadaIndex
+                         if (indiceSeleccionado == null) {
+                            mensajeValidacion = "Selecciona una opción antes de enviar tu respuesta"
+                            respuestaEnviada = false
+                            respuestaCorrecta = null
+                         } else {
+                               val opcionSeleccionada = preguntaActual.opciones[indiceSeleccionado]
+
+                               respuestaCorrecta = opcionSeleccionada.esCorrecta
+                               respuestaEnviada = true
+                               mensajeValidacion = "Respuesta enviada"
+                                }
+
                     }
                 )
                 }
@@ -137,8 +154,13 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
 }
 
 @Composable
-private fun PreguntaPracticaContenido(pregunta: Question,opcionSeleccionadaIndex: Int?,
-mensajeValidacion: String?,onOpcionSeleccionada: (Int) -> Unit,onEnviarRespuesta: () -> Unit) {
+private fun PreguntaPracticaContenido(
+    pregunta: Question,
+    opcionSeleccionadaIndex: Int?,
+    mensajeValidacion: String?,
+    respuestaEnviada: Boolean,
+    onOpcionSeleccionada: (Int) -> Unit,
+    onEnviarRespuesta: () -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -228,7 +250,7 @@ mensajeValidacion: String?,onOpcionSeleccionada: (Int) -> Unit,onEnviarRespuesta
 
                 Text(
                     text = mensajeValidacion,
-                    color = Color.Red,
+                    color = if (respuestaEnviada) BlueBackground else Color.Red,
                     fontSize = 13.sp
                 )
             }
