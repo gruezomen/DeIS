@@ -125,12 +125,14 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                       opcionSeleccionadaIndex = opcionSeleccionadaIndex,
                       mensajeValidacion = mensajeValidacion,
                       respuestaEnviada = respuestaEnviada,
+                      respuestaCorrecta = respuestaCorrecta,
                       onOpcionSeleccionada = { index ->
-                       opcionSeleccionadaIndex = index
-                       mensajeValidacion = null
-                       respuestaEnviada = false
-                       respuestaCorrecta = null
-                     },
+                        if (!respuestaEnviada) {
+                        opcionSeleccionadaIndex = index
+                        mensajeValidacion = null
+                        respuestaCorrecta = null
+                                                }
+                    },
                     onEnviarRespuesta = {
                         val indiceSeleccionado = opcionSeleccionadaIndex
                          if (indiceSeleccionado == null) {
@@ -145,7 +147,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                                mensajeValidacion = if (esCorrecta) {
                                                        "Respuesta correcta"
                                                          } else {
-                                                          "Respuesta enviada"
+                                                          "Respuesta incorrecta"
                                                          }
                                 }
 
@@ -163,6 +165,7 @@ private fun PreguntaPracticaContenido(
     opcionSeleccionadaIndex: Int?,
     mensajeValidacion: String?,
     respuestaEnviada: Boolean,
+    respuestaCorrecta: Boolean?,
     onOpcionSeleccionada: (Int) -> Unit,
     onEnviarRespuesta: () -> Unit) {
     LazyColumn(
@@ -231,6 +234,7 @@ private fun PreguntaPracticaContenido(
                     index = index,
                     opcion = opcion,
                     seleccionada = opcionSeleccionadaIndex == index,
+                    habilitada = !respuestaEnviada,
                     onClick = {
                         onOpcionSeleccionada(index)
                      }
@@ -254,7 +258,11 @@ private fun PreguntaPracticaContenido(
 
                 Text(
                     text = mensajeValidacion,
-                    color = if (respuestaEnviada) BlueBackground else Color.Red,
+                    color = when {
+                            respuestaEnviada && respuestaCorrecta == true -> BlueBackground
+                            respuestaEnviada && respuestaCorrecta == false -> Color.Red
+                            else -> Color.Red
+                                },
                     fontSize = 13.sp
                 )
             }
@@ -267,6 +275,7 @@ private fun OpcionDisponibleItem(
     index: Int,
     opcion: Option,
     seleccionada: Boolean,
+    habilitada: Boolean,
     onClick: () -> Unit
 ) {
     val letra = ('A'.code + index).toChar()
@@ -274,7 +283,7 @@ private fun OpcionDisponibleItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(enabled = habilitada) { onClick() },
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (seleccionada) FieldBackground else Color.White
