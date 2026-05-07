@@ -48,6 +48,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.layout.size
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,45 +143,50 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                              respuestaCorrecta = null
                                                 }
                     },
-                    onEnviarRespuesta = {
-                       if (!enviandoRespuesta && !respuestaEnviada) {
-                          val indiceSeleccionado = opcionSeleccionadaIndex
+                 onEnviarRespuesta = {
+    if (!enviandoRespuesta && !respuestaEnviada) {
+        val indiceSeleccionado = opcionSeleccionadaIndex
 
-                       if (indiceSeleccionado == null) {
-                          mensajeValidacion = "Selecciona una opción antes de enviar tu respuesta"
-                          respuestaEnviada = false
-                          respuestaCorrecta = null
-                        } else {
-                          enviandoRespuesta = true
-                          mensajeValidacion = null
-
-                          scope.launch {
-    try {
-        delay(700)
-
-        val opcionSeleccionada = preguntaActual.opciones.getOrNull(indiceSeleccionado)
-            ?: throw IllegalStateException("La opción seleccionada no existe")
-
-        val esCorrecta = opcionSeleccionada.esCorrecta
-
-        respuestaCorrecta = esCorrecta
-        respuestaEnviada = true
-        mensajeValidacion = if (esCorrecta) {
-            "Respuesta correcta"
+        if (indiceSeleccionado == null) {
+            mensajeValidacion = "Selecciona una opción antes de enviar tu respuesta"
+            respuestaEnviada = false
+            respuestaCorrecta = null
+        } else if (!hayConexionInternet(context)) {
+            mensajeValidacion = "Sin conexión. Revisa tu internet e intenta nuevamente"
+            respuestaEnviada = false
+            respuestaCorrecta = null
+            enviandoRespuesta = false
         } else {
-            "Respuesta incorrecta"
+            enviandoRespuesta = true
+            mensajeValidacion = null
+
+            scope.launch {
+                try {
+                    delay(700)
+
+                    val opcionSeleccionada = preguntaActual.opciones.getOrNull(indiceSeleccionado)
+                        ?: throw IllegalStateException("La opción seleccionada no existe")
+
+                    val esCorrecta = opcionSeleccionada.esCorrecta
+
+                    respuestaCorrecta = esCorrecta
+                    respuestaEnviada = true
+                    mensajeValidacion = if (esCorrecta) {
+                        "Respuesta correcta"
+                    } else {
+                        "Respuesta incorrecta"
+                    }
+                } catch (e: Exception) {
+                    respuestaCorrecta = null
+                    respuestaEnviada = false
+                    mensajeValidacion = "No se pudo validar la respuesta. Intenta nuevamente"
+                } finally {
+                    enviandoRespuesta = false
+                }
+            }
         }
-    } catch (e: Exception) {
-        respuestaCorrecta = null
-        respuestaEnviada = false
-        mensajeValidacion = "No se pudo validar la respuesta. Intenta nuevamente"
-    } finally {
-        enviandoRespuesta = false
     }
 }
-                        }
-                      }
-                    }
                 )
                 }
             }
@@ -339,4 +347,12 @@ private fun OpcionDisponibleItem(
             modifier = Modifier.padding(14.dp)
         )
     }
+}
+
+private fun hayConexionInternet(context: Context): Boolean {
+    val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = connectivityManager.activeNetwork ?: return false
+    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+
+    return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
 }
