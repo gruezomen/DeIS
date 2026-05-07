@@ -51,7 +51,13 @@ import kotlinx.coroutines.launch
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-
+import androidx.compose.runtime.mutableStateListOf
+private data class RespuestaPractica(
+    val preguntaId: String,
+    val enunciado: String,
+    val opcionSeleccionada: String,
+    val esCorrecta: Boolean
+)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResolverPreguntaScreen(navController: NavHostController) {
@@ -62,6 +68,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
     var respuestaEnviada by remember { mutableStateOf(false) }
     var respuestaCorrecta by remember { mutableStateOf<Boolean?>(null) }
     var enviandoRespuesta by remember { mutableStateOf(false) }
+    val respuestasPractica = remember { mutableStateListOf<RespuestaPractica>() }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -136,6 +143,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                       respuestaEnviada = respuestaEnviada,
                       respuestaCorrecta = respuestaCorrecta,
                       enviandoRespuesta = enviandoRespuesta,
+                      cantidadRespuestasRegistradas = respuestasPractica.size,
                       onOpcionSeleccionada = { index ->
                         if (!respuestaEnviada && !enviandoRespuesta) {
                              opcionSeleccionadaIndex = index
@@ -171,10 +179,21 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
 
                     respuestaCorrecta = esCorrecta
                     respuestaEnviada = true
+
+                    respuestasPractica.removeAll { it.preguntaId == preguntaActual.id.orEmpty() }
+                    respuestasPractica.add(
+                      RespuestaPractica(
+                        preguntaId = preguntaActual.id.orEmpty(),
+                        enunciado = preguntaActual.enunciado,
+                        opcionSeleccionada = opcionSeleccionada.texto,
+                        esCorrecta = esCorrecta
+                                        )
+                        )
+
                     mensajeValidacion = if (esCorrecta) {
-                        "Respuesta correcta"
+                       "Respuesta correcta"
                     } else {
-                        "Respuesta incorrecta"
+                       "Respuesta incorrecta"
                     }
                 } catch (e: Exception) {
                     respuestaCorrecta = null
@@ -202,6 +221,7 @@ private fun PreguntaPracticaContenido(
     respuestaEnviada: Boolean,
     respuestaCorrecta: Boolean?,
     enviandoRespuesta: Boolean,
+    cantidadRespuestasRegistradas: Int,
     onOpcionSeleccionada: (Int) -> Unit,
     onEnviarRespuesta: () -> Unit) {
     LazyColumn(
@@ -310,6 +330,16 @@ private fun PreguntaPracticaContenido(
         fontSize = 13.sp
     )
 }
+    if (cantidadRespuestasRegistradas > 0) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+               text = "Respuestas registradas en esta práctica: $cantidadRespuestasRegistradas",
+               color = Color.Gray,
+               fontSize = 13.sp
+         )
+   }
+
         }
     }
 }
