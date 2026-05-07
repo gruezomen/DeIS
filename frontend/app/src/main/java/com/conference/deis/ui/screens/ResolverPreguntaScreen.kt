@@ -61,9 +61,11 @@ private data class RespuestaPractica(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResolverPreguntaScreen(navController: NavHostController) {
-    var pregunta by remember { mutableStateOf<Question?>(null) }
+    var preguntas by remember { mutableStateOf<List<Question>>(emptyList()) }
+    var preguntaActualIndex by remember { mutableStateOf(0) }
     var cargando by remember { mutableStateOf(true) }
     var opcionSeleccionadaIndex by remember { mutableStateOf<Int?>(null) }
+
     var mensajeValidacion by remember { mutableStateOf<String?>(null) }
     var respuestaEnviada by remember { mutableStateOf(false) }
     var respuestaCorrecta by remember { mutableStateOf<Boolean?>(null) }
@@ -77,7 +79,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
             val response = RetrofitInstance.api.obtenerPreguntas()
 
             if (response.isSuccessful) {
-                pregunta = response.body()?.firstOrNull()
+                preguntas = response.body().orEmpty()
             } else {
                 Toast.makeText(
                     context,
@@ -125,7 +127,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                     )
                 }
 
-                pregunta == null -> {
+                preguntas.isEmpty() -> {
                     Text(
                         text = "No hay preguntas disponibles",
                         color = Color.Gray,
@@ -134,7 +136,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                 }
 
                 else -> {
-                   val preguntaActual = pregunta!!
+                   val preguntaActual = preguntas[preguntaActualIndex]
 
                    PreguntaPracticaContenido(
                       pregunta = preguntaActual,
@@ -144,6 +146,20 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                       respuestaCorrecta = respuestaCorrecta,
                       enviandoRespuesta = enviandoRespuesta,
                       cantidadRespuestasRegistradas = respuestasPractica.size,
+                      preguntaNumero = preguntaActualIndex + 1,
+                      totalPreguntas = preguntas.size,
+                      puedeAvanzar = respuestaEnviada && preguntaActualIndex < preguntas.lastIndex,
+                      onSiguientePregunta = {
+                          if (preguntaActualIndex < preguntas.lastIndex) {
+                          preguntaActualIndex++
+
+                          opcionSeleccionadaIndex = null
+                          mensajeValidacion = null
+                          respuestaEnviada = false
+                          respuestaCorrecta = null
+                          enviandoRespuesta = false
+                         }
+                        },
                       onOpcionSeleccionada = { index ->
                         if (!respuestaEnviada && !enviandoRespuesta) {
                              opcionSeleccionadaIndex = index
@@ -222,8 +238,13 @@ private fun PreguntaPracticaContenido(
     respuestaCorrecta: Boolean?,
     enviandoRespuesta: Boolean,
     cantidadRespuestasRegistradas: Int,
+    preguntaNumero: Int,
+    totalPreguntas: Int,
+    puedeAvanzar: Boolean,
+    onSiguientePregunta: () -> Unit,
     onOpcionSeleccionada: (Int) -> Unit,
-    onEnviarRespuesta: () -> Unit) {
+    onEnviarRespuesta: () -> Unit
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -231,7 +252,7 @@ private fun PreguntaPracticaContenido(
     ) {
         item {
             Text(
-                text = "Pregunta 1",
+                text = "Pregunta $preguntaNumero de $totalPreguntas",
                 fontSize = 18.sp,
                 color = BlueBackground
             )
@@ -293,53 +314,80 @@ private fun PreguntaPracticaContenido(
                     habilitada = !respuestaEnviada && !enviandoRespuesta,
                     onClick = {
                         onOpcionSeleccionada(index)
-                     }
+                    }
                 )
             }
         }
+
         item {
             Button(
-              onClick = onEnviarRespuesta,
-              enabled = !enviandoRespuesta && !respuestaEnviada,
-              modifier = Modifier.fillMaxWidth(),
-              colors = ButtonDefaults.buttonColors(
-                containerColor = BlueBackground,
-                contentColor = Color.White
-            )
+                onClick = onEnviarRespuesta,
+                enabled = !enviandoRespuesta && !respuestaEnviada,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = BlueBackground,
+                    contentColor = Color.White
+                )
             ) {
                 if (enviandoRespuesta) {
-                   CircularProgressIndicator(
-                   modifier = Modifier.size(18.dp),
-                   strokeWidth = 2.dp,
-                   color = Color.White
-                )
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.White
+                    )
                 } else {
-                  Text("Enviar respuesta")
+                    Text("Enviar respuesta")
                 }
-             }
-             if (mensajeValidacion != null) {
-    Spacer(modifier = Modifier.height(8.dp))
+            }
 
-    Text(
-        text = mensajeValidacion,
-        color = when {
-            respuestaEnviada && respuestaCorrecta == true -> BlueBackground
-            respuestaEnviada && respuestaCorrecta == false -> Color.Red
-            else -> Color.Red
-        },
-        fontSize = 13.sp
-    )
-}
-    if (cantidadRespuestasRegistradas > 0) {
-        Spacer(modifier = Modifier.height(8.dp))
+            if (mensajeValidacion != null) {
+                Spacer(modifier = Modifier.height(8.dp))
 
-        Text(
-               text = "Respuestas registradas en esta práctica: $cantidadRespuestasRegistradas",
-               color = Color.Gray,
-               fontSize = 13.sp
-         )
-   }
+                Text(
+                    text = mensajeValidacion,
+                    color = when {
+                        respuestaEnviada && respuestaCorrecta == true -> BlueBackground
+                        respuestaEnviada && respuestaCorrecta == false -> Color.Red
+                        else -> Color.Red
+                    },
+                    fontSize = 13.sp
+                )
+            }
 
+            if (cantidadRespuestasRegistradas > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Progreso de la práctica: $cantidadRespuestasRegistradas de $totalPreguntas",
+                    color = Color.Gray,
+                    fontSize = 13.sp
+                )
+            }
+
+            if (puedeAvanzar) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = onSiguientePregunta,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BlueBackground,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Siguiente pregunta")
+                }
+            }
+
+            if (respuestaEnviada && preguntaNumero == totalPreguntas) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Práctica finalizada",
+                    color = BlueBackground,
+                    fontSize = 14.sp
+                )
+            }
         }
     }
 }
