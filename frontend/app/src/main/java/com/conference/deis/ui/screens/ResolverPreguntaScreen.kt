@@ -153,20 +153,29 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                           mensajeValidacion = null
 
                           scope.launch {
-                            delay(700)
+    try {
+        delay(700)
 
-                            val opcionSeleccionada = preguntaActual.opciones[indiceSeleccionado]
-                            val esCorrecta = opcionSeleccionada.esCorrecta
+        val opcionSeleccionada = preguntaActual.opciones.getOrNull(indiceSeleccionado)
+            ?: throw IllegalStateException("La opción seleccionada no existe")
 
-                            respuestaCorrecta = esCorrecta
-                            respuestaEnviada = true
-                            enviandoRespuesta = false
-                            mensajeValidacion = if (esCorrecta) {
-                              "Respuesta correcta"
-                            } else {
-                              "Respuesta incorrecta"
-                            }
-                          }
+        val esCorrecta = opcionSeleccionada.esCorrecta
+
+        respuestaCorrecta = esCorrecta
+        respuestaEnviada = true
+        mensajeValidacion = if (esCorrecta) {
+            "Respuesta correcta"
+        } else {
+            "Respuesta incorrecta"
+        }
+    } catch (e: Exception) {
+        respuestaCorrecta = null
+        respuestaEnviada = false
+        mensajeValidacion = "No se pudo validar la respuesta. Intenta nuevamente"
+    } finally {
+        enviandoRespuesta = false
+    }
+}
                         }
                       }
                     }
