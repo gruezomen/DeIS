@@ -44,6 +44,10 @@ import com.conference.deis.ui.theme.FieldBackground
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.layout.size
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,8 +58,10 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
     var mensajeValidacion by remember { mutableStateOf<String?>(null) }
     var respuestaEnviada by remember { mutableStateOf(false) }
     var respuestaCorrecta by remember { mutableStateOf<Boolean?>(null) }
-    val context = LocalContext.current
+    var enviandoRespuesta by remember { mutableStateOf(false) }
 
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     LaunchedEffect(Unit) {
         try {
             val response = RetrofitInstance.api.obtenerPreguntas()
@@ -126,31 +132,43 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                       mensajeValidacion = mensajeValidacion,
                       respuestaEnviada = respuestaEnviada,
                       respuestaCorrecta = respuestaCorrecta,
+                      enviandoRespuesta = enviandoRespuesta,
                       onOpcionSeleccionada = { index ->
-                        if (!respuestaEnviada) {
-                        opcionSeleccionadaIndex = index
-                        mensajeValidacion = null
-                        respuestaCorrecta = null
+                        if (!respuestaEnviada && !enviandoRespuesta) {
+                             opcionSeleccionadaIndex = index
+                             mensajeValidacion = null
+                             respuestaCorrecta = null
                                                 }
                     },
                     onEnviarRespuesta = {
-                        val indiceSeleccionado = opcionSeleccionadaIndex
-                         if (indiceSeleccionado == null) {
-                            mensajeValidacion = "Selecciona una opción antes de enviar tu respuesta"
-                            respuestaEnviada = false
-                            respuestaCorrecta = null
-                         } else {
-                               val opcionSeleccionada = preguntaActual.opciones[indiceSeleccionado]
-                               val esCorrecta = opcionSeleccionada.esCorrecta
-                               respuestaCorrecta = opcionSeleccionada.esCorrecta
-                               respuestaEnviada = true
-                               mensajeValidacion = if (esCorrecta) {
-                                                       "Respuesta correcta"
-                                                         } else {
-                                                          "Respuesta incorrecta"
-                                                         }
-                                }
+                       if (!enviandoRespuesta && !respuestaEnviada) {
+                          val indiceSeleccionado = opcionSeleccionadaIndex
 
+                       if (indiceSeleccionado == null) {
+                          mensajeValidacion = "Selecciona una opción antes de enviar tu respuesta"
+                          respuestaEnviada = false
+                          respuestaCorrecta = null
+                        } else {
+                          enviandoRespuesta = true
+                          mensajeValidacion = null
+
+                          scope.launch {
+                            delay(700)
+
+                            val opcionSeleccionada = preguntaActual.opciones[indiceSeleccionado]
+                            val esCorrecta = opcionSeleccionada.esCorrecta
+
+                            respuestaCorrecta = esCorrecta
+                            respuestaEnviada = true
+                            enviandoRespuesta = false
+                            mensajeValidacion = if (esCorrecta) {
+                              "Respuesta correcta"
+                            } else {
+                              "Respuesta incorrecta"
+                            }
+                          }
+                        }
+                      }
                     }
                 )
                 }
@@ -166,6 +184,7 @@ private fun PreguntaPracticaContenido(
     mensajeValidacion: String?,
     respuestaEnviada: Boolean,
     respuestaCorrecta: Boolean?,
+    enviandoRespuesta: Boolean,
     onOpcionSeleccionada: (Int) -> Unit,
     onEnviarRespuesta: () -> Unit) {
     LazyColumn(
@@ -234,7 +253,7 @@ private fun PreguntaPracticaContenido(
                     index = index,
                     opcion = opcion,
                     seleccionada = opcionSeleccionadaIndex == index,
-                    habilitada = !respuestaEnviada,
+                    habilitada = !respuestaEnviada && !enviandoRespuesta,
                     onClick = {
                         onOpcionSeleccionada(index)
                      }
@@ -243,29 +262,37 @@ private fun PreguntaPracticaContenido(
         }
         item {
             Button(
-                onClick = onEnviarRespuesta,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BlueBackground,
-                    contentColor = Color.White
-                )
+              onClick = onEnviarRespuesta,
+              enabled = !enviandoRespuesta && !respuestaEnviada,
+              modifier = Modifier.fillMaxWidth(),
+              colors = ButtonDefaults.buttonColors(
+                containerColor = BlueBackground,
+                contentColor = Color.White
+            )
             ) {
-                Text("Enviar respuesta")
-            }
-
-            if (mensajeValidacion != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = mensajeValidacion,
-                    color = when {
-                            respuestaEnviada && respuestaCorrecta == true -> BlueBackground
-                            respuestaEnviada && respuestaCorrecta == false -> Color.Red
-                            else -> Color.Red
-                                },
-                    fontSize = 13.sp
+                if (enviandoRespuesta) {
+                   CircularProgressIndicator(
+                   modifier = Modifier.size(18.dp),
+                   strokeWidth = 2.dp,
+                   color = Color.White
                 )
-            }
+                } else {
+                  Text("Enviar respuesta")
+                }
+             }
+             if (mensajeValidacion != null) {
+    Spacer(modifier = Modifier.height(8.dp))
+
+    Text(
+        text = mensajeValidacion,
+        color = when {
+            respuestaEnviada && respuestaCorrecta == true -> BlueBackground
+            respuestaEnviada && respuestaCorrecta == false -> Color.Red
+            else -> Color.Red
+        },
+        fontSize = 13.sp
+    )
+}
         }
     }
 }
