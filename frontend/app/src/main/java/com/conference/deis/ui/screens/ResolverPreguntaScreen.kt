@@ -325,6 +325,7 @@ private fun PreguntaPracticaContenido(
                     opcion = opcion,
                     seleccionada = opcionSeleccionadaIndex == index,
                     habilitada = !respuestaEnviada && !enviandoRespuesta,
+                    mostrarResolucion = respuestaEnviada,
                     onClick = {
                         onOpcionSeleccionada(index)
                     }
@@ -399,7 +400,7 @@ private fun PreguntaPracticaContenido(
                         Text(
                             text = "Tu respuesta: ${opcionSeleccionada?.texto ?: "No disponible"}",
                             fontSize = 14.sp,
-                            color = Color.Black
+                            color = if (respuestaCorrecta == true) BlueBackground else Color.Red
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -407,7 +408,7 @@ private fun PreguntaPracticaContenido(
                         Text(
                             text = "Respuesta correcta: ${opcionCorrecta?.texto ?: "No disponible"}",
                             fontSize = 14.sp,
-                            color = Color.Black
+                            color = BlueBackground
                         )
                     }
                 }
@@ -457,9 +458,25 @@ private fun OpcionDisponibleItem(
     opcion: Option,
     seleccionada: Boolean,
     habilitada: Boolean,
+    mostrarResolucion: Boolean,
     onClick: () -> Unit
 ) {
     val letra = ('A'.code + index).toChar()
+    val verdeCorrecta = Color(0xFF2E7D32)
+
+    val containerColor = when {
+        mostrarResolucion && opcion.esCorrecta -> Color(0xFFE8F5E9)
+        mostrarResolucion && seleccionada && !opcion.esCorrecta -> Color(0xFFFFDAD6)
+        seleccionada -> FieldBackground
+        else -> Color.White
+    }
+
+    val textColor = when {
+        mostrarResolucion && opcion.esCorrecta -> verdeCorrecta
+        mostrarResolucion && seleccionada && !opcion.esCorrecta -> Color.Red
+        seleccionada -> BlueBackground
+        else -> Color.Black
+    }
 
     Card(
         modifier = Modifier
@@ -467,20 +484,16 @@ private fun OpcionDisponibleItem(
             .clickable(enabled = habilitada) { onClick() },
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (seleccionada) FieldBackground else Color.White
+            containerColor = containerColor
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = if (seleccionada) 6.dp else 2.dp
         )
     ) {
         Text(
-            text = if (seleccionada) {
-                "$letra. ${opcion.texto}  ✓"
-            } else {
-                "$letra. ${opcion.texto}"
-            },
+            text = "$letra. ${opcion.texto}",
             fontSize = 15.sp,
-            color = if (seleccionada) BlueBackground else Color.Black,
+            color = textColor,
             modifier = Modifier.padding(14.dp)
         )
     }
