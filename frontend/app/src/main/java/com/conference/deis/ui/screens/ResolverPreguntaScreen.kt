@@ -87,6 +87,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
     var calculandoNota by remember { mutableStateOf(false) }
     var errorCalculoNota by remember { mutableStateOf<String?>(null) }
     var practicaFinalizada by remember { mutableStateOf(false) }
+    var resultadoPractica by remember { mutableStateOf<ResultadoPractica?>(null) }
 
     val respuestasPractica = remember { mutableStateListOf<RespuestaPractica>() }
     val scope = rememberCoroutineScope()
@@ -96,13 +97,14 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
         if (!calculandoNota) {
             calculandoNota = true
             errorCalculoNota = null
+            resultadoPractica = null
             practicaFinalizada = false
 
             scope.launch {
                 try {
                     delay(1200)
 
-                    calcularResultadoPractica(
+                    resultadoPractica = calcularResultadoPractica(
                         totalPreguntas = preguntas.size,
                         respuestas = respuestasPractica
                     )
@@ -197,14 +199,9 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                     )
                 }
 
-                practicaFinalizada -> {
-                    val resultado = calcularResultadoPractica(
-                        totalPreguntas = preguntas.size,
-                        respuestas = respuestasPractica
-                    )
-
+                practicaFinalizada && resultadoPractica != null -> {
                     ResultadoPracticaContenido(
-                        resultado = resultado,
+                        resultado = resultadoPractica!!,
                         onReintentar = {
                             preguntaActualIndex = 0
                             opcionSeleccionadaIndex = null
@@ -214,6 +211,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                             enviandoRespuesta = false
                             calculandoNota = false
                             errorCalculoNota = null
+                            resultadoPractica = null
                             practicaFinalizada = false
                             respuestasPractica.clear()
                         },
@@ -733,7 +731,7 @@ private fun ResultadoPracticaContenido(
                     contentColor = Color.White
                 )
             ) {
-                Text("Reintentar práctica")
+                Text("Iniciar nueva práctica")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
