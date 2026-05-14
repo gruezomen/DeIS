@@ -253,6 +253,11 @@ private fun PreguntaPracticaContenido(
     onOpcionSeleccionada: (Int) -> Unit,
     onEnviarRespuesta: () -> Unit
 ) {
+    val opcionCorrecta = pregunta.opciones.firstOrNull { it.esCorrecta }
+    val opcionSeleccionada = opcionSeleccionadaIndex?.let { index ->
+        pregunta.opciones.getOrNull(index)
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -360,6 +365,52 @@ private fun PreguntaPracticaContenido(
                     },
                     fontSize = 13.sp
                 )
+            }
+
+            if (respuestaEnviada) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = FieldBackground)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Resolución",
+                            fontSize = 16.sp,
+                            color = BlueBackground
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = if (respuestaCorrecta == true) {
+                                "Tu respuesta fue correcta."
+                            } else {
+                                "Tu respuesta fue incorrecta."
+                            },
+                            fontSize = 14.sp,
+                            color = if (respuestaCorrecta == true) BlueBackground else Color.Red
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Tu respuesta: ${opcionSeleccionada?.texto ?: "No disponible"}",
+                            fontSize = 14.sp,
+                            color = Color.Black
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "Respuesta correcta: ${opcionCorrecta?.texto ?: "No disponible"}",
+                            fontSize = 14.sp,
+                            color = Color.Black
+                        )
+                    }
+                }
             }
 
             if (cantidadRespuestasRegistradas > 0) {
