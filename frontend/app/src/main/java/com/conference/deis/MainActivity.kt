@@ -50,11 +50,24 @@ fun DeISApp() {
                 composable("lista_preguntas") {
                     ListaPreguntasScreen(navController)
                 }
+                composable("lista_bancos") {
+                    ListaBancosScreen(navController)
+                }
+                composable("detalles_banco/{id}") { backStackEntry ->
+                    val id = backStackEntry.arguments?.getString("id")
+                    if (id != null) {
+                        DetallesBancoScreen(navController, id)
+                    }
+                }
                 composable("crear_pregunta") {
                     CrearPreguntaScreen(navController)
                 }
+                composable("resolver_pregunta/{bancoId}") { backStackEntry ->
+                    val bancoId = backStackEntry.arguments?.getString("bancoId")
+                    ResolverPreguntaScreen(navController, bancoId)
+                }
                 composable("resolver_pregunta") {
-                 ResolverPreguntaScreen(navController)
+                    ResolverPreguntaScreen(navController, null)
                 }
                composable("editar_pregunta/{id}") { backStackEntry ->
     val id = backStackEntry.arguments?.getString("id")

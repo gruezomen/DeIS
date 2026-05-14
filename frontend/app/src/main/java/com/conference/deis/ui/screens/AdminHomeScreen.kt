@@ -119,7 +119,7 @@ fun AdminHomeScreen(navController: NavHostController) {
 
             ActionBox(
                 texto = "Ver lista de banco de preguntas",
-                onClick = { navController.navigate("lista_preguntas") }
+                onClick = { navController.navigate("lista_bancos") }
             )
 
             Spacer(modifier = Modifier.height(10.dp))
