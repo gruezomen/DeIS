@@ -2,33 +2,12 @@ package com.conference.deis.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,10 +21,10 @@ import com.conference.deis.network.model.Question
 import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
 import androidx.compose.foundation.clickable
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.foundation.layout.size
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import android.content.Context
@@ -55,9 +34,9 @@ import androidx.compose.runtime.mutableStateListOf
 
 private data class RespuestaPractica(
     val preguntaId: String,
-    val enunciado: String,
-    val opcionSeleccionada: String,
-    val esCorrecta: Boolean
+    val opcionSeleccionadaIndex: Int,
+    val esCorrecta: Boolean,
+    val mensaje: String
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,16 +45,38 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
     var preguntas by remember { mutableStateOf<List<Question>>(emptyList()) }
     var preguntaActualIndex by remember { mutableStateOf(0) }
     var cargando by remember { mutableStateOf(true) }
+    
+    // Estado de la pregunta actual
     var opcionSeleccionadaIndex by remember { mutableStateOf<Int?>(null) }
-
     var mensajeValidacion by remember { mutableStateOf<String?>(null) }
     var respuestaEnviada by remember { mutableStateOf(false) }
     var respuestaCorrecta by remember { mutableStateOf<Boolean?>(null) }
     var enviandoRespuesta by remember { mutableStateOf(false) }
-    val respuestasPractica = remember { mutableStateListOf<RespuestaPractica>() }
+    
+    // Registro de respuestas para persistencia durante la navegación
+    val historialRespuestas = remember { mutableStateMapOf<String, RespuestaPractica>() }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    // Función para cargar el estado de una pregunta desde el historial
+    fun cargarEstadoPregunta(index: Int) {
+        val preguntaId = preguntas.getOrNull(index)?.id ?: return
+        val respuestaGuardada = historialRespuestas[preguntaId]
+        
+        if (respuestaGuardada != null) {
+            opcionSeleccionadaIndex = respuestaGuardada.opcionSeleccionadaIndex
+            mensajeValidacion = respuestaGuardada.mensaje
+            respuestaEnviada = true
+            respuestaCorrecta = respuestaGuardada.esCorrecta
+        } else {
+            opcionSeleccionadaIndex = null
+            mensajeValidacion = null
+            respuestaEnviada = false
+            respuestaCorrecta = null
+        }
+        enviandoRespuesta = false
+    }
 
     LaunchedEffect(bancoId) {
         try {
@@ -111,8 +112,8 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
             CenterAlignedTopAppBar(
                 title = { Text(if (bancoId != null) "Práctica de Banco" else "Práctica General") },
                 navigationIcon = {
-                    TextButton(onClick = { navController.popBackStack() }) {
-                        Text("Volver", color = Color.White)
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -130,9 +131,7 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
         ) {
             when {
                 cargando -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 
                 preguntas.isEmpty() -> {
@@ -153,83 +152,61 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                       respuestaEnviada = respuestaEnviada,
                       respuestaCorrecta = respuestaCorrecta,
                       enviandoRespuesta = enviandoRespuesta,
-                      cantidadRespuestasRegistradas = respuestasPractica.size,
                       preguntaNumero = preguntaActualIndex + 1,
                       totalPreguntas = preguntas.size,
-                      puedeAvanzar = respuestaEnviada && preguntaActualIndex < preguntas.lastIndex,
                       onSiguientePregunta = {
                           if (preguntaActualIndex < preguntas.lastIndex) {
-                          preguntaActualIndex++
-
-                          opcionSeleccionadaIndex = null
-                          mensajeValidacion = null
-                          respuestaEnviada = false
-                          respuestaCorrecta = null
-                          enviandoRespuesta = false
-                         }
-                        },
+                              preguntaActualIndex++
+                              cargarEstadoPregunta(preguntaActualIndex)
+                          }
+                      },
+                      onAnteriorPregunta = {
+                          if (preguntaActualIndex > 0) {
+                              preguntaActualIndex--
+                              cargarEstadoPregunta(preguntaActualIndex)
+                          }
+                      },
                       onOpcionSeleccionada = { index ->
                         if (!respuestaEnviada && !enviandoRespuesta) {
                              opcionSeleccionadaIndex = index
                              mensajeValidacion = null
-                             respuestaCorrecta = null
-                                                }
+                        }
                     },
-                 onEnviarRespuesta = {
-    if (!enviandoRespuesta && !respuestaEnviada) {
-        val indiceSeleccionado = opcionSeleccionadaIndex
-
-        if (indiceSeleccionado == null) {
-            mensajeValidacion = "Selecciona una opción antes de enviar tu respuesta"
-            respuestaEnviada = false
-            respuestaCorrecta = null
-        } else if (!hayConexionInternet(context)) {
-            mensajeValidacion = "Sin conexión. Revisa tu internet e intenta nuevamente"
-            respuestaEnviada = false
-            respuestaCorrecta = null
-            enviandoRespuesta = false
-        } else {
-            enviandoRespuesta = true
-            mensajeValidacion = null
-
-            scope.launch {
-                try {
-                    delay(700)
-
-                    val opcionSeleccionada = preguntaActual.opciones.getOrNull(indiceSeleccionado)
-                        ?: throw IllegalStateException("La opción seleccionada no existe")
-
-                    val esCorrecta = opcionSeleccionada.esCorrecta
-
-                    respuestaCorrecta = esCorrecta
-                    respuestaEnviada = true
-
-                    respuestasPractica.removeAll { it.preguntaId == preguntaActual.id.orEmpty() }
-                    respuestasPractica.add(
-                      RespuestaPractica(
-                        preguntaId = preguntaActual.id.orEmpty(),
-                        enunciado = preguntaActual.enunciado,
-                        opcionSeleccionada = opcionSeleccionada.texto,
-                        esCorrecta = esCorrecta
+                    onEnviarRespuesta = {
+                        if (!enviandoRespuesta && !respuestaEnviada) {
+                            val indiceSeleccionado = opcionSeleccionadaIndex
+                            if (indiceSeleccionado == null) {
+                                mensajeValidacion = "Selecciona una opción antes de enviar"
+                            } else if (!hayConexionInternet(context)) {
+                                mensajeValidacion = "Sin conexión a internet"
+                            } else {
+                                enviandoRespuesta = true
+                                scope.launch {
+                                    try {
+                                        delay(600)
+                                        val opcion = preguntaActual.opciones[indiceSeleccionado]
+                                        val esCorrecta = opcion.esCorrecta
+                                        
+                                        respuestaCorrecta = esCorrecta
+                                        respuestaEnviada = true
+                                        mensajeValidacion = if (esCorrecta) "¡Correcto!" else "Incorrecto"
+                                        
+                                        // Guardar en historial
+                                        historialRespuestas[preguntaActual.id!!] = RespuestaPractica(
+                                            preguntaId = preguntaActual.id!!,
+                                            opcionSeleccionadaIndex = indiceSeleccionado,
+                                            esCorrecta = esCorrecta,
+                                            mensaje = mensajeValidacion!!
                                         )
-                        )
-
-                    mensajeValidacion = if (esCorrecta) {
-                       "Respuesta correcta"
-                    } else {
-                       "Respuesta incorrecta"
+                                    } catch (e: Exception) {
+                                        mensajeValidacion = "Error al validar"
+                                    } finally {
+                                        enviandoRespuesta = false
+                                    }
+                                }
+                            }
+                        }
                     }
-                } catch (e: Exception) {
-                    respuestaCorrecta = null
-                    respuestaEnviada = false
-                    mensajeValidacion = "No se pudo validar la respuesta. Intenta nuevamente"
-                } finally {
-                    enviandoRespuesta = false
-                }
-            }
-        }
-    }
-}
                 )
                 }
             }
@@ -245,156 +222,105 @@ private fun PreguntaPracticaContenido(
     respuestaEnviada: Boolean,
     respuestaCorrecta: Boolean?,
     enviandoRespuesta: Boolean,
-    cantidadRespuestasRegistradas: Int,
     preguntaNumero: Int,
     totalPreguntas: Int,
-    puedeAvanzar: Boolean,
     onSiguientePregunta: () -> Unit,
+    onAnteriorPregunta: () -> Unit,
     onOpcionSeleccionada: (Int) -> Unit,
     onEnviarRespuesta: () -> Unit
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
     ) {
-        item {
+        // Cabecera con navegación
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onAnteriorPregunta,
+                enabled = preguntaNumero > 1
+            ) {
+                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Anterior", tint = if (preguntaNumero > 1) BlueBackground else Color.Gray)
+            }
+            
             Text(
                 text = "Pregunta $preguntaNumero de $totalPreguntas",
                 fontSize = 18.sp,
                 color = BlueBackground
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = FieldBackground)
+            
+            IconButton(
+                onClick = onSiguientePregunta,
+                enabled = preguntaNumero < totalPreguntas
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = pregunta.categoria.nombre,
-                        fontSize = 12.sp,
-                        color = BlueBackground
-                    )
+                Icon(imageVector = Icons.Default.ArrowForward, contentDescription = "Siguiente", tint = if (preguntaNumero < totalPreguntas) BlueBackground else Color.Gray)
+            }
+        }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
-                        text = pregunta.enunciado,
-                        fontSize = 16.sp,
-                        color = Color.Black
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "Dificultad: ${pregunta.dificultad}",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = FieldBackground)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(text = pregunta.categoria.nombre, fontSize = 12.sp, color = BlueBackground)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = pregunta.enunciado, fontSize = 16.sp, color = Color.Black)
+                    }
                 }
             }
-        }
 
-        item {
-            Text(
-                text = "Opciones disponibles",
-                fontSize = 16.sp,
-                color = Color.Black
-            )
-        }
-
-        if (pregunta.opciones.isEmpty()) {
             item {
-                Text(
-                    text = "Esta pregunta no tiene opciones registradas",
-                    color = Color.Gray
-                )
+                Text(text = "Opciones", fontSize = 16.sp, color = Color.Black)
             }
-        } else {
+
             itemsIndexed(pregunta.opciones) { index, opcion ->
                 OpcionDisponibleItem(
                     index = index,
                     opcion = opcion,
                     seleccionada = opcionSeleccionadaIndex == index,
                     habilitada = !respuestaEnviada && !enviandoRespuesta,
-                    onClick = {
-                        onOpcionSeleccionada(index)
-                    }
+                    esCorrecta = if (respuestaEnviada) opcion.esCorrecta else null,
+                    onClick = { onOpcionSeleccionada(index) }
                 )
             }
         }
 
-        item {
-            Button(
-                onClick = onEnviarRespuesta,
-                enabled = !enviandoRespuesta && !respuestaEnviada,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BlueBackground,
-                    contentColor = Color.White
-                )
-            ) {
-                if (enviandoRespuesta) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = Color.White
-                    )
-                } else {
-                    Text("Enviar respuesta")
-                }
-            }
+        Spacer(modifier = Modifier.height(16.dp))
 
-            if (mensajeValidacion != null) {
-                Spacer(modifier = Modifier.height(8.dp))
+        // Mensaje y Botón de envío
+        if (mensajeValidacion != null) {
+            Text(
+                text = mensajeValidacion,
+                color = if (respuestaCorrecta == true) BlueBackground else Color.Red,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
 
-                Text(
-                    text = mensajeValidacion,
-                    color = when {
-                        respuestaEnviada && respuestaCorrecta == true -> BlueBackground
-                        respuestaEnviada && respuestaCorrecta == false -> Color.Red
-                        else -> Color.Red
-                    },
-                    fontSize = 13.sp
-                )
-            }
-
-            if (cantidadRespuestasRegistradas > 0) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Progreso de la práctica: $cantidadRespuestasRegistradas de $totalPreguntas",
-                    color = Color.Gray,
-                    fontSize = 13.sp
-                )
-            }
-
-            if (puedeAvanzar) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = onSiguientePregunta,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = BlueBackground,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("Siguiente pregunta")
-                }
-            }
-
-            if (respuestaEnviada && preguntaNumero == totalPreguntas) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Práctica finalizada",
-                    color = BlueBackground,
-                    fontSize = 14.sp
-                )
+        Button(
+            onClick = onEnviarRespuesta,
+            enabled = !enviandoRespuesta && !respuestaEnviada,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = BlueBackground)
+        ) {
+            if (enviandoRespuesta) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+            } else {
+                Text(if (respuestaEnviada) "Respondida" else "Enviar respuesta")
             }
         }
     }
@@ -406,30 +332,29 @@ private fun OpcionDisponibleItem(
     opcion: Option,
     seleccionada: Boolean,
     habilitada: Boolean,
+    esCorrecta: Boolean?,
     onClick: () -> Unit
 ) {
     val letra = ('A'.code + index).toChar()
+    val backgroundColor = when {
+        esCorrecta == true -> Color(0xFFC8E6C9) // Verde si es la correcta
+        seleccionada && esCorrecta == false -> Color(0xFFFFCDD2) // Rojo si seleccionó mal
+        seleccionada -> FieldBackground
+        else -> Color.White
+    }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = habilitada) { onClick() },
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (seleccionada) FieldBackground else Color.White
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (seleccionada) 6.dp else 2.dp
-        )
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (seleccionada) 4.dp else 1.dp)
     ) {
         Text(
-            text = if (seleccionada) {
-                "$letra. ${opcion.texto}  ✓"
-            } else {
-                "$letra. ${opcion.texto}"
-            },
+            text = "$letra. ${opcion.texto}",
             fontSize = 15.sp,
-            color = if (seleccionada) BlueBackground else Color.Black,
+            color = Color.Black,
             modifier = Modifier.padding(14.dp)
         )
     }
@@ -439,6 +364,5 @@ private fun hayConexionInternet(context: Context): Boolean {
     val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     val network = connectivityManager.activeNetwork ?: return false
     val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-
     return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
 }
