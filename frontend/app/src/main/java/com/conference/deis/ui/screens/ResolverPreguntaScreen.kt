@@ -85,6 +85,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
     var respuestaCorrecta by remember { mutableStateOf<Boolean?>(null) }
     var enviandoRespuesta by remember { mutableStateOf(false) }
     var calculandoNota by remember { mutableStateOf(false) }
+    var errorCalculoNota by remember { mutableStateOf<String?>(null) }
     var practicaFinalizada by remember { mutableStateOf(false) }
 
     val respuestasPractica = remember { mutableStateListOf<RespuestaPractica>() }
@@ -94,11 +95,25 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
     fun iniciarCalculoNota() {
         if (!calculandoNota) {
             calculandoNota = true
+            errorCalculoNota = null
+            practicaFinalizada = false
 
             scope.launch {
-                delay(1200)
-                calculandoNota = false
-                practicaFinalizada = true
+                try {
+                    delay(1200)
+
+                    calcularResultadoPractica(
+                        totalPreguntas = preguntas.size,
+                        respuestas = respuestasPractica
+                    )
+
+                    calculandoNota = false
+                    practicaFinalizada = true
+                } catch (e: Exception) {
+                    calculandoNota = false
+                    practicaFinalizada = false
+                    errorCalculoNota = "No se pudo calcular la nota. Intenta nuevamente."
+                }
             }
         }
     }
@@ -162,6 +177,19 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                     )
                 }
 
+                errorCalculoNota != null -> {
+                    ErrorCalculoNotaContenido(
+                        mensaje = errorCalculoNota.orEmpty(),
+                        modifier = Modifier.align(Alignment.Center),
+                        onReintentar = {
+                            iniciarCalculoNota()
+                        },
+                        onVolver = {
+                            navController.popBackStack()
+                        }
+                    )
+                }
+
                 preguntas.isEmpty() -> {
                     PracticaSinPreguntas(
                         modifier = Modifier.align(Alignment.Center),
@@ -185,6 +213,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                             respuestaCorrecta = null
                             enviandoRespuesta = false
                             calculandoNota = false
+                            errorCalculoNota = null
                             practicaFinalizada = false
                             respuestasPractica.clear()
                         },
@@ -508,6 +537,68 @@ private fun PreguntaPracticaContenido(
     }
 }
 
+@Composable
+private fun ErrorCalculoNotaContenido(
+    mensaje: String,
+    modifier: Modifier = Modifier,
+    onReintentar: () -> Unit,
+    onVolver: () -> Unit
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = FieldBackground),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Error al calcular la nota",
+                color = Color.Red,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = mensaje,
+                color = Color.Gray,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onReintentar,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = BlueBackground,
+                    contentColor = Color.White
+                )
+            ) {
+                Text("Intentar nuevamente")
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            TextButton(
+                onClick = onVolver,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Volver", color = BlueBackground)
+            }
+        }
+    }
+}
 @Composable
 private fun CalculandoNotaContenido(
     modifier: Modifier = Modifier
