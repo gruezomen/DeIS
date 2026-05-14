@@ -94,6 +94,14 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
     val context = LocalContext.current
 
     fun iniciarCalculoNota() {
+        if (preguntaActualIndex != preguntas.lastIndex) {
+            practicaFinalizada = false
+            resultadoPractica = null
+            errorCalculoNota = null
+            mensajeValidacion = "Debes finalizar la práctica antes de calcular la nota."
+            return
+        }
+
         if (!calculandoNota) {
             calculandoNota = true
             errorCalculoNota = null
@@ -114,6 +122,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                 } catch (e: Exception) {
                     calculandoNota = false
                     practicaFinalizada = false
+                    resultadoPractica = null
                     errorCalculoNota = "No se pudo calcular la nota. Intenta nuevamente."
                 }
             }
