@@ -84,11 +84,24 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
     var respuestaEnviada by remember { mutableStateOf(false) }
     var respuestaCorrecta by remember { mutableStateOf<Boolean?>(null) }
     var enviandoRespuesta by remember { mutableStateOf(false) }
+    var calculandoNota by remember { mutableStateOf(false) }
     var practicaFinalizada by remember { mutableStateOf(false) }
 
     val respuestasPractica = remember { mutableStateListOf<RespuestaPractica>() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    fun iniciarCalculoNota() {
+        if (!calculandoNota) {
+            calculandoNota = true
+
+            scope.launch {
+                delay(1200)
+                calculandoNota = false
+                practicaFinalizada = true
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         try {
@@ -143,6 +156,12 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                     )
                 }
 
+                calculandoNota -> {
+                    CalculandoNotaContenido(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+
                 preguntas.isEmpty() -> {
                     PracticaSinPreguntas(
                         modifier = Modifier.align(Alignment.Center),
@@ -165,6 +184,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                             respuestaEnviada = false
                             respuestaCorrecta = null
                             enviandoRespuesta = false
+                            calculandoNota = false
                             practicaFinalizada = false
                             respuestasPractica.clear()
                         },
@@ -198,7 +218,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
                             }
                         },
                         onFinalizarPractica = {
-                            practicaFinalizada = true
+                            iniciarCalculoNota()
                         },
                         onOpcionSeleccionada = { index ->
                             if (!respuestaEnviada && !enviandoRespuesta) {
@@ -484,6 +504,50 @@ private fun PreguntaPracticaContenido(
                     Text("Finalizar práctica")
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CalculandoNotaContenido(
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = FieldBackground),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            CircularProgressIndicator(
+                color = BlueBackground,
+                modifier = Modifier.size(44.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Calculando nota...",
+                color = BlueBackground,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "Estamos revisando tus respuestas.",
+                color = Color.Gray,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
