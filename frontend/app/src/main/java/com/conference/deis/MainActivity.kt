@@ -50,8 +50,12 @@ fun DeISApp() {
                 composable("lista_preguntas") {
                     ListaPreguntasScreen(navController)
                 }
+                composable("lista_bancos/{titulo}") { backStackEntry ->
+                    val titulo = backStackEntry.arguments?.getString("titulo")
+                    ListaBancosScreen(navController, titulo)
+                }
                 composable("lista_bancos") {
-                    ListaBancosScreen(navController)
+                    ListaBancosScreen(navController, null)
                 }
                 composable("detalles_banco/{id}") { backStackEntry ->
                     val id = backStackEntry.arguments?.getString("id")

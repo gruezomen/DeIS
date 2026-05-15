@@ -26,7 +26,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ListaBancosScreen(navController: NavHostController) {
+fun ListaBancosScreen(navController: NavHostController, tituloPersonalizado: String? = null) {
     var bancos by remember { mutableStateOf<List<BancoPregunta>>(emptyList()) }
     var cargando by remember { mutableStateOf(true) }
 
@@ -59,7 +59,7 @@ fun ListaBancosScreen(navController: NavHostController) {
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text("Lista de Banco de Preguntas")
+                    Text(tituloPersonalizado ?: "Lista de Banco de Preguntas")
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -105,6 +105,7 @@ fun ListaBancosScreen(navController: NavHostController) {
                         items(bancos) { banco ->
                             CardBanco(
                                 banco = banco,
+                                mostrarPracticar = tituloPersonalizado == "Examen Simulacro",
                                 onDetallesClick = {
                                     navController.navigate("detalles_banco/${banco.id}")
                                 },
@@ -123,6 +124,7 @@ fun ListaBancosScreen(navController: NavHostController) {
 @Composable
 fun CardBanco(
     banco: BancoPregunta,
+    mostrarPracticar: Boolean,
     onDetallesClick: () -> Unit,
     onPracticarClick: () -> Unit
 ) {
@@ -177,16 +179,18 @@ fun CardBanco(
                     Text("Detalles", fontSize = 14.sp)
                 }
 
-                Button(
-                    onClick = onPracticarClick,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = BlueBackground,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("Practicar", fontSize = 14.sp)
+                if (mostrarPracticar) {
+                    Button(
+                        onClick = onPracticarClick,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BlueBackground,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Practicar", fontSize = 14.sp)
+                    }
                 }
             }
         }
