@@ -26,6 +26,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -57,6 +59,10 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
     var practicaFinalizada by remember { mutableStateOf(false) }
     var puntuacion by remember { mutableStateOf(0) }
     var mostrarConfirmacionFinalizar by remember { mutableStateOf(false) }
+    
+    // Estados de guardado en backend
+    var guardandoResultado by remember { mutableStateOf(false) }
+    var errorGuardado by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -76,6 +82,34 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
         val preguntaId = preguntas.getOrNull(index)?.id ?: return
         val estadoGuardado = historialEstados[preguntaId]
         opcionSeleccionadaIndex = estadoGuardado?.opcionSeleccionadaIndex
+    }
+
+    fun intentarGuardarEnBackend(puntajeFinal: Int) {
+        scope.launch {
+            guardandoResultado = true
+            errorGuardado = false
+            try {
+                val usuarioId = UserSession.user?.id ?: "usuario_anonimo"
+                val bancoIdFinal = bancoId ?: "practica_general"
+                
+                val response = RetrofitInstance.api.guardarIntentoSimulacro(
+                    IntentoSimulacro(
+                        usuarioId = usuarioId,
+                        bancoId = bancoIdFinal,
+                        puntaje = puntajeFinal,
+                        totalPreguntas = preguntas.size
+                    )
+                )
+                
+                if (!response.isSuccessful) {
+                    errorGuardado = true
+                }
+            } catch (e: Exception) {
+                errorGuardado = true
+            } finally {
+                guardandoResultado = false
+            }
+        }
     }
 
     LaunchedEffect(bancoId) {
@@ -137,7 +171,8 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                         onClick = {
                             mostrarConfirmacionFinalizar = false
                             guardarEstadoActual()
-                            // Lógica de calificación masiva
+                            
+                            // Calificación local
                             var correctas = 0
                             preguntas.forEach { q ->
                                 val estado = historialEstados[q.id]
@@ -150,25 +185,9 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                             }
                             puntuacion = correctas
                             practicaFinalizada = true
-
-                            // Guardar en el backend
-                            scope.launch {
-                                try {
-                                    val usuarioId = UserSession.user?.id ?: "usuario_anonimo"
-                                    val bancoIdFinal = bancoId ?: "practica_general"
-                                    
-                                    RetrofitInstance.api.guardarIntentoSimulacro(
-                                        IntentoSimulacro(
-                                            usuarioId = usuarioId,
-                                            bancoId = bancoIdFinal,
-                                            puntaje = correctas,
-                                            totalPreguntas = preguntas.size
-                                        )
-                                    )
-                                } catch (e: Exception) {
-                                    // Error silencioso para no interrumpir al usuario
-                                }
-                            }
+                            
+                            // Guardar en backend
+                            intentarGuardarEnBackend(correctas)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = BlueBackground)
                     ) {
@@ -200,11 +219,15 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                     ResultadosPanel(
                         puntuacion = puntuacion,
                         total = preguntas.size,
-                        onReintentar = {
+                        guardando = guardandoResultado,
+                        errorGuardado = errorGuardado,
+                        onReintentarGuardado = { intentarGuardarEnBackend(puntuacion) },
+                        onReintentarPractica = {
                             practicaFinalizada = false
                             historialEstados.clear()
                             preguntaActualIndex = 0
                             opcionSeleccionadaIndex = null
+                            errorGuardado = false
                         },
                         onSalir = { navController.popBackStack() }
                     )
@@ -329,14 +352,57 @@ private fun OpcionSimpleItem(index: Int, opcion: Option, seleccionada: Boolean, 
 }
 
 @Composable
-private fun ResultadosPanel(puntuacion: Int, total: Int, onReintentar: () -> Unit, onSalir: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+private fun ResultadosPanel(
+    puntuacion: Int, 
+    total: Int, 
+    guardando: Boolean,
+    errorGuardado: Boolean,
+    onReintentarGuardado: () -> Unit,
+    onReintentarPractica: () -> Unit, 
+    onSalir: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp), 
+        horizontalAlignment = Alignment.CenterHorizontally, 
+        verticalArrangement = Arrangement.Center
+    ) {
         Text(text = "¡Práctica Terminada!", fontSize = 24.sp, color = BlueBackground)
         Spacer(modifier = Modifier.height(16.dp))
         Text(text = "Tu puntuación:", fontSize = 18.sp, color = Color.Black)
         Text(text = "$puntuacion / $total", fontSize = 48.sp, color = BlueBackground)
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        // Manejo de estado de guardado
+        if (guardando) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = "Guardando nota...", fontSize = 14.sp, color = Color.Gray)
+            }
+        } else if (errorGuardado) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = Color.Red)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "No se pudo guardar tu nota.", fontSize = 13.sp, color = Color.Red)
+                        Text(text = "Revisa tu conexión e intenta de nuevo.", fontSize = 12.sp, color = Color.Gray)
+                    }
+                    IconButton(onClick = onReintentarGuardado) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = "Reintentar guardado", tint = BlueBackground)
+                    }
+                }
+            }
+        } else {
+            Text(text = "✓ Nota guardada en tu perfil", fontSize = 14.sp, color = Color(0xFF4CAF50))
+        }
+
         Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = onReintentar, modifier = Modifier.fillMaxWidth()) { Text("Reintentar") }
+        Button(onClick = onReintentarPractica, modifier = Modifier.fillMaxWidth()) { Text("Reintentar") }
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedButton(onClick = onSalir, modifier = Modifier.fillMaxWidth()) { Text("Salir") }
     }
