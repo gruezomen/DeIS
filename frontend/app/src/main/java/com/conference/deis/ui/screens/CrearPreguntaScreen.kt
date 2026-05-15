@@ -31,6 +31,13 @@ fun CrearPreguntaScreen(
     navController: NavHostController,
     preguntaId: String? = null
 ) {
+    if (!esAdministrador()) {
+        AccesoDenegadoScreen(
+            navController = navController,
+            mensaje = "Solo el administrador puede crear o editar preguntas."
+        )
+        return
+    }
     var categoriaSeleccionada by remember { mutableStateOf("") }
     var enunciado by remember { mutableStateOf("") }
     var opcionA by remember { mutableStateOf("") }
