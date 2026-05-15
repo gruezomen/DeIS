@@ -13,8 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +35,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.Normalizer
 
+private const val DURACION_SIMULACRO_SEGUNDOS = 600
+
 private data class EstadoPregunta(
     val preguntaId: String,
     val opcionSeleccionadaIndex: Int?,
@@ -50,18 +50,20 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
     var preguntas by remember { mutableStateOf<List<Question>>(emptyList()) }
     var preguntaActualIndex by remember { mutableStateOf(0) }
     var cargando by remember { mutableStateOf(true) }
-    
+
     // Estado de la pregunta actual
     var opcionSeleccionadaIndex by remember { mutableStateOf<Int?>(null) }
-    
+
     // Registro de estado completo de cada pregunta
     val historialEstados = remember { mutableStateMapOf<String, EstadoPregunta>() }
-    
+
     // Estado global de finalización
     var practicaFinalizada by remember { mutableStateOf(false) }
     var puntuacion by remember { mutableStateOf(0) }
     var mostrarConfirmacionFinalizar by remember { mutableStateOf(false) }
-    
+    var finalizadoPorTiempo by remember { mutableStateOf(false) }
+    var tiempoRestanteSegundos by remember(bancoId) { mutableStateOf(DURACION_SIMULACRO_SEGUNDOS) }
+
     // Estados de guardado en backend
     var guardandoResultado by remember { mutableStateOf(false) }
     var errorGuardado by remember { mutableStateOf(false) }
@@ -93,7 +95,7 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
             try {
                 val usuarioId = UserSession.user?.id ?: "usuario_anonimo"
                 val bancoIdFinal = bancoId ?: "practica_general"
-                
+
                 val response = RetrofitInstance.api.guardarIntentoSimulacro(
                     IntentoSimulacro(
                         usuarioId = usuarioId,
@@ -102,7 +104,7 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                         totalPreguntas = preguntas.size
                     )
                 )
-                
+
                 if (!response.isSuccessful) {
                     errorGuardado = true
                 }
@@ -110,6 +112,48 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                 errorGuardado = true
             } finally {
                 guardandoResultado = false
+            }
+        }
+    }
+
+    fun finalizarSimulacro(tiempoTerminado: Boolean) {
+        if (practicaFinalizada) return
+
+        mostrarConfirmacionFinalizar = false
+        guardarEstadoActual()
+
+        var correctas = 0
+        preguntas.forEach { pregunta ->
+            val estado = historialEstados[pregunta.id]
+            val seleccion = estado?.opcionSeleccionadaIndex
+
+            if (seleccion != null && seleccion in pregunta.opciones.indices) {
+                val esOk = pregunta.opciones[seleccion].esCorrecta
+                if (esOk) correctas++
+
+                historialEstados[pregunta.id] = (estado ?: EstadoPregunta(pregunta.id, seleccion)).copy(
+                    respondida = true,
+                    esCorrecta = esOk
+                )
+            }
+        }
+
+        puntuacion = correctas
+        finalizadoPorTiempo = tiempoTerminado
+        practicaFinalizada = true
+        intentarGuardarEnBackend(correctas)
+    }
+
+    LaunchedEffect(cargando, preguntas.size, practicaFinalizada) {
+        if (!cargando && preguntas.isNotEmpty() && !practicaFinalizada) {
+            while (tiempoRestanteSegundos > 0 && !practicaFinalizada) {
+                delay(1000)
+                tiempoRestanteSegundos--
+            }
+
+            if (tiempoRestanteSegundos <= 0 && !practicaFinalizada) {
+                tiempoRestanteSegundos = 0
+                finalizarSimulacro(tiempoTerminado = true)
             }
         }
     }
@@ -157,7 +201,7 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
             val preguntasSinResponder = preguntas.count { q ->
                 historialEstados[q.id]?.opcionSeleccionadaIndex == null
             }
-            
+
             val mensajeAlerta = if (preguntasSinResponder > 0) {
                 "Tienes $preguntasSinResponder pregunta(s) sin responder. ¿Estás seguro de que deseas finalizar?"
             } else {
@@ -170,27 +214,7 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                 text = { Text(mensajeAlerta) },
                 confirmButton = {
                     Button(
-                        onClick = {
-                            mostrarConfirmacionFinalizar = false
-                            guardarEstadoActual()
-                            
-                            // Calificación local
-                            var correctas = 0
-                            preguntas.forEach { q ->
-                                val estado = historialEstados[q.id]
-                                val seleccion = estado?.opcionSeleccionadaIndex
-                                if (seleccion != null) {
-                                    val esOk = q.opciones[seleccion].esCorrecta
-                                    if (esOk) correctas++
-                                    historialEstados[q.id!!] = (estado ?: EstadoPregunta(q.id!!, seleccion)).copy(respondida = true, esCorrecta = esOk)
-                                }
-                            }
-                            puntuacion = correctas
-                            practicaFinalizada = true
-                            
-                            // Guardar en backend
-                            intentarGuardarEnBackend(correctas)
-                        },
+                        onClick = { finalizarSimulacro(tiempoTerminado = false) },
                         colors = ButtonDefaults.buttonColors(containerColor = BlueBackground)
                     ) {
                         Text("Confirmar")
@@ -214,60 +238,71 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                 cargando -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
+
                 preguntas.isEmpty() -> {
                     Text(text = "No hay preguntas", modifier = Modifier.align(Alignment.Center), color = Color.Gray)
                 }
+
                 practicaFinalizada -> {
                     ResultadosPanel(
                         puntuacion = puntuacion,
                         total = preguntas.size,
                         guardando = guardandoResultado,
                         errorGuardado = errorGuardado,
+                        finalizadoPorTiempo = finalizadoPorTiempo,
                         onReintentarGuardado = { intentarGuardarEnBackend(puntuacion) },
                         onReintentarPractica = {
-                            practicaFinalizada = false
+                            tiempoRestanteSegundos = DURACION_SIMULACRO_SEGUNDOS
+                            finalizadoPorTiempo = false
                             historialEstados.clear()
                             preguntaActualIndex = 0
                             opcionSeleccionadaIndex = null
                             errorGuardado = false
+                            practicaFinalizada = false
                         },
                         onSalir = { navController.popBackStack() }
                     )
                 }
-                else -> {
-                   val preguntaActual = preguntas[preguntaActualIndex]
-                   val estadoActual = historialEstados[preguntaActual.id]
 
-                   PreguntaPracticaContenido(
-                      pregunta = preguntaActual,
-                      opcionSeleccionadaIndex = opcionSeleccionadaIndex,
-                      preguntaNumero = preguntaActualIndex + 1,
-                      totalPreguntas = preguntas.size,
-                      esRespondida = (estadoActual?.respondida ?: false) || practicaFinalizada,
-                      onSiguientePregunta = {
-                          if (preguntaActualIndex < preguntas.lastIndex) {
-                              if (!practicaFinalizada) guardarEstadoActual()
-                              preguntaActualIndex++
-                              cargarEstadoPregunta(preguntaActualIndex)
-                          }
-                      },
-                      onAnteriorPregunta = {
-                          if (preguntaActualIndex > 0) {
-                              if (!practicaFinalizada) guardarEstadoActual()
-                              preguntaActualIndex--
-                              cargarEstadoPregunta(preguntaActualIndex)
-                          }
-                      },
-                      onOpcionSeleccionada = { index ->
-                        if (!(estadoActual?.respondida ?: false) && !practicaFinalizada) {
-                             opcionSeleccionadaIndex = index
-                             guardarEstadoActual()
+                else -> {
+                    val preguntaActual = preguntas[preguntaActualIndex]
+                    val estadoActual = historialEstados[preguntaActual.id]
+                    val tiempoAgotado = tiempoRestanteSegundos <= 0
+
+                    PreguntaPracticaContenido(
+                        pregunta = preguntaActual,
+                        opcionSeleccionadaIndex = opcionSeleccionadaIndex,
+                        preguntaNumero = preguntaActualIndex + 1,
+                        totalPreguntas = preguntas.size,
+                        tiempoRestanteSegundos = tiempoRestanteSegundos,
+                        esRespondida = (estadoActual?.respondida ?: false) || practicaFinalizada,
+                        tiempoAgotado = tiempoAgotado,
+                        onSiguientePregunta = {
+                            if (preguntaActualIndex < preguntas.lastIndex) {
+                                if (!practicaFinalizada) guardarEstadoActual()
+                                preguntaActualIndex++
+                                cargarEstadoPregunta(preguntaActualIndex)
+                            }
+                        },
+                        onAnteriorPregunta = {
+                            if (preguntaActualIndex > 0) {
+                                if (!practicaFinalizada) guardarEstadoActual()
+                                preguntaActualIndex--
+                                cargarEstadoPregunta(preguntaActualIndex)
+                            }
+                        },
+                        onOpcionSeleccionada = { index ->
+                            if (!(estadoActual?.respondida ?: false) && !practicaFinalizada && !tiempoAgotado) {
+                                opcionSeleccionadaIndex = index
+                                guardarEstadoActual()
+                            }
+                        },
+                        onFinalizar = {
+                            if (!tiempoAgotado) {
+                                mostrarConfirmacionFinalizar = true
+                            }
                         }
-                    },
-                    onFinalizar = {
-                        mostrarConfirmacionFinalizar = true
-                    }
-                )
+                    )
                 }
             }
         }
@@ -280,7 +315,9 @@ private fun PreguntaPracticaContenido(
     opcionSeleccionadaIndex: Int?,
     preguntaNumero: Int,
     totalPreguntas: Int,
+    tiempoRestanteSegundos: Int,
     esRespondida: Boolean,
+    tiempoAgotado: Boolean,
     onSiguientePregunta: () -> Unit,
     onAnteriorPregunta: () -> Unit,
     onOpcionSeleccionada: (Int) -> Unit,
@@ -301,6 +338,13 @@ private fun PreguntaPracticaContenido(
             }
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        TiempoRestanteCard(
+            tiempoRestanteSegundos = tiempoRestanteSegundos,
+            tiempoAgotado = tiempoAgotado
+        )
+
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -319,6 +363,7 @@ private fun PreguntaPracticaContenido(
                     index = index,
                     opcion = opcion,
                     seleccionada = opcionSeleccionadaIndex == index,
+                    bloqueada = esRespondida || tiempoAgotado,
                     onClick = { onOpcionSeleccionada(index) }
                 )
             }
@@ -328,6 +373,7 @@ private fun PreguntaPracticaContenido(
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = onFinalizar,
+                enabled = !tiempoAgotado,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = BlueBackground)
@@ -339,40 +385,113 @@ private fun PreguntaPracticaContenido(
 }
 
 @Composable
-private fun OpcionSimpleItem(index: Int, opcion: Option, seleccionada: Boolean, onClick: () -> Unit) {
+private fun TiempoRestanteCard(
+    tiempoRestanteSegundos: Int,
+    tiempoAgotado: Boolean
+) {
+    val colorFondo = if (tiempoAgotado || tiempoRestanteSegundos <= 60) Color(0xFFFFEBEE) else FieldBackground
+    val colorTexto = if (tiempoAgotado || tiempoRestanteSegundos <= 60) Color.Red else BlueBackground
+    val mensaje = if (tiempoAgotado) "Tiempo terminado" else "Tiempo restante"
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = colorFondo)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = mensaje, fontSize = 14.sp, color = colorTexto)
+            Text(
+                text = formatearTiempo(tiempoRestanteSegundos),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorTexto
+            )
+        }
+    }
+}
+
+@Composable
+private fun OpcionSimpleItem(
+    index: Int,
+    opcion: Option,
+    seleccionada: Boolean,
+    bloqueada: Boolean,
+    onClick: () -> Unit
+) {
     val letra = ('A'.code + index).toChar()
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !bloqueada) { onClick() },
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = if (seleccionada) BlueBackground.copy(alpha = 0.1f) else Color.White),
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                seleccionada -> BlueBackground.copy(alpha = 0.1f)
+                bloqueada -> Color(0xFFF5F5F5)
+                else -> Color.White
+            }
+        ),
         border = if (seleccionada) androidx.compose.foundation.BorderStroke(2.dp, BlueBackground) else null
     ) {
-        Text(text = "$letra. ${opcion.texto}", fontSize = 15.sp, color = Color.Black, modifier = Modifier.padding(14.dp))
+        Text(
+            text = "$letra. ${opcion.texto}",
+            fontSize = 15.sp,
+            color = if (bloqueada && !seleccionada) Color.Gray else Color.Black,
+            modifier = Modifier.padding(14.dp)
+        )
     }
 }
 
 @Composable
 private fun ResultadosPanel(
-    puntuacion: Int, 
-    total: Int, 
+    puntuacion: Int,
+    total: Int,
     guardando: Boolean,
     errorGuardado: Boolean,
+    finalizadoPorTiempo: Boolean,
     onReintentarGuardado: () -> Unit,
-    onReintentarPractica: () -> Unit, 
+    onReintentarPractica: () -> Unit,
     onSalir: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp), 
-        horizontalAlignment = Alignment.CenterHorizontally, 
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "¡Práctica Terminada!", fontSize = 24.sp, color = BlueBackground)
+        Text(
+            text = if (finalizadoPorTiempo) "Simulacro finalizado" else "¡Práctica Terminada!",
+            fontSize = 24.sp,
+            color = BlueBackground,
+            textAlign = TextAlign.Center
+        )
+
+        if (finalizadoPorTiempo) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(
+                    text = "El tiempo terminó. El sistema finalizó el simulacro automáticamente y bloqueó los cambios.",
+                    fontSize = 13.sp,
+                    color = Color.Red,
+                    modifier = Modifier.padding(12.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
         Text(text = "Tu puntuación:", fontSize = 18.sp, color = Color.Black)
         Text(text = "$puntuacion / $total", fontSize = 48.sp, color = BlueBackground)
-        
+
         Spacer(modifier = Modifier.height(24.dp))
-        
+
         if (guardando) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -385,14 +504,22 @@ private fun ResultadosPanel(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = Color.Red)
+                    Text(
+                        text = "!",
+                        fontSize = 20.sp,
+                        color = Color.Red
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = "No se pudo guardar tu nota.", fontSize = 13.sp, color = Color.Red)
                         Text(text = "Revisa tu conexión e intenta de nuevo.", fontSize = 12.sp, color = Color.Gray)
                     }
-                    IconButton(onClick = onReintentarGuardado) {
-                        Icon(Icons.Default.CloudUpload, contentDescription = "Reintentar guardado", tint = BlueBackground)
+                    TextButton(onClick = onReintentarGuardado) {
+                        Text(
+                            text = "Reintentar",
+                            fontSize = 12.sp,
+                            color = BlueBackground
+                        )
                     }
                 }
             }
@@ -405,6 +532,13 @@ private fun ResultadosPanel(
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedButton(onClick = onSalir, modifier = Modifier.fillMaxWidth()) { Text("Salir") }
     }
+}
+
+private fun formatearTiempo(segundosTotales: Int): String {
+    val segundosSeguros = segundosTotales.coerceAtLeast(0)
+    val minutos = segundosSeguros / 60
+    val segundos = segundosSeguros % 60
+    return "%02d:%02d".format(minutos, segundos)
 }
 
 private fun hayConexionInternet(context: Context): Boolean {
