@@ -73,6 +73,7 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
     var respuestaCorrecta by remember { mutableStateOf<Boolean?>(null) }
     var enviandoRespuesta by remember { mutableStateOf(false) }
     val respuestasPractica = remember { mutableStateListOf<RespuestaPractica>() }
+    var errorResolucion by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -156,6 +157,7 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                       cantidadRespuestasRegistradas = respuestasPractica.size,
                       preguntaNumero = preguntaActualIndex + 1,
                       totalPreguntas = preguntas.size,
+                      errorResolucion = errorResolucion,
                       puedeAvanzar = respuestaEnviada && preguntaActualIndex < preguntas.lastIndex,
                       onSiguientePregunta = {
                           if (preguntaActualIndex < preguntas.lastIndex) {
@@ -166,6 +168,7 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                           respuestaEnviada = false
                           respuestaCorrecta = null
                           enviandoRespuesta = false
+                          errorResolucion = null
                          }
                         },
                       onOpcionSeleccionada = { index ->
@@ -173,6 +176,7 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                              opcionSeleccionadaIndex = index
                              mensajeValidacion = null
                              respuestaCorrecta = null
+                             errorResolucion = null
                                                 }
                     },
                  onEnviarRespuesta = {
@@ -214,6 +218,12 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                                         )
                         )
 
+                    errorResolucion = null
+
+                    if (preguntaActual.enunciado.isBlank()) {
+                        throw IllegalStateException("No se pudo cargar la resolución de la pregunta")
+                    }
+
                     mensajeValidacion = if (esCorrecta) {
                        "Respuesta correcta"
                     } else {
@@ -223,6 +233,7 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                     respuestaCorrecta = null
                     respuestaEnviada = false
                     mensajeValidacion = "No se pudo validar la respuesta. Intenta nuevamente"
+                    mensajeValidacion = null
                 } finally {
                     enviandoRespuesta = false
                 }
@@ -249,6 +260,7 @@ private fun PreguntaPracticaContenido(
     preguntaNumero: Int,
     totalPreguntas: Int,
     puedeAvanzar: Boolean,
+    errorResolucion: String?,
     onSiguientePregunta: () -> Unit,
     onOpcionSeleccionada: (Int) -> Unit,
     onEnviarRespuesta: () -> Unit
@@ -408,8 +420,38 @@ private fun PreguntaPracticaContenido(
                         Text(
                             text = "Respuesta correcta: ${opcionCorrecta?.texto ?: "No disponible"}",
                             fontSize = 14.sp,
+                            color = Color(0xFF2E7D32)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "Explicación",
+                            fontSize = 15.sp,
                             color = BlueBackground
                         )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        if (errorResolucion != null) {
+                            Text(
+                                text = errorResolucion,
+                                fontSize = 14.sp,
+                                color = Color.Red
+                            )
+                        } else if (pregunta.solucion.isBlank()) {
+                            Text(
+                                text = "Esta pregunta no tiene explicación registrada.",
+                                fontSize = 14.sp,
+                                color = Color.Gray
+                            )
+                        } else {
+                            Text(
+                                text = pregunta.solucion,
+                                fontSize = 14.sp,
+                                color = Color.Black
+                            )
+                        }
                     }
                 }
             }
