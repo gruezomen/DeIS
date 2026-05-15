@@ -77,6 +77,10 @@ fun DeISApp() {
                     CrearPreguntaScreen(navController)
                 }
 
+                composable("crear_banco") {
+                    CrearBancoScreen(navController)
+                }
+
                 composable("resolver_simulacro/{simulacroId}") { backStackEntry ->
                     val simulacroId = backStackEntry.arguments?.getString("simulacroId")
 

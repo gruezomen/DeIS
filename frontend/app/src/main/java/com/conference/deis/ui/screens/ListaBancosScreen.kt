@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -70,6 +71,7 @@ fun ListaBancosScreen(
     var errorCarga by remember { mutableStateOf(false) }
 
     var mostrarDialogoTiempo by remember { mutableStateOf(false) }
+    var mostrarDialogoEliminar by remember { mutableStateOf(false) }
     var bancoSeleccionadoId by remember { mutableStateOf<String?>(null) }
     var tiempoTexto by remember { mutableStateOf("") }
     var errorTiempo by remember { mutableStateOf<String?>(null) }
@@ -104,6 +106,22 @@ fun ListaBancosScreen(
                 ).show()
             } finally {
                 cargando = false
+            }
+        }
+    }
+
+    fun eliminarBanco(id: String) {
+        scope.launch {
+            try {
+                val response = RetrofitInstance.api.eliminarBanco(id)
+                if (response.isSuccessful) {
+                    Toast.makeText(context, "Banco eliminado", Toast.LENGTH_SHORT).show()
+                    cargarBancos()
+                } else {
+                    Toast.makeText(context, "Error al eliminar el banco", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -217,6 +235,29 @@ fun ListaBancosScreen(
         )
     }
 
+    if (mostrarDialogoEliminar) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoEliminar = false },
+            title = { Text("Eliminar Banco") },
+            text = { Text("¿Estás seguro de que deseas eliminar este banco de preguntas? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        bancoSeleccionadoId?.let { eliminarBanco(it) }
+                        mostrarDialogoEliminar = false
+                    }
+                ) {
+                    Text("Eliminar", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoEliminar = false }) {
+                    Text("Cancelar", color = Color.Gray)
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -320,6 +361,10 @@ fun ListaBancosScreen(
                                 },
                                 onPracticarClick = {
                                     abrirDialogoTiempo(banco)
+                                },
+                                onEliminarClick = {
+                                    bancoSeleccionadoId = banco.id
+                                    mostrarDialogoEliminar = true
                                 }
                             )
                         }
@@ -335,7 +380,8 @@ fun CardBanco(
     banco: BancoPregunta,
     mostrarPracticar: Boolean,
     onDetallesClick: () -> Unit,
-    onPracticarClick: () -> Unit
+    onPracticarClick: () -> Unit,
+    onEliminarClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -347,12 +393,26 @@ fun CardBanco(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Text(
-                text = "Banco de Preguntas",
-                fontSize = 16.sp,
-                color = Color.Black,
-                style = MaterialTheme.typography.titleMedium
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Banco de Preguntas",
+                    fontSize = 16.sp,
+                    color = Color.Black,
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                IconButton(onClick = onEliminarClick) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Eliminar Banco",
+                        tint = Color.Red
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(4.dp))
 

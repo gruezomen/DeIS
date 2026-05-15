@@ -111,6 +111,13 @@ fun AdminHomeScreen(navController: NavHostController) {
             Spacer(modifier = Modifier.height(10.dp))
 
             ActionBox(
+                texto = "Crear banco de preguntas",
+                onClick = { navController.navigate("crear_banco") }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            ActionBox(
                 texto = "Actualizar pregunta",
                 onClick = { navController.navigate("lista_preguntas") }
             )
