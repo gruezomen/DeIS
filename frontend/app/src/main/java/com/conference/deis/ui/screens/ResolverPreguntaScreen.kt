@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.conference.deis.network.RetrofitInstance
+import com.conference.deis.network.UserSession
+import com.conference.deis.network.model.IntentoSimulacro
 import com.conference.deis.network.model.Option
 import com.conference.deis.network.model.Question
 import com.conference.deis.ui.theme.BlueBackground
@@ -116,10 +118,20 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
         }
     ) { paddingValues ->
         if (mostrarConfirmacionFinalizar) {
+            val preguntasSinResponder = preguntas.count { q ->
+                historialEstados[q.id]?.opcionSeleccionadaIndex == null
+            }
+            
+            val mensajeAlerta = if (preguntasSinResponder > 0) {
+                "Tienes $preguntasSinResponder pregunta(s) sin responder. ¿Estás seguro de que deseas finalizar?"
+            } else {
+                "¿Estás seguro de que deseas terminar? Se calculará tu puntuación final."
+            }
+
             AlertDialog(
                 onDismissRequest = { mostrarConfirmacionFinalizar = false },
                 title = { Text("¿Finalizar Simulacro?") },
-                text = { Text("¿Estás seguro de que deseas terminar? Se calculará tu puntuación final.") },
+                text = { Text(mensajeAlerta) },
                 confirmButton = {
                     Button(
                         onClick = {
@@ -138,6 +150,25 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                             }
                             puntuacion = correctas
                             practicaFinalizada = true
+
+                            // Guardar en el backend
+                            scope.launch {
+                                try {
+                                    val usuarioId = UserSession.user?.id ?: "usuario_anonimo"
+                                    val bancoIdFinal = bancoId ?: "practica_general"
+                                    
+                                    RetrofitInstance.api.guardarIntentoSimulacro(
+                                        IntentoSimulacro(
+                                            usuarioId = usuarioId,
+                                            bancoId = bancoIdFinal,
+                                            puntaje = correctas,
+                                            totalPreguntas = preguntas.size
+                                        )
+                                    )
+                                } catch (e: Exception) {
+                                    // Error silencioso para no interrumpir al usuario
+                                }
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = BlueBackground)
                     ) {

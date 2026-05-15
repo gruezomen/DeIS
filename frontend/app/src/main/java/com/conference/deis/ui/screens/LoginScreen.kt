@@ -99,6 +99,7 @@ fun LoginScreen(navController: NavHostController) {
                             )
 
                             if (response.isSuccessful && response.body() != null) {
+                                com.conference.deis.network.UserSession.user = response.body()
                                 Toast.makeText(
                                     context,
                                     response.body()!!.mensaje,
