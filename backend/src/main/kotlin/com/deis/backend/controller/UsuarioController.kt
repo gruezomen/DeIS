@@ -2,6 +2,8 @@ package com.deis.backend.controller
 
 import com.deis.backend.dto.RegistroUsuarioRequest
 import com.deis.backend.dto.RegistroUsuarioResponse
+import com.deis.backend.dto.LoginUsuarioRequest
+import com.deis.backend.dto.LoginUsuarioResponse
 import com.deis.backend.service.UsuarioService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -25,6 +27,14 @@ class UsuarioController(
     ): ResponseEntity<RegistroUsuarioResponse> {
         val response = usuarioService.registrarUsuario(request)
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
+    }
+
+    @PostMapping("/login")
+    fun loginUsuario(
+        @Valid @RequestBody request: LoginUsuarioRequest
+    ): ResponseEntity<LoginUsuarioResponse> {
+        val response = usuarioService.loginUsuario(request)
+        return ResponseEntity.ok(response)
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)

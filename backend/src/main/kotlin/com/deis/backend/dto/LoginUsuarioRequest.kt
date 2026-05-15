@@ -4,10 +4,7 @@ import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 
-data class RegistroUsuarioRequest(
-    @field:NotBlank(message = "El nombre es obligatorio")
-    val nombre: String,
-
+data class LoginUsuarioRequest(
     @field:NotBlank(message = "El correo es obligatorio")
     @field:Email(message = "El correo no tiene un formato válido")
     val correo: String,

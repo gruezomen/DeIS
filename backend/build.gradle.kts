@@ -25,6 +25,7 @@ dependencies {
 	implementation("org.springframework.security:spring-security-crypto")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
+	implementation("me.paulschwarz:spring-dotenv:4.0.0")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 

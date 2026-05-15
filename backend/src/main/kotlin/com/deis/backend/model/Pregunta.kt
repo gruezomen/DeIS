@@ -10,6 +10,7 @@ data class Pregunta(
     val enunciado: String,
     val solucion: String,
     val video: String,
+    val dificultad: Dificultad,
     val categoria: Categoria,
     val opciones: List<Opcion> = emptyList()
 )
