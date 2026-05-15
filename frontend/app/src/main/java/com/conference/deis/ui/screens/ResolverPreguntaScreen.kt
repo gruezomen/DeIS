@@ -241,24 +241,24 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                       opcionSeleccionadaIndex = opcionSeleccionadaIndex,
                       preguntaNumero = preguntaActualIndex + 1,
                       totalPreguntas = preguntas.size,
-                      esRespondida = estadoActual?.respondida ?: false,
+                      esRespondida = (estadoActual?.respondida ?: false) || practicaFinalizada,
                       esCorrectaResult = estadoActual?.esCorrecta,
                       onSiguientePregunta = {
                           if (preguntaActualIndex < preguntas.lastIndex) {
-                              guardarEstadoActual()
+                              if (!practicaFinalizada) guardarEstadoActual()
                               preguntaActualIndex++
                               cargarEstadoPregunta(preguntaActualIndex)
                           }
                       },
                       onAnteriorPregunta = {
                           if (preguntaActualIndex > 0) {
-                              guardarEstadoActual()
+                              if (!practicaFinalizada) guardarEstadoActual()
                               preguntaActualIndex--
                               cargarEstadoPregunta(preguntaActualIndex)
                           }
                       },
                       onOpcionSeleccionada = { index ->
-                        if (!(estadoActual?.respondida ?: false)) {
+                        if (!(estadoActual?.respondida ?: false) && !practicaFinalizada) {
                              opcionSeleccionadaIndex = index
                              guardarEstadoActual()
                         }
