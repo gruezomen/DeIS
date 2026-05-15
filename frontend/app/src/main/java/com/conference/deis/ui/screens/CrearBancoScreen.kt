@@ -26,6 +26,13 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrearBancoScreen(navController: NavHostController) {
+    if (!esAdministrador()) {
+        AccesoDenegadoScreen(
+            navController = navController,
+            mensaje = "Solo el administrador puede crear bancos de preguntas."
+        )
+        return
+    }
     var facultadId by remember { mutableStateOf("") }
     var cargando by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()

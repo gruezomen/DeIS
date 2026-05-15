@@ -33,6 +33,13 @@ fun OrganizarPreguntaScreen(
     navController: NavHostController,
     preguntaId: String
 ) {
+    if (!esAdministrador()) {
+        AccesoDenegadoScreen(
+            navController = navController,
+            mensaje = "Solo el administrador puede organizar preguntas en bancos."
+        )
+        return
+    }
     var pregunta by remember { mutableStateOf<Question?>(null) }
     var bancosPregunta by remember { mutableStateOf<List<BancoPregunta>>(emptyList()) }
     var bancoSeleccionadoId by remember { mutableStateOf("") }

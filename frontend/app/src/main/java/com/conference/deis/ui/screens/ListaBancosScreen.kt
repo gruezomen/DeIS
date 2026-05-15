@@ -78,6 +78,7 @@ fun ListaBancosScreen(
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val esAdmin = esAdministrador()
 
     fun cargarBancos() {
         scope.launch {
@@ -111,17 +112,39 @@ fun ListaBancosScreen(
     }
 
     fun eliminarBanco(id: String) {
+        if (!esAdmin) {
+            Toast.makeText(
+                context,
+                "Solo el administrador puede eliminar bancos",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
         scope.launch {
             try {
                 val response = RetrofitInstance.api.eliminarBanco(id)
+
                 if (response.isSuccessful) {
-                    Toast.makeText(context, "Banco eliminado", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        "Banco eliminado",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     cargarBancos()
                 } else {
-                    Toast.makeText(context, "Error al eliminar el banco", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        "Error al eliminar el banco",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    "Error de conexión",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
@@ -235,15 +258,21 @@ fun ListaBancosScreen(
         )
     }
 
-    if (mostrarDialogoEliminar) {
+    if (mostrarDialogoEliminar && esAdmin) {
         AlertDialog(
             onDismissRequest = { mostrarDialogoEliminar = false },
-            title = { Text("Eliminar Banco") },
-            text = { Text("¿Estás seguro de que deseas eliminar este banco de preguntas? Esta acción no se puede deshacer.") },
+            title = {
+                Text("Eliminar Banco")
+            },
+            text = {
+                Text("¿Estás seguro de que deseas eliminar este banco de preguntas? Esta acción no se puede deshacer.")
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        bancoSeleccionadoId?.let { eliminarBanco(it) }
+                        bancoSeleccionadoId?.let { id ->
+                            eliminarBanco(id)
+                        }
                         mostrarDialogoEliminar = false
                     }
                 ) {
@@ -356,6 +385,7 @@ fun ListaBancosScreen(
                             CardBanco(
                                 banco = banco,
                                 mostrarPracticar = tituloPersonalizado == "Examen Simulacro",
+                                esAdministrador = esAdmin,
                                 onDetallesClick = {
                                     navController.navigate("detalles_banco/${banco.id}")
                                 },
@@ -363,8 +393,10 @@ fun ListaBancosScreen(
                                     abrirDialogoTiempo(banco)
                                 },
                                 onEliminarClick = {
-                                    bancoSeleccionadoId = banco.id
-                                    mostrarDialogoEliminar = true
+                                    if (esAdmin) {
+                                        bancoSeleccionadoId = banco.id
+                                        mostrarDialogoEliminar = true
+                                    }
                                 }
                             )
                         }
@@ -379,6 +411,7 @@ fun ListaBancosScreen(
 fun CardBanco(
     banco: BancoPregunta,
     mostrarPracticar: Boolean,
+    esAdministrador: Boolean,
     onDetallesClick: () -> Unit,
     onPracticarClick: () -> Unit,
     onEliminarClick: () -> Unit
@@ -405,12 +438,14 @@ fun CardBanco(
                     style = MaterialTheme.typography.titleMedium
                 )
 
-                IconButton(onClick = onEliminarClick) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Eliminar Banco",
-                        tint = Color.Red
-                    )
+                if (esAdministrador) {
+                    IconButton(onClick = onEliminarClick) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Eliminar Banco",
+                            tint = Color.Red
+                        )
+                    }
                 }
             }
 
