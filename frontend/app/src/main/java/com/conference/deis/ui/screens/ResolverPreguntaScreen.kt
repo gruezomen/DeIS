@@ -123,20 +123,6 @@ fun ResolverPreguntaScreen(
         opcionSeleccionadaIndex = estadoGuardado?.opcionSeleccionadaIndex
     }
 
-    fun limpiarPractica() {
-        historialEstados.clear()
-        preguntaActualIndex = 0
-        preguntaRevisionIndex = 0
-        opcionSeleccionadaIndex = null
-        practicaFinalizada = false
-        puntuacion = 0
-        mostrarConfirmacionFinalizar = false
-        guardandoResultado = false
-        errorGuardado = false
-        finalizadoPorTiempo = false
-        tiempoRestanteSegundos = duracionSimulacroSegundos
-    }
-
     fun intentarGuardarEnBackend(puntajeFinal: Int) {
         scope.launch {
             guardandoResultado = true
@@ -231,6 +217,20 @@ fun ResolverPreguntaScreen(
 
             seleccion == null
         }
+    }
+
+    fun reiniciarPracticaManteniendoTiempo() {
+        practicaFinalizada = false
+        finalizadoPorTiempo = false
+        historialEstados.clear()
+        preguntaActualIndex = 0
+        preguntaRevisionIndex = 0
+        opcionSeleccionadaIndex = null
+        puntuacion = 0
+        errorGuardado = false
+        guardandoResultado = false
+        mostrarConfirmacionFinalizar = false
+        tiempoRestanteSegundos = duracionSimulacroSegundos
     }
 
     LaunchedEffect(bancoId, simulacroId, tiempoMinutosInicial) {
@@ -362,7 +362,7 @@ fun ResolverPreguntaScreen(
                 title = {
                     Text(
                         when {
-                            simulacroId != null -> "Simulacro"
+                            simulacroId != null || tiempoMinutosInicial != null -> "Simulacro"
                             bancoId != null -> "Práctica de Banco"
                             else -> "Práctica General"
                         }
@@ -450,17 +450,7 @@ fun ResolverPreguntaScreen(
                             intentarGuardarEnBackend(puntuacion)
                         },
                         onReintentarPractica = {
-                            practicaFinalizada = false
-                            finalizadoPorTiempo = false
-                            historialEstados.clear()
-                            preguntaActualIndex = 0
-                            preguntaRevisionIndex = 0
-                            opcionSeleccionadaIndex = null
-                            puntuacion = 0
-                            errorGuardado = false
-                            guardandoResultado = false
-                            mostrarConfirmacionFinalizar = false
-                            tiempoRestanteSegundos = duracionSimulacroSegundos
+                            reiniciarPracticaManteniendoTiempo()
                         },
                         onSalir = {
                             navController.popBackStack()
