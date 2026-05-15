@@ -55,8 +55,8 @@ import androidx.compose.runtime.mutableStateListOf
 
 private data class RespuestaPractica(
     val preguntaId: String,
-    val enunciado: String,
-    val opcionSeleccionada: String,
+    val opcionSeleccionadaIndex: Int,
+    val opcionSeleccionadaTexto: String,
     val esCorrecta: Boolean
 )
 
@@ -105,6 +105,29 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
         } finally {
             cargando = false
         }
+    }
+
+    LaunchedEffect(preguntas, preguntaActualIndex, respuestasPractica.size) {
+        val preguntaActual = preguntas.getOrNull(preguntaActualIndex) ?: return@LaunchedEffect
+        val respuestaGuardada = respuestasPractica.firstOrNull { it.preguntaId == preguntaActual.id.orEmpty() }
+
+        if (respuestaGuardada != null) {
+            opcionSeleccionadaIndex = respuestaGuardada.opcionSeleccionadaIndex
+            respuestaEnviada = true
+            respuestaCorrecta = respuestaGuardada.esCorrecta
+            mensajeValidacion = if (respuestaGuardada.esCorrecta) {
+                "Respuesta correcta"
+            } else {
+                "Respuesta incorrecta"
+            }
+        } else {
+            opcionSeleccionadaIndex = null
+            respuestaEnviada = false
+            respuestaCorrecta = null
+            mensajeValidacion = null
+        }
+
+        enviandoRespuesta = false
     }
 
     Scaffold(
@@ -160,16 +183,9 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                       errorResolucion = errorResolucion,
                       puedeAvanzar = respuestaEnviada && preguntaActualIndex < preguntas.lastIndex,
                       onSiguientePregunta = {
-                          if (preguntaActualIndex < preguntas.lastIndex) {
-                          preguntaActualIndex++
-
-                          opcionSeleccionadaIndex = null
-                          mensajeValidacion = null
-                          respuestaEnviada = false
-                          respuestaCorrecta = null
-                          enviandoRespuesta = false
-                          errorResolucion = null
-                         }
+                            if (preguntaActualIndex < preguntas.lastIndex) {
+                                preguntaActualIndex++
+                            }
                         },
                       onOpcionSeleccionada = { index ->
                         if (!respuestaEnviada && !enviandoRespuesta) {
@@ -212,8 +228,8 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                     respuestasPractica.add(
                       RespuestaPractica(
                         preguntaId = preguntaActual.id.orEmpty(),
-                        enunciado = preguntaActual.enunciado,
-                        opcionSeleccionada = opcionSeleccionada.texto,
+                        opcionSeleccionadaIndex = indiceSeleccionado,
+                        opcionSeleccionadaTexto = opcionSeleccionada.texto,
                         esCorrecta = esCorrecta
                                         )
                         )
