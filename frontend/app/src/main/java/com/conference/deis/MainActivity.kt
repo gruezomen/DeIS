@@ -66,6 +66,24 @@ fun DeISApp() {
                 composable("crear_pregunta") {
                     CrearPreguntaScreen(navController)
                 }
+                composable("resolver_simulacro/{simulacroId}") { backStackEntry ->
+                    val simulacroId = backStackEntry.arguments?.getString("simulacroId")
+                    ResolverPreguntaScreen(
+                        navController = navController,
+                        simulacroId = simulacroId
+                    )
+                }
+                composable("resolver_pregunta/{bancoId}/{tiempoMinutos}") { backStackEntry ->
+                    val bancoId = backStackEntry.arguments?.getString("bancoId")
+                    val tiempoMinutos = backStackEntry.arguments
+                        ?.getString("tiempoMinutos")
+                        ?.toIntOrNull()
+                    ResolverPreguntaScreen(
+                        navController = navController,
+                        bancoId = bancoId,
+                        tiempoMinutosInicial = tiempoMinutos
+                    )
+                }
                 composable("resolver_pregunta/{bancoId}") { backStackEntry ->
                     val bancoId = backStackEntry.arguments?.getString("bancoId")
                     ResolverPreguntaScreen(navController, bancoId)

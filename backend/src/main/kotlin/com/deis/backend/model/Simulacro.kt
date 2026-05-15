@@ -7,6 +7,7 @@ import org.springframework.data.mongodb.core.mapping.Document
 data class Simulacro(
     @Id
     val id: String? = null,
+    val bancoId: String? = null,
     val tiempo: Int,
     val horaInicio: String,
     val horaFin: String,

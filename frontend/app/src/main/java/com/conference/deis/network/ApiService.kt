@@ -59,4 +59,15 @@ interface ApiService {
         @Body request: IntentoSimulacro
     ): Response<IntentoSimulacro>
 
+    @POST("api/simulacros")
+    suspend fun crearSimulacro(
+        @Body request: CrearSimulacroRequest
+    ): Response<Simulacro>
+
+    @GET("api/simulacros/{id}")
+    suspend fun obtenerSimulacroPorId(
+        @Path("id") id: String
+    ): Response<Simulacro>
+
+
 }
