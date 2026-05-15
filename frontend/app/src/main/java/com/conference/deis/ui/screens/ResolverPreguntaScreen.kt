@@ -58,8 +58,8 @@ import kotlinx.coroutines.launch
 
 private data class RespuestaPractica(
     val preguntaId: String,
-    val enunciado: String,
-    val opcionSeleccionada: String,
+    val opcionSeleccionadaIndex: Int,
+    val opcionSeleccionadaTexto: String,
     val esCorrecta: Boolean
 )
 
@@ -87,12 +87,14 @@ fun ResolverPreguntaScreen(
     var respuestaEnviada by remember { mutableStateOf(false) }
     var respuestaCorrecta by remember { mutableStateOf<Boolean?>(null) }
     var enviandoRespuesta by remember { mutableStateOf(false) }
+    val respuestasPractica = remember { mutableStateListOf<RespuestaPractica>() }
+    var errorResolucion by remember { mutableStateOf<String?>(null) }
+
     var calculandoNota by remember { mutableStateOf(false) }
     var errorCalculoNota by remember { mutableStateOf<String?>(null) }
     var practicaFinalizada by remember { mutableStateOf(false) }
     var resultadoPractica by remember { mutableStateOf<ResultadoPractica?>(null) }
 
-    val respuestasPractica = remember { mutableStateListOf<RespuestaPractica>() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -103,6 +105,7 @@ fun ResolverPreguntaScreen(
         respuestaEnviada = false
         respuestaCorrecta = null
         enviandoRespuesta = false
+        errorResolucion = null
         calculandoNota = false
         errorCalculoNota = null
         resultadoPractica = null
@@ -116,6 +119,7 @@ fun ResolverPreguntaScreen(
         respuestaEnviada = false
         respuestaCorrecta = null
         enviandoRespuesta = false
+        errorResolucion = null
     }
 
     fun iniciarCalculoNota() {
@@ -210,6 +214,30 @@ fun ResolverPreguntaScreen(
         }
     }
 
+    LaunchedEffect(preguntas, preguntaActualIndex, respuestasPractica.size) {
+        val preguntaActual = preguntas.getOrNull(preguntaActualIndex) ?: return@LaunchedEffect
+        val respuestaGuardada =
+            respuestasPractica.firstOrNull { it.preguntaId == preguntaActual.id.orEmpty() }
+
+        if (respuestaGuardada != null) {
+            opcionSeleccionadaIndex = respuestaGuardada.opcionSeleccionadaIndex
+            respuestaEnviada = true
+            respuestaCorrecta = respuestaGuardada.esCorrecta
+            mensajeValidacion = if (respuestaGuardada.esCorrecta) {
+                "Respuesta correcta"
+            } else {
+                "Respuesta incorrecta"
+            }
+        } else {
+            opcionSeleccionadaIndex = null
+            respuestaEnviada = false
+            respuestaCorrecta = null
+            mensajeValidacion = null
+        }
+
+        enviandoRespuesta = false
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -247,25 +275,6 @@ fun ResolverPreguntaScreen(
                     )
                 }
 
-                calculandoNota -> {
-                    CalculandoNotaContenido(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-
-                errorCalculoNota != null -> {
-                    ErrorCalculoNotaContenido(
-                        mensaje = errorCalculoNota.orEmpty(),
-                        modifier = Modifier.align(Alignment.Center),
-                        onReintentar = {
-                            iniciarCalculoNota()
-                        },
-                        onVolver = {
-                            navController.popBackStack()
-                        }
-                    )
-                }
-
                 preguntas.isEmpty() -> {
                     PracticaSinPreguntas(
                         modifier = Modifier.align(Alignment.Center),
@@ -273,15 +282,20 @@ fun ResolverPreguntaScreen(
                     )
                 }
 
+                errorCalculoNota != null -> {
+                    ErrorCalculoNotaContenido(
+                        mensaje = errorCalculoNota.orEmpty(),
+                        modifier = Modifier.align(Alignment.Center),
+                        onReintentar = { iniciarCalculoNota() },
+                        onVolver = { navController.popBackStack() }
+                    )
+                }
+
                 practicaFinalizada && resultadoPractica != null -> {
                     ResultadoPracticaContenido(
                         resultado = resultadoPractica!!,
-                        onReintentar = {
-                            limpiarEstadoPractica()
-                        },
-                        onVolver = {
-                            navController.popBackStack()
-                        }
+                        onReintentar = { limpiarEstadoPractica() },
+                        onVolver = { navController.popBackStack() }
                     )
                 }
 
@@ -298,6 +312,7 @@ fun ResolverPreguntaScreen(
                         cantidadRespuestasRegistradas = respuestasPractica.size,
                         preguntaNumero = preguntaActualIndex + 1,
                         totalPreguntas = preguntas.size,
+                        errorResolucion = errorResolucion,
                         puedeAvanzar = respuestaEnviada && preguntaActualIndex < preguntas.lastIndex,
                         puedeFinalizar = respuestaEnviada && preguntaActualIndex == preguntas.lastIndex,
                         onSiguientePregunta = {
@@ -314,6 +329,7 @@ fun ResolverPreguntaScreen(
                                 opcionSeleccionadaIndex = index
                                 mensajeValidacion = null
                                 respuestaCorrecta = null
+                                errorResolucion = null
                             }
                         },
                         onEnviarRespuesta = {
@@ -357,11 +373,17 @@ fun ResolverPreguntaScreen(
                                             respuestasPractica.add(
                                                 RespuestaPractica(
                                                     preguntaId = preguntaActual.id.orEmpty(),
-                                                    enunciado = preguntaActual.enunciado,
-                                                    opcionSeleccionada = opcionSeleccionada.texto,
+                                                    opcionSeleccionadaIndex = indiceSeleccionado,
+                                                    opcionSeleccionadaTexto = opcionSeleccionada.texto,
                                                     esCorrecta = esCorrecta
                                                 )
                                             )
+
+                                            errorResolucion = null
+
+                                            if (preguntaActual.enunciado.isBlank()) {
+                                                throw IllegalStateException("No se pudo cargar la resolución de la pregunta")
+                                            }
 
                                             mensajeValidacion = if (esCorrecta) {
                                                 "Respuesta correcta"
@@ -371,8 +393,8 @@ fun ResolverPreguntaScreen(
                                         } catch (e: Exception) {
                                             respuestaCorrecta = null
                                             respuestaEnviada = false
-                                            mensajeValidacion =
-                                                "No se pudo validar la respuesta. Intenta nuevamente"
+                                            errorResolucion = "No se pudo cargar la resolución. Intenta nuevamente"
+                                            mensajeValidacion = null
                                         } finally {
                                             enviandoRespuesta = false
                                         }
@@ -399,12 +421,18 @@ private fun PreguntaPracticaContenido(
     preguntaNumero: Int,
     totalPreguntas: Int,
     puedeAvanzar: Boolean,
+    errorResolucion: String?,
     puedeFinalizar: Boolean,
     onSiguientePregunta: () -> Unit,
     onFinalizarPractica: () -> Unit,
     onOpcionSeleccionada: (Int) -> Unit,
     onEnviarRespuesta: () -> Unit
 ) {
+    val opcionCorrecta = pregunta.opciones.firstOrNull { it.esCorrecta }
+    val opcionSeleccionada = opcionSeleccionadaIndex?.let { index ->
+        pregunta.opciones.getOrNull(index)
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -482,6 +510,7 @@ private fun PreguntaPracticaContenido(
                     opcion = opcion,
                     seleccionada = opcionSeleccionadaIndex == index,
                     habilitada = !respuestaEnviada && !enviandoRespuesta,
+                    mostrarResolucion = respuestaEnviada,
                     onClick = {
                         onOpcionSeleccionada(index)
                     }
@@ -526,13 +555,91 @@ private fun PreguntaPracticaContenido(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            if (respuestaEnviada) {
+                Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = "Progreso de la práctica: $cantidadRespuestasRegistradas de $totalPreguntas",
-                color = Color.Gray,
-                fontSize = 13.sp
-            )
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = FieldBackground)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Resolución",
+                            fontSize = 16.sp,
+                            color = BlueBackground
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = if (respuestaCorrecta == true) {
+                                "Tu respuesta fue correcta."
+                            } else {
+                                "Tu respuesta fue incorrecta."
+                            },
+                            fontSize = 14.sp,
+                            color = if (respuestaCorrecta == true) BlueBackground else Color.Red
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Tu respuesta: ${opcionSeleccionada?.texto ?: "No disponible"}",
+                            fontSize = 14.sp,
+                            color = if (respuestaCorrecta == true) BlueBackground else Color.Red
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "Respuesta correcta: ${opcionCorrecta?.texto ?: "No disponible"}",
+                            fontSize = 14.sp,
+                            color = Color(0xFF2E7D32)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "Explicación",
+                            fontSize = 15.sp,
+                            color = BlueBackground
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        if (errorResolucion != null) {
+                            Text(
+                                text = errorResolucion,
+                                fontSize = 14.sp,
+                                color = Color.Red
+                            )
+                        } else if (pregunta.solucion.isBlank()) {
+                            Text(
+                                text = "Esta pregunta no tiene explicación registrada.",
+                                fontSize = 14.sp,
+                                color = Color.Gray
+                            )
+                        } else {
+                            Text(
+                                text = pregunta.solucion,
+                                fontSize = 14.sp,
+                                color = Color.Black
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (cantidadRespuestasRegistradas > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Progreso de la práctica: $cantidadRespuestasRegistradas de $totalPreguntas",
+                    color = Color.Gray,
+                    fontSize = 13.sp
+                )
+            }
 
             if (pregunta.opciones.isEmpty() && preguntaNumero < totalPreguntas) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -892,9 +999,25 @@ private fun OpcionDisponibleItem(
     opcion: Option,
     seleccionada: Boolean,
     habilitada: Boolean,
+    mostrarResolucion: Boolean,
     onClick: () -> Unit
 ) {
     val letra = ('A'.code + index).toChar()
+    val verdeCorrecta = Color(0xFF2E7D32)
+
+    val containerColor = when {
+        mostrarResolucion && opcion.esCorrecta -> Color(0xFFE8F5E9)
+        mostrarResolucion && seleccionada && !opcion.esCorrecta -> Color(0xFFFFDAD6)
+        seleccionada -> FieldBackground
+        else -> Color.White
+    }
+
+    val textColor = when {
+        mostrarResolucion && opcion.esCorrecta -> verdeCorrecta
+        mostrarResolucion && seleccionada && !opcion.esCorrecta -> Color.Red
+        seleccionada -> BlueBackground
+        else -> Color.Black
+    }
 
     Card(
         modifier = Modifier
@@ -902,20 +1025,16 @@ private fun OpcionDisponibleItem(
             .clickable(enabled = habilitada) { onClick() },
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (seleccionada) FieldBackground else Color.White
+            containerColor = containerColor
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = if (seleccionada) 6.dp else 2.dp
         )
     ) {
         Text(
-            text = if (seleccionada) {
-                "$letra. ${opcion.texto}  ✓"
-            } else {
-                "$letra. ${opcion.texto}"
-            },
+            text = "$letra. ${opcion.texto}",
             fontSize = 15.sp,
-            color = if (seleccionada) BlueBackground else Color.Black,
+            color = textColor,
             modifier = Modifier.padding(14.dp)
         )
     }
