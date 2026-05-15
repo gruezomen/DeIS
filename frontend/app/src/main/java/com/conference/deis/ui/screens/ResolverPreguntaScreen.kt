@@ -74,6 +74,114 @@ private data class EstadoPregunta(
     val esCorrecta: Boolean? = null
 )
 
+private const val PREFS_TEMPORIZADOR_SIMULACRO = "prefs_temporizador_simulacro"
+private const val SUFIJO_SEGUNDOS = "_segundos"
+private const val SUFIJO_GUARDADO_EN = "_guardado_en"
+
+private data class EstadoTemporizadorRecuperado(
+    val segundosRestantes: Int,
+    val mensajeError: String? = null
+)
+
+private fun construirClaveTemporizador(
+    simulacroId: String?,
+    bancoId: String?,
+    tiempoMinutosInicial: Int?
+): String {
+    val idBase = simulacroId ?: bancoId ?: "practica_general"
+    val tiempoBase = tiempoMinutosInicial ?: 0
+
+    return "temporizador_${idBase}_$tiempoBase"
+}
+
+private fun guardarEstadoTemporizador(
+    context: Context,
+    clave: String,
+    segundosRestantes: Int,
+    duracionTotalSegundos: Int
+) {
+    val segundosSeguros = segundosRestantes.coerceIn(0, duracionTotalSegundos)
+
+    context
+        .getSharedPreferences(PREFS_TEMPORIZADOR_SIMULACRO, Context.MODE_PRIVATE)
+        .edit()
+        .putInt("$clave$SUFIJO_SEGUNDOS", segundosSeguros)
+        .putLong("$clave$SUFIJO_GUARDADO_EN", System.currentTimeMillis())
+        .apply()
+}
+
+private fun recuperarEstadoTemporizador(
+    context: Context,
+    clave: String,
+    duracionTotalSegundos: Int
+): EstadoTemporizadorRecuperado {
+    return try {
+        val prefs = context.getSharedPreferences(
+            PREFS_TEMPORIZADOR_SIMULACRO,
+            Context.MODE_PRIVATE
+        )
+
+        if (!prefs.contains("$clave$SUFIJO_SEGUNDOS")) {
+            return EstadoTemporizadorRecuperado(
+                segundosRestantes = duracionTotalSegundos
+            )
+        }
+
+        val segundosGuardados = prefs.getInt(
+            "$clave$SUFIJO_SEGUNDOS",
+            duracionTotalSegundos
+        )
+
+        val guardadoEn = prefs.getLong(
+            "$clave$SUFIJO_GUARDADO_EN",
+            System.currentTimeMillis()
+        )
+
+        if (
+            segundosGuardados < 0 ||
+            segundosGuardados > duracionTotalSegundos ||
+            guardadoEn <= 0
+        ) {
+            limpiarEstadoTemporizador(context, clave)
+
+            return EstadoTemporizadorRecuperado(
+                segundosRestantes = duracionTotalSegundos,
+                mensajeError = "Hubo un problema al sincronizar el temporizador. Se reinició el tiempo."
+            )
+        }
+
+        val segundosTranscurridos = (
+            (System.currentTimeMillis() - guardadoEn) / 1000
+        ).toInt().coerceAtLeast(0)
+
+        val segundosRestantes = (segundosGuardados - segundosTranscurridos)
+            .coerceIn(0, duracionTotalSegundos)
+
+        EstadoTemporizadorRecuperado(
+            segundosRestantes = segundosRestantes
+        )
+    } catch (e: Exception) {
+        limpiarEstadoTemporizador(context, clave)
+
+        EstadoTemporizadorRecuperado(
+            segundosRestantes = duracionTotalSegundos,
+            mensajeError = "No se pudo sincronizar el temporizador. Se reinició el tiempo."
+        )
+    }
+}
+
+private fun limpiarEstadoTemporizador(
+    context: Context,
+    clave: String
+) {
+    context
+        .getSharedPreferences(PREFS_TEMPORIZADOR_SIMULACRO, Context.MODE_PRIVATE)
+        .edit()
+        .remove("$clave$SUFIJO_SEGUNDOS")
+        .remove("$clave$SUFIJO_GUARDADO_EN")
+        .apply()
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResolverPreguntaScreen(
@@ -102,6 +210,7 @@ fun ResolverPreguntaScreen(
     var finalizadoPorTiempo by remember { mutableStateOf(false) }
     var bancoIdParaIntento by remember { mutableStateOf(bancoId ?: "practica_general") }
     var errorSincronizacionTemporizador by remember { mutableStateOf<String?>(null) }
+    var claveTemporizador by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -122,6 +231,8 @@ fun ResolverPreguntaScreen(
         val estadoGuardado = historialEstados[preguntaId]
         opcionSeleccionadaIndex = estadoGuardado?.opcionSeleccionadaIndex
     }
+    
+
 
     fun intentarGuardarEnBackend(puntajeFinal: Int) {
         scope.launch {
@@ -196,6 +307,10 @@ fun ResolverPreguntaScreen(
         finalizadoPorTiempo = tiempoTerminado
         practicaFinalizada = true
         tiempoRestanteSegundos = if (tiempoTerminado) 0 else tiempoRestanteSegundos
+        
+        claveTemporizador?.let { clave ->
+        limpiarEstadoTemporizador(context, clave)
+        }
 
         intentarGuardarEnBackend(correctas)
     }
@@ -230,7 +345,20 @@ fun ResolverPreguntaScreen(
         errorGuardado = false
         guardandoResultado = false
         mostrarConfirmacionFinalizar = false
-        tiempoRestanteSegundos = duracionSimulacroSegundos
+        val duracion = duracionSimulacroSegundos
+        tiempoRestanteSegundos = duracion
+        errorSincronizacionTemporizador = null
+
+          if (duracion != null) {
+            claveTemporizador?.let { clave ->
+            guardarEstadoTemporizador(
+            context = context,
+            clave = clave,
+            segundosRestantes = duracion,
+            duracionTotalSegundos = duracion
+          )
+         }
+         }
     }
 
     LaunchedEffect(bancoId, simulacroId, tiempoMinutosInicial) {
@@ -249,6 +377,8 @@ fun ResolverPreguntaScreen(
             finalizadoPorTiempo = false
             duracionSimulacroSegundos = null
             tiempoRestanteSegundos = null
+            errorSincronizacionTemporizador = null
+           claveTemporizador = null
             bancoIdParaIntento = bancoId ?: "practica_general"
 
             val responsePreguntas = RetrofitInstance.api.obtenerPreguntas()
@@ -292,9 +422,27 @@ fun ResolverPreguntaScreen(
 
                 bancoIdParaIntento = simulacro.bancoId ?: simulacro.id ?: "simulacro"
 
-                val duracion = simulacro.tiempo.coerceAtLeast(1) * 60
-                duracionSimulacroSegundos = duracion
-                tiempoRestanteSegundos = duracion
+               val duracionMinutos = simulacro.tiempo.coerceAtLeast(1)
+val duracion = duracionMinutos * 60
+
+duracionSimulacroSegundos = duracion
+
+val clave = construirClaveTemporizador(
+    simulacroId = simulacroId,
+    bancoId = simulacro.bancoId,
+    tiempoMinutosInicial = duracionMinutos
+)
+
+claveTemporizador = clave
+
+val estadoTemporizador = recuperarEstadoTemporizador(
+    context = context,
+    clave = clave,
+    duracionTotalSegundos = duracion
+)
+
+tiempoRestanteSegundos = estadoTemporizador.segundosRestantes
+errorSincronizacionTemporizador = estadoTemporizador.mensajeError
 
                 preguntas = if (simulacro.preguntaIds.isNotEmpty()) {
                     todasLasPreguntas.filter { pregunta ->
@@ -323,11 +471,28 @@ fun ResolverPreguntaScreen(
                     preguntas = emptyList()
                 }
 
-                if (tiempoMinutosInicial != null && tiempoMinutosInicial > 0) {
-                    val duracion = tiempoMinutosInicial * 60
-                    duracionSimulacroSegundos = duracion
-                    tiempoRestanteSegundos = duracion
-                }
+               if (tiempoMinutosInicial != null && tiempoMinutosInicial > 0) {
+    val duracion = tiempoMinutosInicial * 60
+
+    duracionSimulacroSegundos = duracion
+
+    val clave = construirClaveTemporizador(
+        simulacroId = null,
+        bancoId = bancoId,
+        tiempoMinutosInicial = tiempoMinutosInicial
+    )
+
+    claveTemporizador = clave
+
+    val estadoTemporizador = recuperarEstadoTemporizador(
+        context = context,
+        clave = clave,
+        duracionTotalSegundos = duracion
+    )
+
+    tiempoRestanteSegundos = estadoTemporizador.segundosRestantes
+    errorSincronizacionTemporizador = estadoTemporizador.mensajeError
+}
             } else {
                 preguntas = todasLasPreguntas
             }
@@ -344,17 +509,33 @@ fun ResolverPreguntaScreen(
     }
 
     LaunchedEffect(cargando, practicaFinalizada, tiempoRestanteSegundos) {
-        val restante = tiempoRestanteSegundos
+    val restante = tiempoRestanteSegundos
 
-        if (!cargando && !practicaFinalizada && restante != null) {
-            if (restante > 0) {
-                delay(1000)
-                tiempoRestanteSegundos = (tiempoRestanteSegundos ?: 0) - 1
-            } else if (!finalizadoPorTiempo) {
-                finalizarSimulacro(tiempoTerminado = true)
+    if (!cargando && !practicaFinalizada && restante != null) {
+        if (restante > 0) {
+            delay(1000)
+
+            val nuevoRestante = ((tiempoRestanteSegundos ?: 0) - 1)
+                .coerceAtLeast(0)
+
+            tiempoRestanteSegundos = nuevoRestante
+
+            val duracion = duracionSimulacroSegundos
+            val clave = claveTemporizador
+
+            if (duracion != null && clave != null) {
+                guardarEstadoTemporizador(
+                    context = context,
+                    clave = clave,
+                    segundosRestantes = nuevoRestante,
+                    duracionTotalSegundos = duracion
+                )
             }
+        } else if (!finalizadoPorTiempo) {
+            finalizarSimulacro(tiempoTerminado = true)
         }
     }
+}
 
     Scaffold(
         topBar = {
@@ -471,6 +652,7 @@ fun ResolverPreguntaScreen(
                         esRespondida = (estadoActual?.respondida ?: false) || respuestasBloqueadas,
                         respuestasBloqueadas = respuestasBloqueadas,
                         tiempoRestanteSegundos = tiempoRestanteSegundos,
+                        errorSincronizacionTemporizador = errorSincronizacionTemporizador,
                         onSiguientePregunta = {
                             if (preguntaActualIndex < preguntas.lastIndex) {
                                 if (!respuestasBloqueadas) guardarEstadoActual()
@@ -512,6 +694,7 @@ private fun PreguntaPracticaContenido(
     esRespondida: Boolean,
     respuestasBloqueadas: Boolean,
     tiempoRestanteSegundos: Int?,
+    errorSincronizacionTemporizador: String?,
     onSiguientePregunta: () -> Unit,
     onAnteriorPregunta: () -> Unit,
     onOpcionSeleccionada: (Int) -> Unit,
@@ -667,7 +850,7 @@ private fun PreguntaPracticaContenido(
     }
 }
 
-@Composable
+
 @Composable
 private fun TiempoRestanteCard(
     tiempoRestanteSegundos: Int?,
