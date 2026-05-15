@@ -35,63 +35,104 @@ fun DeISApp() {
                 composable("splash") {
                     SplashScreen(navController)
                 }
+
                 composable("login") {
                     LoginScreen(navController)
                 }
+
                 composable("register") {
                     RegisterScreen(navController)
                 }
+
                 composable("success") {
                     SuccessLoadingScreen(navController)
                 }
+
                 composable("home") {
                     AdminHomeScreen(navController)
                 }
+
                 composable("lista_preguntas") {
                     ListaPreguntasScreen(navController)
                 }
+
                 composable("lista_bancos/{titulo}") { backStackEntry ->
                     val titulo = backStackEntry.arguments?.getString("titulo")
                     ListaBancosScreen(navController, titulo)
                 }
+
                 composable("lista_bancos") {
                     ListaBancosScreen(navController, null)
                 }
+
                 composable("detalles_banco/{id}") { backStackEntry ->
                     val id = backStackEntry.arguments?.getString("id")
+
                     if (id != null) {
                         DetallesBancoScreen(navController, id)
                     }
                 }
+
                 composable("crear_pregunta") {
                     CrearPreguntaScreen(navController)
                 }
+
+                composable("resolver_simulacro/{simulacroId}") { backStackEntry ->
+                    val simulacroId = backStackEntry.arguments?.getString("simulacroId")
+
+                    ResolverPreguntaScreen(
+                        navController = navController,
+                        simulacroId = simulacroId
+                    )
+                }
+
+                composable("resolver_pregunta/{bancoId}/{tiempoMinutos}") { backStackEntry ->
+                    val bancoId = backStackEntry.arguments?.getString("bancoId")
+                    val tiempoMinutos = backStackEntry.arguments
+                        ?.getString("tiempoMinutos")
+                        ?.toIntOrNull()
+
+                    ResolverPreguntaScreen(
+                        navController = navController,
+                        bancoId = bancoId,
+                        tiempoMinutosInicial = tiempoMinutos
+                    )
+                }
+
                 composable("resolver_pregunta/{bancoId}") { backStackEntry ->
                     val bancoId = backStackEntry.arguments?.getString("bancoId")
-                    ResolverPreguntaScreen(navController, bancoId)
+
+                    ResolverPreguntaScreen(
+                        navController = navController,
+                        bancoId = bancoId
+                    )
                 }
+
                 composable("resolver_pregunta") {
-                    ResolverPreguntaScreen(navController, null)
+                    ResolverPreguntaScreen(
+                        navController = navController
+                    )
                 }
-               composable("editar_pregunta/{id}") { backStackEntry ->
-    val id = backStackEntry.arguments?.getString("id")
 
-    CrearPreguntaScreen(
-        navController = navController,
-        preguntaId = id
-    )
-}
+                composable("editar_pregunta/{id}") { backStackEntry ->
+                    val id = backStackEntry.arguments?.getString("id")
 
-composable("organizar_pregunta/{id}") { backStackEntry ->
-    val id = backStackEntry.arguments?.getString("id")
+                    CrearPreguntaScreen(
+                        navController = navController,
+                        preguntaId = id
+                    )
+                }
 
-    if (id != null) {
-        OrganizarPreguntaScreen(
-            navController = navController,
-            preguntaId = id
-        )
-    }
-}
+                composable("organizar_pregunta/{id}") { backStackEntry ->
+                    val id = backStackEntry.arguments?.getString("id")
+
+                    if (id != null) {
+                        OrganizarPreguntaScreen(
+                            navController = navController,
+                            preguntaId = id
+                        )
+                    }
+                }
             }
         }
     }

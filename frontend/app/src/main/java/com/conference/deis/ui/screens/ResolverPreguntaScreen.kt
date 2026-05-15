@@ -64,6 +64,7 @@ import com.conference.deis.network.model.Option
 import com.conference.deis.network.model.Question
 import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private data class EstadoPregunta(
@@ -77,13 +78,15 @@ private data class EstadoPregunta(
 @Composable
 fun ResolverPreguntaScreen(
     navController: NavHostController,
-    bancoId: String? = null
+    bancoId: String? = null,
+    simulacroId: String? = null,
+    tiempoMinutosInicial: Int? = null
 ) {
     var preguntas by remember { mutableStateOf<List<Question>>(emptyList()) }
     var preguntaActualIndex by remember { mutableStateOf(0) }
     var cargando by remember { mutableStateOf(true) }
-    var opcionSeleccionadaIndex by remember { mutableStateOf<Int?>(null) }
 
+    var opcionSeleccionadaIndex by remember { mutableStateOf<Int?>(null) }
     val historialEstados = remember { mutableStateMapOf<String, EstadoPregunta>() }
 
     var practicaFinalizada by remember { mutableStateOf(false) }
@@ -93,6 +96,11 @@ fun ResolverPreguntaScreen(
 
     var guardandoResultado by remember { mutableStateOf(false) }
     var errorGuardado by remember { mutableStateOf(false) }
+
+    var duracionSimulacroSegundos by remember { mutableStateOf<Int?>(null) }
+    var tiempoRestanteSegundos by remember { mutableStateOf<Int?>(null) }
+    var finalizadoPorTiempo by remember { mutableStateOf(false) }
+    var bancoIdParaIntento by remember { mutableStateOf(bancoId ?: "practica_general") }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -115,18 +123,6 @@ fun ResolverPreguntaScreen(
         opcionSeleccionadaIndex = estadoGuardado?.opcionSeleccionadaIndex
     }
 
-    fun limpiarPractica() {
-        historialEstados.clear()
-        preguntaActualIndex = 0
-        preguntaRevisionIndex = 0
-        opcionSeleccionadaIndex = null
-        practicaFinalizada = false
-        puntuacion = 0
-        mostrarConfirmacionFinalizar = false
-        guardandoResultado = false
-        errorGuardado = false
-    }
-
     fun intentarGuardarEnBackend(puntajeFinal: Int) {
         scope.launch {
             guardandoResultado = true
@@ -139,12 +135,11 @@ fun ResolverPreguntaScreen(
                 }
 
                 val usuarioId = UserSession.user?.id ?: "usuario_anonimo"
-                val bancoIdFinal = bancoId ?: "practica_general"
 
                 val response = RetrofitInstance.api.guardarIntentoSimulacro(
                     IntentoSimulacro(
                         usuarioId = usuarioId,
-                        bancoId = bancoIdFinal,
+                        bancoId = bancoIdParaIntento,
                         puntaje = puntajeFinal,
                         totalPreguntas = preguntas.size
                     )
@@ -161,35 +156,53 @@ fun ResolverPreguntaScreen(
         }
     }
 
-    fun finalizarPracticaConfirmada() {
-        mostrarConfirmacionFinalizar = false
+    fun finalizarSimulacro(tiempoTerminado: Boolean) {
+        if (practicaFinalizada || preguntas.isEmpty()) return
+
         guardarEstadoActual()
 
         var correctas = 0
 
         preguntas.forEach { pregunta ->
-            val estadoPrevio = historialEstados[pregunta.id]
-            val seleccion = estadoPrevio?.opcionSeleccionadaIndex
-            val esCorrecta = seleccion?.let { index ->
-                pregunta.opciones.getOrNull(index)?.esCorrecta == true
-            }
+            val estado = historialEstados[pregunta.id]
+            val seleccion = estado?.opcionSeleccionadaIndex
 
-            if (esCorrecta == true) {
-                correctas++
-            }
+            if (seleccion != null && seleccion in pregunta.opciones.indices) {
+                val esOk = pregunta.opciones[seleccion].esCorrecta
 
-            historialEstados[pregunta.id] = EstadoPregunta(
-                preguntaId = pregunta.id,
-                opcionSeleccionadaIndex = seleccion,
-                respondida = seleccion != null,
-                esCorrecta = esCorrecta
-            )
+                if (esOk) {
+                    correctas++
+                }
+
+                historialEstados[pregunta.id] = (estado ?: EstadoPregunta(
+                    preguntaId = pregunta.id,
+                    opcionSeleccionadaIndex = seleccion
+                )).copy(
+                    respondida = true,
+                    esCorrecta = esOk
+                )
+            } else {
+                historialEstados[pregunta.id] = EstadoPregunta(
+                    preguntaId = pregunta.id,
+                    opcionSeleccionadaIndex = null,
+                    respondida = true,
+                    esCorrecta = false
+                )
+            }
         }
 
         puntuacion = correctas
         preguntaRevisionIndex = 0
+        finalizadoPorTiempo = tiempoTerminado
         practicaFinalizada = true
+        tiempoRestanteSegundos = if (tiempoTerminado) 0 else tiempoRestanteSegundos
+
         intentarGuardarEnBackend(correctas)
+    }
+
+    fun finalizarPracticaConfirmada() {
+        mostrarConfirmacionFinalizar = false
+        finalizarSimulacro(tiempoTerminado = false)
     }
 
     fun contarPreguntasSinResponder(): Int {
@@ -206,40 +219,117 @@ fun ResolverPreguntaScreen(
         }
     }
 
-    LaunchedEffect(bancoId) {
+    fun reiniciarPracticaManteniendoTiempo() {
+        practicaFinalizada = false
+        finalizadoPorTiempo = false
+        historialEstados.clear()
+        preguntaActualIndex = 0
+        preguntaRevisionIndex = 0
+        opcionSeleccionadaIndex = null
+        puntuacion = 0
+        errorGuardado = false
+        guardandoResultado = false
+        mostrarConfirmacionFinalizar = false
+        tiempoRestanteSegundos = duracionSimulacroSegundos
+    }
+
+    LaunchedEffect(bancoId, simulacroId, tiempoMinutosInicial) {
         try {
             cargando = true
-            limpiarPractica()
+            preguntas = emptyList()
+            historialEstados.clear()
+            preguntaActualIndex = 0
+            preguntaRevisionIndex = 0
+            opcionSeleccionadaIndex = null
+            practicaFinalizada = false
+            puntuacion = 0
+            mostrarConfirmacionFinalizar = false
+            guardandoResultado = false
+            errorGuardado = false
+            finalizadoPorTiempo = false
+            duracionSimulacroSegundos = null
+            tiempoRestanteSegundos = null
+            bancoIdParaIntento = bancoId ?: "practica_general"
 
             val responsePreguntas = RetrofitInstance.api.obtenerPreguntas()
 
-            if (responsePreguntas.isSuccessful) {
-                val todas = responsePreguntas.body().orEmpty()
-
-                preguntas = if (bancoId != null) {
-                    val responseBanco = RetrofitInstance.api.obtenerBancoPorId(bancoId)
-
-                    if (responseBanco.isSuccessful) {
-                        val preguntaIds = responseBanco.body()?.preguntaIds ?: emptyList()
-                        todas.filter { pregunta -> pregunta.id in preguntaIds }
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Error al cargar el banco",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        emptyList()
-                    }
-                } else {
-                    todas
-                }
-            } else {
+            if (!responsePreguntas.isSuccessful) {
                 Toast.makeText(
                     context,
-                    "Error al cargar las preguntas",
+                    "Error al cargar preguntas",
                     Toast.LENGTH_SHORT
                 ).show()
                 preguntas = emptyList()
+                return@LaunchedEffect
+            }
+
+            val todasLasPreguntas = responsePreguntas.body().orEmpty()
+
+            if (simulacroId != null) {
+                val responseSimulacro = RetrofitInstance.api.obtenerSimulacroPorId(simulacroId)
+
+                if (!responseSimulacro.isSuccessful) {
+                    Toast.makeText(
+                        context,
+                        "No se pudo cargar el simulacro",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    preguntas = emptyList()
+                    return@LaunchedEffect
+                }
+
+                val simulacro = responseSimulacro.body()
+
+                if (simulacro == null) {
+                    Toast.makeText(
+                        context,
+                        "Simulacro no encontrado",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    preguntas = emptyList()
+                    return@LaunchedEffect
+                }
+
+                bancoIdParaIntento = simulacro.bancoId ?: simulacro.id ?: "simulacro"
+
+                val duracion = simulacro.tiempo.coerceAtLeast(1) * 60
+                duracionSimulacroSegundos = duracion
+                tiempoRestanteSegundos = duracion
+
+                preguntas = if (simulacro.preguntaIds.isNotEmpty()) {
+                    todasLasPreguntas.filter { pregunta ->
+                        pregunta.id in simulacro.preguntaIds
+                    }
+                } else {
+                    todasLasPreguntas
+                }
+            } else if (bancoId != null) {
+                bancoIdParaIntento = bancoId
+
+                val responseBanco = RetrofitInstance.api.obtenerBancoPorId(bancoId)
+
+                if (responseBanco.isSuccessful) {
+                    val preguntaIds = responseBanco.body()?.preguntaIds ?: emptyList()
+
+                    preguntas = todasLasPreguntas.filter { pregunta ->
+                        pregunta.id in preguntaIds
+                    }
+                } else {
+                    Toast.makeText(
+                        context,
+                        "Error al obtener el banco",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    preguntas = emptyList()
+                }
+
+                if (tiempoMinutosInicial != null && tiempoMinutosInicial > 0) {
+                    val duracion = tiempoMinutosInicial * 60
+                    duracionSimulacroSegundos = duracion
+                    tiempoRestanteSegundos = duracion
+                }
+            } else {
+                preguntas = todasLasPreguntas
             }
         } catch (e: Exception) {
             Toast.makeText(
@@ -253,15 +343,28 @@ fun ResolverPreguntaScreen(
         }
     }
 
+    LaunchedEffect(cargando, practicaFinalizada, tiempoRestanteSegundos) {
+        val restante = tiempoRestanteSegundos
+
+        if (!cargando && !practicaFinalizada && restante != null) {
+            if (restante > 0) {
+                delay(1000)
+                tiempoRestanteSegundos = (tiempoRestanteSegundos ?: 0) - 1
+            } else if (!finalizadoPorTiempo) {
+                finalizarSimulacro(tiempoTerminado = true)
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = if (bancoId != null) {
-                            "Práctica de Banco"
-                        } else {
-                            "Práctica General"
+                        when {
+                            simulacroId != null || tiempoMinutosInicial != null -> "Simulacro"
+                            bancoId != null -> "Práctica de Banco"
+                            else -> "Práctica General"
                         }
                     )
                 },
@@ -283,6 +386,7 @@ fun ResolverPreguntaScreen(
     ) { paddingValues ->
         if (mostrarConfirmacionFinalizar) {
             val preguntasSinResponder = contarPreguntasSinResponder()
+
             val mensajeAlerta = if (preguntasSinResponder > 0) {
                 "Tienes $preguntasSinResponder pregunta(s) sin responder. ¿Estás seguro de que deseas finalizar?"
             } else {
@@ -295,7 +399,9 @@ fun ResolverPreguntaScreen(
                 text = { Text(mensajeAlerta) },
                 confirmButton = {
                     Button(
-                        onClick = { finalizarPracticaConfirmada() },
+                        onClick = {
+                            finalizarPracticaConfirmada()
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = BlueBackground)
                     ) {
                         Text("Confirmar")
@@ -336,47 +442,59 @@ fun ResolverPreguntaScreen(
                         preguntaRevisionIndex = preguntaRevisionIndex,
                         guardando = guardandoResultado,
                         errorGuardado = errorGuardado,
+                        finalizadoPorTiempo = finalizadoPorTiempo,
                         onPreguntaRevisionChange = { nuevoIndex ->
                             preguntaRevisionIndex = nuevoIndex.coerceIn(0, preguntas.lastIndex)
                         },
-                        onReintentarGuardado = { intentarGuardarEnBackend(puntuacion) },
-                        onReintentarPractica = { limpiarPractica() },
-                        onSalir = { navController.popBackStack() }
+                        onReintentarGuardado = {
+                            intentarGuardarEnBackend(puntuacion)
+                        },
+                        onReintentarPractica = {
+                            reiniciarPracticaManteniendoTiempo()
+                        },
+                        onSalir = {
+                            navController.popBackStack()
+                        }
                     )
                 }
 
                 else -> {
                     val preguntaActual = preguntas[preguntaActualIndex]
                     val estadoActual = historialEstados[preguntaActual.id]
+                    val respuestasBloqueadas = finalizadoPorTiempo || practicaFinalizada
 
                     PreguntaPracticaContenido(
                         pregunta = preguntaActual,
                         opcionSeleccionadaIndex = opcionSeleccionadaIndex,
                         preguntaNumero = preguntaActualIndex + 1,
                         totalPreguntas = preguntas.size,
-                        esRespondida = estadoActual?.respondida ?: false,
+                        esRespondida = (estadoActual?.respondida ?: false) || respuestasBloqueadas,
+                        respuestasBloqueadas = respuestasBloqueadas,
+                        tiempoRestanteSegundos = tiempoRestanteSegundos,
                         onSiguientePregunta = {
                             if (preguntaActualIndex < preguntas.lastIndex) {
-                                guardarEstadoActual()
+                                if (!respuestasBloqueadas) guardarEstadoActual()
                                 preguntaActualIndex++
                                 cargarEstadoPregunta(preguntaActualIndex)
                             }
                         },
                         onAnteriorPregunta = {
                             if (preguntaActualIndex > 0) {
-                                guardarEstadoActual()
+                                if (!respuestasBloqueadas) guardarEstadoActual()
                                 preguntaActualIndex--
                                 cargarEstadoPregunta(preguntaActualIndex)
                             }
                         },
                         onOpcionSeleccionada = { index ->
-                            if (!(estadoActual?.respondida ?: false)) {
+                            if (!(estadoActual?.respondida ?: false) && !respuestasBloqueadas) {
                                 opcionSeleccionadaIndex = index
                                 guardarEstadoActual(index)
                             }
                         },
                         onFinalizar = {
-                            mostrarConfirmacionFinalizar = true
+                            if (!respuestasBloqueadas) {
+                                mostrarConfirmacionFinalizar = true
+                            }
                         }
                     )
                 }
@@ -392,6 +510,8 @@ private fun PreguntaPracticaContenido(
     preguntaNumero: Int,
     totalPreguntas: Int,
     esRespondida: Boolean,
+    respuestasBloqueadas: Boolean,
+    tiempoRestanteSegundos: Int?,
     onSiguientePregunta: () -> Unit,
     onAnteriorPregunta: () -> Unit,
     onOpcionSeleccionada: (Int) -> Unit,
@@ -433,6 +553,25 @@ private fun PreguntaPracticaContenido(
                     imageVector = Icons.Default.ArrowForward,
                     contentDescription = "Siguiente",
                     tint = if (preguntaNumero < totalPreguntas) BlueBackground else Color.Gray
+                )
+            }
+        }
+
+        TiempoRestanteCard(tiempoRestanteSegundos = tiempoRestanteSegundos)
+
+        if (respuestasBloqueadas) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "El tiempo terminó. Ya no puedes cambiar respuestas.",
+                    modifier = Modifier.padding(12.dp),
+                    color = Color.Red,
+                    fontSize = 13.sp
                 )
             }
         }
@@ -505,7 +644,7 @@ private fun PreguntaPracticaContenido(
                         index = index,
                         opcion = opcion,
                         seleccionada = opcionSeleccionadaIndex == index,
-                        habilitada = !esRespondida,
+                        bloqueada = esRespondida || respuestasBloqueadas,
                         onClick = { onOpcionSeleccionada(index) }
                     )
                 }
@@ -514,8 +653,10 @@ private fun PreguntaPracticaContenido(
 
         if (preguntaNumero == totalPreguntas) {
             Spacer(modifier = Modifier.height(16.dp))
+
             Button(
                 onClick = onFinalizar,
+                enabled = !respuestasBloqueadas,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = BlueBackground)
@@ -527,11 +668,46 @@ private fun PreguntaPracticaContenido(
 }
 
 @Composable
+private fun TiempoRestanteCard(tiempoRestanteSegundos: Int?) {
+    if (tiempoRestanteSegundos == null) return
+
+    val esUltimoMinuto = tiempoRestanteSegundos <= 60
+    val colorTexto = if (esUltimoMinuto) Color.Red else BlueBackground
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = FieldBackground)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Tiempo restante",
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
+
+            Text(
+                text = formatearTiempo(tiempoRestanteSegundos),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorTexto
+            )
+        }
+    }
+}
+
+@Composable
 private fun OpcionSimpleItem(
     index: Int,
     opcion: Option,
     seleccionada: Boolean,
-    habilitada: Boolean,
+    bloqueada: Boolean,
     onClick: () -> Unit
 ) {
     val letra = ('A'.code + index).toChar()
@@ -539,7 +715,7 @@ private fun OpcionSimpleItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = habilitada) { onClick() },
+            .clickable(enabled = !bloqueada) { onClick() },
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (seleccionada) {
@@ -573,15 +749,18 @@ private fun ResultadosPanel(
     preguntaRevisionIndex: Int,
     guardando: Boolean,
     errorGuardado: Boolean,
+    finalizadoPorTiempo: Boolean,
     onPreguntaRevisionChange: (Int) -> Unit,
     onReintentarGuardado: () -> Unit,
     onReintentarPractica: () -> Unit,
     onSalir: () -> Unit
 ) {
     val porcentaje = if (total == 0) 0 else (puntuacion * 100) / total
+
     val sinResponder = preguntas.count { pregunta ->
         historialEstados[pregunta.id]?.opcionSeleccionadaIndex == null
     }
+
     val incorrectas = (total - puntuacion - sinResponder).coerceAtLeast(0)
 
     LazyColumn(
@@ -592,13 +771,29 @@ private fun ResultadosPanel(
     ) {
         item {
             Text(
-                text = "¡Práctica terminada!",
+                text = if (finalizadoPorTiempo) {
+                    "Simulacro finalizado"
+                } else {
+                    "¡Práctica terminada!"
+                },
                 fontSize = 24.sp,
                 color = BlueBackground,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            if (finalizadoPorTiempo) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "El tiempo terminó automáticamente.",
+                    fontSize = 14.sp,
+                    color = Color.Red,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
 
         item {
@@ -636,15 +831,24 @@ private fun ResultadosPanel(
         }
 
         item {
-            ResultadoFila(titulo = "Respuestas correctas", valor = puntuacion.toString())
+            ResultadoFila(
+                titulo = "Respuestas correctas",
+                valor = puntuacion.toString()
+            )
         }
 
         item {
-            ResultadoFila(titulo = "Respuestas incorrectas", valor = incorrectas.toString())
+            ResultadoFila(
+                titulo = "Respuestas incorrectas",
+                valor = incorrectas.toString()
+            )
         }
 
         item {
-            ResultadoFila(titulo = "Preguntas sin responder", valor = sinResponder.toString())
+            ResultadoFila(
+                titulo = "Preguntas sin responder",
+                valor = sinResponder.toString()
+            )
         }
 
         item {
@@ -710,7 +914,9 @@ private fun EstadoGuardadoResultado(
                         strokeWidth = 2.dp,
                         color = BlueBackground
                     )
+
                     Spacer(modifier = Modifier.width(8.dp))
+
                     Text(
                         text = "Guardando nota...",
                         fontSize = 14.sp,
@@ -736,7 +942,9 @@ private fun EstadoGuardadoResultado(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
+
                     Spacer(modifier = Modifier.width(8.dp))
+
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "No se pudo guardar tu nota.",
@@ -744,13 +952,15 @@ private fun EstadoGuardadoResultado(
                             color = Color.Red,
                             fontWeight = FontWeight.SemiBold
                         )
+
                         Text(
                             text = "Revisa tu conexión e intenta de nuevo.",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
                     }
-                    IconButton(onClick = onReintentarGuardado) {
+
+                    TextButton(onClick = onReintentarGuardado) {
                         Text(
                             text = "Reintentar",
                             color = BlueBackground,
@@ -789,9 +999,11 @@ private fun RevisionPreguntaCard(
 ) {
     val preguntaRevision = preguntas.getOrNull(preguntaRevisionIndex)
     val estadoRevision = preguntaRevision?.let { pregunta -> historialEstados[pregunta.id] }
+
     val opcionElegida = estadoRevision?.opcionSeleccionadaIndex?.let { index ->
         preguntaRevision?.opciones?.getOrNull(index)
     }
+
     val opcionCorrecta = preguntaRevision?.opciones?.firstOrNull { it.esCorrecta }
 
     Card(
@@ -984,7 +1196,11 @@ private fun OpcionRevisionItem(
                 else -> Color.Black
             },
             modifier = Modifier.padding(12.dp),
-            fontWeight = if (esCorrecta || seleccionada) FontWeight.SemiBold else FontWeight.Normal
+            fontWeight = if (esCorrecta || seleccionada) {
+                FontWeight.SemiBold
+            } else {
+                FontWeight.Normal
+            }
         )
     }
 }
@@ -1064,6 +1280,12 @@ private fun PracticaSinPreguntas(
             Text("Volver")
         }
     }
+}
+
+private fun formatearTiempo(segundosTotales: Int): String {
+    val minutos = segundosTotales / 60
+    val segundos = segundosTotales % 60
+    return "%02d:%02d".format(minutos, segundos)
 }
 
 private fun hayConexionInternet(context: Context): Boolean {
