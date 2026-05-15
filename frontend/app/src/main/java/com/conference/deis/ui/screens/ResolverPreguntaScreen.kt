@@ -55,10 +55,6 @@ import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import androidx.compose.runtime.mutableStateListOf
 
 private data class RespuestaPractica(
     val preguntaId: String,
@@ -78,7 +74,10 @@ private data class ResultadoPractica(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = null) {
+fun ResolverPreguntaScreen(
+    navController: NavHostController,
+    bancoId: String? = null
+) {
     var preguntas by remember { mutableStateOf<List<Question>>(emptyList()) }
     var preguntaActualIndex by remember { mutableStateOf(0) }
     var cargando by remember { mutableStateOf(true) }
@@ -97,7 +96,36 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    fun limpiarEstadoPractica() {
+        preguntaActualIndex = 0
+        opcionSeleccionadaIndex = null
+        mensajeValidacion = null
+        respuestaEnviada = false
+        respuestaCorrecta = null
+        enviandoRespuesta = false
+        calculandoNota = false
+        errorCalculoNota = null
+        resultadoPractica = null
+        practicaFinalizada = false
+        respuestasPractica.clear()
+    }
+
+    fun limpiarEstadoPregunta() {
+        opcionSeleccionadaIndex = null
+        mensajeValidacion = null
+        respuestaEnviada = false
+        respuestaCorrecta = null
+        enviandoRespuesta = false
+    }
+
     fun iniciarCalculoNota() {
+        if (preguntas.isEmpty()) {
+            practicaFinalizada = false
+            resultadoPractica = null
+            errorCalculoNota = "No se puede calcular la nota porque no hay preguntas disponibles."
+            return
+        }
+
         if (preguntaActualIndex != preguntas.lastIndex) {
             practicaFinalizada = false
             resultadoPractica = null
@@ -133,34 +161,50 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
         }
     }
 
-    LaunchedEffect(Unit) {
-        try {
-            val response = RetrofitInstance.api.obtenerPreguntas()
-
     LaunchedEffect(bancoId) {
         try {
             cargando = true
+
             val responsePreguntas = RetrofitInstance.api.obtenerPreguntas()
 
             if (responsePreguntas.isSuccessful) {
                 val todas = responsePreguntas.body().orEmpty()
-                
-                if (bancoId != null) {
+
+                preguntas = if (bancoId != null) {
                     val responseBanco = RetrofitInstance.api.obtenerBancoPorId(bancoId)
+
                     if (responseBanco.isSuccessful) {
                         val preguntaIds = responseBanco.body()?.preguntaIds ?: emptyList()
-                        preguntas = todas.filter { it.id in preguntaIds }
+
+                        todas.filter { pregunta ->
+                            pregunta.id?.let { id -> id in preguntaIds } == true
+                        }
                     } else {
-                        Toast.makeText(context, "Error al cargar el banco", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            context,
+                            "Error al cargar el banco",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        emptyList()
                     }
                 } else {
-                    preguntas = todas
+                    todas
                 }
+
+                limpiarEstadoPractica()
             } else {
-                Toast.makeText(context, "Error al cargar las preguntas", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    "Error al cargar las preguntas",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         } catch (e: Exception) {
-            Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                "Error de conexión",
+                Toast.LENGTH_SHORT
+            ).show()
         } finally {
             cargando = false
         }
@@ -169,7 +213,15 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(if (bancoId != null) "Práctica de Banco" else "Práctica General") },
+                title = {
+                    Text(
+                        text = if (bancoId != null) {
+                            "Práctica de Banco"
+                        } else {
+                            "Práctica General"
+                        }
+                    )
+                },
                 navigationIcon = {
                     TextButton(onClick = { navController.popBackStack() }) {
                         Text("Volver", color = Color.White)
@@ -225,19 +277,11 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                     ResultadoPracticaContenido(
                         resultado = resultadoPractica!!,
                         onReintentar = {
-                            preguntaActualIndex = 0
-                            opcionSeleccionadaIndex = null
-                            mensajeValidacion = null
-                            respuestaEnviada = false
-                            respuestaCorrecta = null
-                            enviandoRespuesta = false
-                            calculandoNota = false
-                            errorCalculoNota = null
-                            resultadoPractica = null
-                            practicaFinalizada = false
-                            respuestasPractica.clear()
+                            limpiarEstadoPractica()
                         },
-                        onVolver = { navController.popBackStack() }
+                        onVolver = {
+                            navController.popBackStack()
+                        }
                     )
                 }
 
@@ -259,11 +303,7 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                         onSiguientePregunta = {
                             if (preguntaActualIndex < preguntas.lastIndex) {
                                 preguntaActualIndex++
-                                opcionSeleccionadaIndex = null
-                                mensajeValidacion = null
-                                respuestaEnviada = false
-                                respuestaCorrecta = null
-                                enviandoRespuesta = false
+                                limpiarEstadoPregunta()
                             }
                         },
                         onFinalizarPractica = {
@@ -436,7 +476,7 @@ private fun PreguntaPracticaContenido(
                 }
             }
         } else {
-            itemsIndexed(pregunta.opciones) { index, opcion ->
+            itemsIndexed(pregunta.opciones) { index: Int, opcion: Option ->
                 OpcionDisponibleItem(
                     index = index,
                     opcion = opcion,
@@ -619,6 +659,7 @@ private fun ErrorCalculoNotaContenido(
         }
     }
 }
+
 @Composable
 private fun CalculandoNotaContenido(
     modifier: Modifier = Modifier
