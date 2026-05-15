@@ -54,6 +54,7 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
     // Estado global de finalización
     var practicaFinalizada by remember { mutableStateOf(false) }
     var puntuacion by remember { mutableStateOf(0) }
+    var mostrarConfirmacionFinalizar by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -114,6 +115,43 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
             )
         }
     ) { paddingValues ->
+        if (mostrarConfirmacionFinalizar) {
+            AlertDialog(
+                onDismissRequest = { mostrarConfirmacionFinalizar = false },
+                title = { Text("¿Finalizar Simulacro?") },
+                text = { Text("¿Estás seguro de que deseas terminar? Se calculará tu puntuación final.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            mostrarConfirmacionFinalizar = false
+                            guardarEstadoActual()
+                            // Lógica de calificación masiva
+                            var correctas = 0
+                            preguntas.forEach { q ->
+                                val estado = historialEstados[q.id]
+                                val seleccion = estado?.opcionSeleccionadaIndex
+                                if (seleccion != null) {
+                                    val esOk = q.opciones[seleccion].esCorrecta
+                                    if (esOk) correctas++
+                                    historialEstados[q.id!!] = (estado ?: EstadoPregunta(q.id!!, seleccion)).copy(respondida = true, esCorrecta = esOk)
+                                }
+                            }
+                            puntuacion = correctas
+                            practicaFinalizada = true
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = BlueBackground)
+                    ) {
+                        Text("Confirmar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { mostrarConfirmacionFinalizar = false }) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -172,20 +210,7 @@ fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = 
                         }
                     },
                     onFinalizar = {
-                        guardarEstadoActual()
-                        // Lógica de calificación masiva
-                        var correctas = 0
-                        preguntas.forEach { q ->
-                            val estado = historialEstados[q.id]
-                            val seleccion = estado?.opcionSeleccionadaIndex
-                            if (seleccion != null) {
-                                val esOk = q.opciones[seleccion].esCorrecta
-                                if (esOk) correctas++
-                                historialEstados[q.id!!] = estado.copy(respondida = true, esCorrecta = esOk)
-                            }
-                        }
-                        puntuacion = correctas
-                        practicaFinalizada = true
+                        mostrarConfirmacionFinalizar = true
                     }
                 )
                 }
