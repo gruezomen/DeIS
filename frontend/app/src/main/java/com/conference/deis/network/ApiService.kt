@@ -54,4 +54,9 @@ interface ApiService {
         @Body request: AsociarPreguntaBancoRequest
     ): Response<Map<String, Any>>
 
+    @POST("api/simulacros/intentos")
+    suspend fun guardarIntentoSimulacro(
+        @Body request: IntentoSimulacro
+    ): Response<IntentoSimulacro>
+
 }

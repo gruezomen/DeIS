@@ -60,13 +60,13 @@ fun AdminHomeScreen(navController: NavHostController) {
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { },
+                    onClick = { navController.navigate("lista_bancos/Examen Simulacro") },
                     icon = { },
                     label = { Text("Simulacro") }
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { },
+                    onClick = { navController.navigate("lista_bancos") },
                     icon = { },
                     label = { Text("Banco") }
                 )
