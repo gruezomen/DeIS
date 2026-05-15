@@ -17,4 +17,14 @@ class BancoPreguntaController(
         val bancos = bancoPreguntaRepository.findAll()
         return ResponseEntity.ok(bancos)
     }
+
+    @GetMapping("/{id}")
+    fun obtenerBancoPorId(@org.springframework.web.bind.annotation.PathVariable id: String): ResponseEntity<Any> {
+        val banco = bancoPreguntaRepository.findById(id)
+        return if (banco.isPresent) {
+            ResponseEntity.ok(banco.get())
+        } else {
+            ResponseEntity.notFound().build()
+        }
+    }
 }

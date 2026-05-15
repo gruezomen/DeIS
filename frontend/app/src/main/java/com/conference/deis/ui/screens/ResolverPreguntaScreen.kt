@@ -55,6 +55,10 @@ import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import androidx.compose.runtime.mutableStateListOf
 
 private data class RespuestaPractica(
     val preguntaId: String,
@@ -74,7 +78,7 @@ private data class ResultadoPractica(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ResolverPreguntaScreen(navController: NavHostController) {
+fun ResolverPreguntaScreen(navController: NavHostController, bancoId: String? = null) {
     var preguntas by remember { mutableStateOf<List<Question>>(emptyList()) }
     var preguntaActualIndex by remember { mutableStateOf(0) }
     var cargando by remember { mutableStateOf(true) }
@@ -133,21 +137,30 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
         try {
             val response = RetrofitInstance.api.obtenerPreguntas()
 
-            if (response.isSuccessful) {
-                preguntas = response.body().orEmpty()
+    LaunchedEffect(bancoId) {
+        try {
+            cargando = true
+            val responsePreguntas = RetrofitInstance.api.obtenerPreguntas()
+
+            if (responsePreguntas.isSuccessful) {
+                val todas = responsePreguntas.body().orEmpty()
+                
+                if (bancoId != null) {
+                    val responseBanco = RetrofitInstance.api.obtenerBancoPorId(bancoId)
+                    if (responseBanco.isSuccessful) {
+                        val preguntaIds = responseBanco.body()?.preguntaIds ?: emptyList()
+                        preguntas = todas.filter { it.id in preguntaIds }
+                    } else {
+                        Toast.makeText(context, "Error al cargar el banco", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    preguntas = todas
+                }
             } else {
-                Toast.makeText(
-                    context,
-                    "Error al cargar la pregunta",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(context, "Error al cargar las preguntas", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            Toast.makeText(
-                context,
-                "No se pudo conectar con el servidor",
-                Toast.LENGTH_SHORT
-            ).show()
+            Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
         } finally {
             cargando = false
         }
@@ -156,7 +169,7 @@ fun ResolverPreguntaScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Práctica") },
+                title = { Text(if (bancoId != null) "Práctica de Banco" else "Práctica General") },
                 navigationIcon = {
                     TextButton(onClick = { navController.popBackStack() }) {
                         Text("Volver", color = Color.White)
