@@ -101,7 +101,7 @@ fun ResolverPreguntaScreen(
     var tiempoRestanteSegundos by remember { mutableStateOf<Int?>(null) }
     var finalizadoPorTiempo by remember { mutableStateOf(false) }
     var bancoIdParaIntento by remember { mutableStateOf(bancoId ?: "practica_general") }
-
+    var errorSincronizacionTemporizador by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -557,7 +557,7 @@ private fun PreguntaPracticaContenido(
             }
         }
 
-        TiempoRestanteCard(tiempoRestanteSegundos = tiempoRestanteSegundos)
+        TiempoRestanteCard(tiempoRestanteSegundos = tiempoRestanteSegundos,errorSincronizacionTemporizador = errorSincronizacionTemporizador)
 
         if (respuestasBloqueadas) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -668,36 +668,81 @@ private fun PreguntaPracticaContenido(
 }
 
 @Composable
-private fun TiempoRestanteCard(tiempoRestanteSegundos: Int?) {
+@Composable
+private fun TiempoRestanteCard(
+    tiempoRestanteSegundos: Int?,
+    errorSincronizacionTemporizador: String? = null
+) {
     if (tiempoRestanteSegundos == null) return
 
     val esUltimoMinuto = tiempoRestanteSegundos <= 60
-    val colorTexto = if (esUltimoMinuto) Color.Red else BlueBackground
+    val esTiempoCritico = tiempoRestanteSegundos <= 15
+
+    val colorFondo = when {
+        errorSincronizacionTemporizador != null -> Color(0xFFFFEBEE)
+        esUltimoMinuto -> Color(0xFFFFF3E0)
+        else -> FieldBackground
+    }
+
+    val colorTextoTiempo = when {
+        errorSincronizacionTemporizador != null -> Color.Red
+        esUltimoMinuto -> Color.Red
+        else -> BlueBackground
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = FieldBackground)
+        colors = CardDefaults.cardColors(containerColor = colorFondo)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(12.dp)
         ) {
-            Text(
-                text = "Tiempo restante",
-                fontSize = 14.sp,
-                color = Color.Gray
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Tiempo restante",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
 
-            Text(
-                text = formatearTiempo(tiempoRestanteSegundos),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = colorTexto
-            )
+                Text(
+                    text = formatearTiempo(tiempoRestanteSegundos),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colorTextoTiempo
+                )
+            }
+
+            if (esUltimoMinuto) {
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = if (esTiempoCritico) {
+                        "Últimos segundos. El simulacro finalizará automáticamente."
+                    } else {
+                        "Advertencia: queda menos de 1 minuto."
+                    },
+                    color = Color.Red,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            if (errorSincronizacionTemporizador != null) {
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = errorSincronizacionTemporizador,
+                    color = Color.Red,
+                    fontSize = 13.sp
+                )
+            }
         }
     }
 }
