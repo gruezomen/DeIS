@@ -55,6 +55,7 @@ import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.Normalizer
 
 private data class RespuestaPractica(
     val preguntaId: String,
@@ -62,6 +63,46 @@ private data class RespuestaPractica(
     val opcionSeleccionadaTexto: String,
     val esCorrecta: Boolean
 )
+
+private fun seleccionarPreguntasParaPractica(preguntas: List<Question>): List<Question> {
+    val limitesPorCategoria = linkedMapOf(
+        "matematicas" to 2,
+        "geometria" to 2,
+        "quimica" to 2,
+        "fisica" to 2,
+        "biologia" to 2
+    )
+
+    return limitesPorCategoria.flatMap { (categoria, limite) ->
+        preguntas
+            .filter { pregunta ->
+                obtenerClaveCategoria(pregunta.categoria.nombre) == categoria
+            }
+            .shuffled()
+            .take(limite)
+    }.shuffled()
+}
+
+private fun obtenerClaveCategoria(nombre: String): String {
+    val categoriaNormalizada = normalizarCategoria(nombre)
+
+    return when (categoriaNormalizada) {
+        "matematica", "matematicas" -> "matematicas"
+        "geometria" -> "geometria"
+        "quimica" -> "quimica"
+        "fisica" -> "fisica"
+        "biologia" -> "biologia"
+        else -> categoriaNormalizada
+    }
+}
+
+private fun normalizarCategoria(nombre: String): String {
+    return Normalizer
+        .normalize(nombre, Normalizer.Form.NFD)
+        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+        .trim()
+        .lowercase()
+}
 
 private data class ResultadoPractica(
     val totalPreguntas: Int,
@@ -174,28 +215,30 @@ fun ResolverPreguntaScreen(
             if (responsePreguntas.isSuccessful) {
                 val todas = responsePreguntas.body().orEmpty()
 
-                preguntas = if (bancoId != null) {
-                    val responseBanco = RetrofitInstance.api.obtenerBancoPorId(bancoId)
+                val preguntasBase = if (bancoId != null) {
+    val responseBanco = RetrofitInstance.api.obtenerBancoPorId(bancoId)
 
-                    if (responseBanco.isSuccessful) {
-                        val preguntaIds = responseBanco.body()?.preguntaIds ?: emptyList()
+    if (responseBanco.isSuccessful) {
+        val preguntaIds = responseBanco.body()?.preguntaIds ?: emptyList()
 
-                        todas.filter { pregunta ->
-                            pregunta.id?.let { id -> id in preguntaIds } == true
-                        }
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Error al cargar el banco",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        emptyList()
-                    }
-                } else {
-                    todas
-                }
+        todas.filter { pregunta ->
+            pregunta.id?.let { id -> id in preguntaIds } == true
+        }
+    } else {
+        Toast.makeText(
+            context,
+            "Error al cargar el banco",
+            Toast.LENGTH_SHORT
+        ).show()
+        emptyList()
+    }
+} else {
+    todas
+}
 
-                limpiarEstadoPractica()
+preguntas = seleccionarPreguntasParaPractica(preguntasBase)
+
+limpiarEstadoPractica()
             } else {
                 Toast.makeText(
                     context,
