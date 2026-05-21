@@ -11,6 +11,5 @@ data class Usuario(
     val apellido: String,
     val gmail: String,
     val contrasena: String,
-    val rol: String,
-    val facultadesIds: List<String> = emptyList()
+    val rol: String
 )

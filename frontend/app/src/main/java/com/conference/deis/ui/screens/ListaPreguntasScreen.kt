@@ -25,13 +25,6 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListaPreguntasScreen(navController: NavHostController) {
-        if (!esAdministrador()) {
-        AccesoDenegadoScreen(
-            navController = navController,
-            mensaje = "Solo el administrador puede gestionar preguntas."
-        )
-        return
-    }
     var preguntas by remember { mutableStateOf<List<Question>>(emptyList()) }
     var cargando by remember { mutableStateOf(true) }
     var eliminando by remember { mutableStateOf(false) }

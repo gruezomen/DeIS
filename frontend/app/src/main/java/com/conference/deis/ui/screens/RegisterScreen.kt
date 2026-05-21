@@ -16,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.conference.deis.network.RetrofitInstance
-import com.conference.deis.network.model.Facultad
 import com.conference.deis.network.model.RegisterRequest
 import com.conference.deis.ui.components.RegisterHeaderIcon
 import com.conference.deis.ui.theme.BlueBackground
@@ -24,30 +23,15 @@ import com.conference.deis.ui.theme.FieldBackground
 import com.conference.deis.ui.theme.LinkRed
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(navController: NavHostController) {
     var nombreCompleto by remember { mutableStateOf("") }
     var correoElectronico by remember { mutableStateOf("") }
     var contrasena by remember { mutableStateOf("") }
-    var facultadesSeleccionadas by remember { mutableStateOf<List<Facultad>>(emptyList()) }
-    var facultades by remember { mutableStateOf<List<Facultad>>(emptyList()) }
-    var expanded by remember { mutableStateOf(false) }
     var cargando by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-
-    LaunchedEffect(Unit) {
-        try {
-            val response = RetrofitInstance.api.obtenerFacultades()
-            if (response.isSuccessful) {
-                facultades = response.body() ?: emptyList()
-            }
-        } catch (e: Exception) {
-            // Manejar error silenciosamente o mostrar toast
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -81,7 +65,7 @@ fun RegisterScreen(navController: NavHostController) {
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
             OutlinedTextField(
                 value = correoElectronico,
@@ -98,7 +82,7 @@ fun RegisterScreen(navController: NavHostController) {
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
             OutlinedTextField(
                 value = contrasena,
@@ -115,66 +99,6 @@ fun RegisterScreen(navController: NavHostController) {
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Selector de Facultades (Múltiple)
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                val textoSeleccion = if (facultadesSeleccionadas.isEmpty()) {
-                    "Selecciona tus facultades"
-                } else {
-                    facultadesSeleccionadas.joinToString(", ") { it.nombre }
-                }
-
-                OutlinedTextField(
-                    value = textoSeleccion,
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = FieldBackground,
-                        unfocusedContainerColor = FieldBackground,
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent
-                    ),
-                    modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth()
-                )
-
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    facultades.forEach { facultad ->
-                        val isSelected = facultadesSeleccionadas.any { it.id == facultad.id }
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(
-                                        checked = isSelected,
-                                        onCheckedChange = null // El click lo maneja el DropdownMenuItem
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(facultad.nombre)
-                                }
-                            },
-                            onClick = {
-                                facultadesSeleccionadas = if (isSelected) {
-                                    facultadesSeleccionadas.filter { it.id != facultad.id }
-                                } else {
-                                    facultadesSeleccionadas + facultad
-                                }
-                            }
-                        )
-                    }
-                }
-            }
 
             Spacer(modifier = Modifier.height(18.dp))
 
@@ -202,8 +126,8 @@ fun RegisterScreen(navController: NavHostController) {
 
             Button(
                 onClick = {
-                    if (nombreCompleto.isBlank() || correoElectronico.isBlank() || contrasena.isBlank() || facultadesSeleccionadas.isEmpty()) {
-                        Toast.makeText(context, "Completa todos los campos y selecciona al menos una facultad", Toast.LENGTH_SHORT).show()
+                    if (nombreCompleto.isBlank() || correoElectronico.isBlank() || contrasena.isBlank()) {
+                        Toast.makeText(context, "Completa todos los campos", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
 
@@ -214,8 +138,7 @@ fun RegisterScreen(navController: NavHostController) {
                                 RegisterRequest(
                                     nombre = nombreCompleto.trim(),
                                     correo = correoElectronico.trim(),
-                                    contrasena = contrasena,
-                                    facultadesIds = facultadesSeleccionadas.mapNotNull { it.id }
+                                    contrasena = contrasena
                                 )
                             )
 

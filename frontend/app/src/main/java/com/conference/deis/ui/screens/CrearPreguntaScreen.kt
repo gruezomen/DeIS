@@ -31,13 +31,6 @@ fun CrearPreguntaScreen(
     navController: NavHostController,
     preguntaId: String? = null
 ) {
-    if (!esAdministrador()) {
-        AccesoDenegadoScreen(
-            navController = navController,
-            mensaje = "Solo el administrador puede crear o editar preguntas."
-        )
-        return
-    }
     var categoriaSeleccionada by remember { mutableStateOf("") }
     var enunciado by remember { mutableStateOf("") }
     var opcionA by remember { mutableStateOf("") }
@@ -51,30 +44,9 @@ fun CrearPreguntaScreen(
     var cargandoDatos by remember { mutableStateOf(preguntaId != null) }
     var mostrarDialogoConfirmacion by remember { mutableStateOf(false) }
 
-    var bancos by remember { mutableStateOf<List<com.conference.deis.network.model.BancoPregunta>>(emptyList()) }
-    var bancoSeleccionadoId by remember { mutableStateOf<String?>(null) }
-    var expandedBancos by remember { mutableStateOf(false) }
-
     val esEdicion = preguntaId != null
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-
-    // Cargar bancos
-    LaunchedEffect(Unit) {
-        try {
-            val response = RetrofitInstance.api.obtenerBancosPreguntas()
-            if (response.isSuccessful) {
-                bancos = response.body() ?: emptyList()
-                
-                // Si es edición, buscar a qué banco pertenece la pregunta
-                if (esEdicion) {
-                    bancoSeleccionadoId = bancos.find { it.preguntaIds.contains(preguntaId) }?.id
-                }
-            }
-        } catch (e: Exception) {
-            // Manejar error silenciosamente o mostrar toast
-        }
-    }
 
     // Función para ejecutar la actualización/creación
     val ejecutarAccion = {
@@ -92,8 +64,7 @@ fun CrearPreguntaScreen(
                         opcionC.trim(),
                         opcionD.trim()
                     ),
-                    indiceCorrecta = indiceCorrecta,
-                    bancoPreguntaId = bancoSeleccionadoId
+                    indiceCorrecta = indiceCorrecta
                 )
 
                 val response = if (esEdicion) {
@@ -373,57 +344,6 @@ fun CrearPreguntaScreen(
                     onTextoChange = { opcionD = it },
                     onClick = { indiceCorrecta = 3 }
                 )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Text("Banco de Preguntas (opcional)", fontSize = 14.sp, color = Color.Black)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                ExposedDropdownMenuBox(
-                    expanded = expandedBancos,
-                    onExpandedChange = { expandedBancos = !expandedBancos },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = bancos.find { it.id == bancoSeleccionadoId }?.let { "Banco: ${it.facultadId}" } ?: "Selecciona un banco",
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedBancos) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = com.conference.deis.ui.theme.ActionBoxColor,
-                            unfocusedContainerColor = com.conference.deis.ui.theme.ActionBoxColor,
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent
-                        ),
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp)
-                    )
-
-                    ExposedDropdownMenu(
-                        expanded = expandedBancos,
-                        onDismissRequest = { expandedBancos = false },
-                        modifier = Modifier.background(Color.White)
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Ninguno") },
-                            onClick = {
-                                bancoSeleccionadoId = null
-                                expandedBancos = false
-                            }
-                        )
-                        bancos.forEach { banco ->
-                            DropdownMenuItem(
-                                text = { Text("Banco: ${banco.facultadId}") },
-                                onClick = {
-                                    bancoSeleccionadoId = banco.id
-                                    expandedBancos = false
-                                }
-                            )
-                        }
-                    }
-                }
 
                 Spacer(modifier = Modifier.height(14.dp))
 

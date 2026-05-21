@@ -21,12 +21,6 @@ interface ApiService {
         @Body request: LoginRequest
     ): Response<LoginResponse>
 
-    @PUT("api/usuarios/{id}")
-    suspend fun actualizarPerfil(
-        @Path("id") id: String,
-        @Body request: RegisterRequest
-    ): Response<RegisterResponse>
-
     @POST("api/preguntas")
     suspend fun crearPregunta(
         @Body request: CreateQuestionRequest
@@ -54,19 +48,6 @@ interface ApiService {
         @Path("id") id: String
     ): Response<BancoPregunta>
 
-    @GET("api/facultades")
-    suspend fun obtenerFacultades(): Response<List<Facultad>>
-
-    @POST("api/bancos-preguntas")
-    suspend fun crearBanco(
-        @Body request: CrearBancoRequest
-    ): Response<BancoPregunta>
-
-    @DELETE("api/bancos-preguntas/{id}")
-    suspend fun eliminarBanco(
-        @Path("id") id: String
-    ): Response<Map<String, String>>
-
     @PATCH("api/preguntas/{id}/banco")
     suspend fun asociarPreguntaABanco(
         @Path("id") id: String,
@@ -77,16 +58,5 @@ interface ApiService {
     suspend fun guardarIntentoSimulacro(
         @Body request: IntentoSimulacro
     ): Response<IntentoSimulacro>
-
-    @POST("api/simulacros")
-    suspend fun crearSimulacro(
-        @Body request: CrearSimulacroRequest
-    ): Response<Simulacro>
-
-    @GET("api/simulacros/{id}")
-    suspend fun obtenerSimulacroPorId(
-        @Path("id") id: String
-    ): Response<Simulacro>
-
 
 }

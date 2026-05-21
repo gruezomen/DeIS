@@ -6,6 +6,5 @@ data class RegistroUsuarioResponse(
     val apellido: String,
     val gmail: String,
     val rol: String,
-    val facultadesIds: List<String>,
     val mensaje: String
 )
