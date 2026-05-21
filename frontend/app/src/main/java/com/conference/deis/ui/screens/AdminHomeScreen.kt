@@ -37,6 +37,12 @@ import com.conference.deis.network.RetrofitInstance
 import com.conference.deis.ui.components.ActionBox
 import com.conference.deis.ui.components.InfoCard
 import com.conference.deis.ui.theme.BlueBackground
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.text.font.FontWeight
+import com.conference.deis.network.UserSession
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,28 +50,54 @@ fun AdminHomeScreen(navController: NavHostController) {
     var totalPreguntas by remember { mutableStateOf(0) }
     var totalBancos by remember { mutableStateOf(0) }
     var cargandoResumen by remember { mutableStateOf(true) }
+    var diasRacha by remember { mutableStateOf(0) }
+    var estadoDelfin by remember { mutableStateOf("DORMIDO") }
+    var cargandoRacha by remember { mutableStateOf(false) }
+   LaunchedEffect(Unit) {
+    try {
+        cargandoResumen = true
 
-    LaunchedEffect(Unit) {
+        val responsePreguntas = RetrofitInstance.api.obtenerPreguntas()
+        val responseBancos = RetrofitInstance.api.obtenerBancosPreguntas()
+
+        if (responsePreguntas.isSuccessful) {
+            totalPreguntas = responsePreguntas.body().orEmpty().size
+        }
+
+        if (responseBancos.isSuccessful) {
+            totalBancos = responseBancos.body().orEmpty().size
+        }
+    } catch (e: Exception) {
+        totalPreguntas = 0
+        totalBancos = 0
+    } finally {
+        cargandoResumen = false
+    }
+
+    if (!esAdministrador()) {
         try {
-            cargandoResumen = true
+            cargandoRacha = true
 
-            val responsePreguntas = RetrofitInstance.api.obtenerPreguntas()
-            val responseBancos = RetrofitInstance.api.obtenerBancosPreguntas()
+            val usuarioId = UserSession.user?.id
 
-            if (responsePreguntas.isSuccessful) {
-                totalPreguntas = responsePreguntas.body().orEmpty().size
-            }
+            if (!usuarioId.isNullOrBlank()) {
+                val responseRacha = RetrofitInstance.api.obtenerRacha(usuarioId)
 
-            if (responseBancos.isSuccessful) {
-                totalBancos = responseBancos.body().orEmpty().size
+                if (responseRacha.isSuccessful) {
+                    responseRacha.body()?.let { racha ->
+                        diasRacha = racha.diasConsecutivos
+                        estadoDelfin = racha.estadoDelfin
+                    }
+                }
             }
         } catch (e: Exception) {
-            totalPreguntas = 0
-            totalBancos = 0
+            diasRacha = 0
+            estadoDelfin = "DORMIDO"
         } finally {
-            cargandoResumen = false
+            cargandoRacha = false
         }
     }
+}
 
     Scaffold(
         topBar = {
@@ -128,11 +160,25 @@ fun AdminHomeScreen(navController: NavHostController) {
                 .background(Color.White)
                 .padding(16.dp)
         ) {
-            Text(
-                text = "Información del sistema",
-                fontSize = 14.sp,
-                color = Color.Black
-            )
+            Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically
+) {
+    Text(
+        text = "Información del sistema",
+        fontSize = 14.sp,
+        color = Color.Black
+    )
+
+    if (!esAdministrador()) {
+        RachaMiniCard(
+            diasConsecutivos = diasRacha,
+            estadoDelfin = estadoDelfin,
+            cargando = cargandoRacha
+        )
+    }
+}
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -208,6 +254,58 @@ fun AdminHomeScreen(navController: NavHostController) {
                 ActionBox(
                     texto = "Practicar preguntas",
                     onClick = { navController.navigate("resolver_pregunta") }
+                )
+            }
+        }
+    }
+}
+@Composable
+private fun RachaMiniCard(
+    diasConsecutivos: Int,
+    estadoDelfin: String,
+    cargando: Boolean
+) {
+    val estadoVisual = when {
+        diasConsecutivos <= 0 || estadoDelfin == "DORMIDO" -> "Dormido"
+        diasConsecutivos >= 7 || estadoDelfin == "FELIZ" -> "Feliz"
+        else -> "Despierto"
+    }
+
+    val iconoEstado = when (estadoVisual) {
+        "Dormido" -> "💤"
+        "Feliz" -> "⭐"
+        else -> "🔥"
+    }
+
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFEAF3FF)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.delfin),
+                contentDescription = "Delfín de racha",
+                modifier = Modifier.size(26.dp)
+            )
+
+            Column {
+                Text(
+                    text = if (cargando) "..." else "$diasConsecutivos días",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BlueBackground
+                )
+
+                Text(
+                    text = if (cargando) "Cargando" else "$iconoEstado $estadoVisual",
+                    fontSize = 10.sp,
+                    color = Color.DarkGray
                 )
             }
         }
