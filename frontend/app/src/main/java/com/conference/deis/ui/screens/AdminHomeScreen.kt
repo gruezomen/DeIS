@@ -103,7 +103,7 @@ fun AdminHomeScreen(navController: NavHostController) {
                                 text = { Text("Perfil") },
                                 onClick = {
                                     menuExpandido = false
-                                    // Por ahora solo cierra el menú, se puede añadir navegación a perfil aquí
+                                    navController.navigate("perfil")
                                 }
                             )
                         }

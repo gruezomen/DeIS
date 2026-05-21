@@ -1,9 +1,6 @@
 package com.deis.backend.service
 
-import com.deis.backend.dto.RegistroUsuarioRequest
-import com.deis.backend.dto.RegistroUsuarioResponse
-import com.deis.backend.dto.LoginUsuarioRequest
-import com.deis.backend.dto.LoginUsuarioResponse
+import com.deis.backend.dto.*
 import com.deis.backend.model.Usuario
 import com.deis.backend.repository.UsuarioRepository
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
@@ -68,6 +65,40 @@ class UsuarioService(
             rol = usuario.rol,
             facultadesIds = usuario.facultadesIds,
             mensaje = "Inicio de sesión exitoso"
+        )
+    }
+
+    fun actualizarPerfil(id: String, request: ActualizarUsuarioRequest): RegistroUsuarioResponse {
+        val usuario = usuarioRepository.findById(id)
+            .orElseThrow { IllegalArgumentException("Usuario no encontrado") }
+
+        if (request.facultadesIds.isEmpty()) {
+            throw IllegalArgumentException("Debe seleccionar al menos una facultad")
+        }
+
+        val nuevaContrasena = if (!request.contrasena.isNullOrBlank()) {
+            passwordEncoder.encode(request.contrasena)
+        } else {
+            usuario.contrasena
+        }
+
+        val usuarioActualizado = usuarioRepository.save(
+            usuario.copy(
+                nombre = request.nombre.trim(),
+                apellido = "", 
+                contrasena = nuevaContrasena,
+                facultadesIds = request.facultadesIds
+            )
+        )
+
+        return RegistroUsuarioResponse(
+            id = usuarioActualizado.id,
+            nombre = usuarioActualizado.nombre,
+            apellido = usuarioActualizado.apellido,
+            gmail = usuarioActualizado.gmail,
+            rol = usuarioActualizado.rol,
+            facultadesIds = usuarioActualizado.facultadesIds,
+            mensaje = "Perfil actualizado correctamente"
         )
     }
 }
