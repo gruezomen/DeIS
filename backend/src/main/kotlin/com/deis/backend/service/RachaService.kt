@@ -26,7 +26,7 @@ class RachaService(
 
         val rachaActual = preuniversitario.racha
         val ultimaPractica = rachaActual.ultimaPractica
-
+        
         val nuevaRacha = when {
             ultimaPractica == fechaActual -> {
                 rachaActual
