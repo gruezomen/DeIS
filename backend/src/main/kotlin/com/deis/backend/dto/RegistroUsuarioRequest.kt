@@ -14,5 +14,7 @@ data class RegistroUsuarioRequest(
 
     @field:NotBlank(message = "La contraseña es obligatoria")
     @field:Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres")
-    val contrasena: String
+    val contrasena: String,
+
+    val facultadesIds: List<String> = emptyList()
 )

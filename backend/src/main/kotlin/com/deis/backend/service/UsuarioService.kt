@@ -29,7 +29,8 @@ class UsuarioService(
                 apellido = "",
                 gmail = gmailNormalizado,
                 contrasena = passwordEncoder.encode(request.contrasena),
-                rol = "PREUNIVERSITARIO"
+                rol = "PREUNIVERSITARIO",
+                facultadesIds = request.facultadesIds
             )
         )
 
@@ -39,6 +40,7 @@ class UsuarioService(
             apellido = usuarioGuardado.apellido,
             gmail = usuarioGuardado.gmail,
             rol = usuarioGuardado.rol,
+            facultadesIds = usuarioGuardado.facultadesIds,
             mensaje = "Usuario registrado correctamente"
         )
     }
@@ -64,6 +66,7 @@ class UsuarioService(
             apellido = usuario.apellido,
             gmail = usuario.gmail,
             rol = usuario.rol,
+            facultadesIds = usuario.facultadesIds,
             mensaje = "Inicio de sesión exitoso"
         )
     }
