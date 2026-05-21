@@ -57,4 +57,11 @@ class UsuarioController(
             mapOf("mensaje" to (ex.message ?: "Solicitud inválida"))
         )
     }
+
+    @ExceptionHandler(IllegalStateException::class)
+    fun manejarIllegalState(ex: IllegalStateException): ResponseEntity<Map<String, String>> {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+            mapOf("mensaje" to (ex.message ?: "Error interno del sistema"))
+        )
+    }
 }

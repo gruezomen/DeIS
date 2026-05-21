@@ -48,6 +48,9 @@ interface ApiService {
         @Path("id") id: String
     ): Response<BancoPregunta>
 
+    @GET("api/facultades")
+    suspend fun obtenerFacultades(): Response<List<Facultad>>
+
     @POST("api/bancos-preguntas")
     suspend fun crearBanco(
         @Body request: CrearBancoRequest
