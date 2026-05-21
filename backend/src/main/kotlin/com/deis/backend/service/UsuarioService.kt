@@ -8,10 +8,14 @@ import com.deis.backend.model.Usuario
 import com.deis.backend.repository.UsuarioRepository
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.stereotype.Service
+import com.deis.backend.model.Facultad
+import com.deis.backend.model.Preuniversitario
+import com.deis.backend.repository.PreuniversitarioRepository
 
 @Service
 class UsuarioService(
-    private val usuarioRepository: UsuarioRepository
+    private val usuarioRepository: UsuarioRepository,
+    private val preuniversitarioRepository: PreuniversitarioRepository
 ) {
 
     private val passwordEncoder = BCryptPasswordEncoder()
@@ -32,6 +36,7 @@ class UsuarioService(
                 rol = "PREUNIVERSITARIO"
             )
         )
+        crearPerfilPreuniversitarioSiNoExiste(usuarioGuardado.id)
 
         return RegistroUsuarioResponse(
             id = usuarioGuardado.id,
@@ -67,4 +72,21 @@ class UsuarioService(
             mensaje = "Inicio de sesión exitoso"
         )
     }
+    
+    private fun crearPerfilPreuniversitarioSiNoExiste(usuarioId: String?) {
+    if (usuarioId.isNullOrBlank()) return
+
+    val perfilExistente = preuniversitarioRepository.findByUsuarioId(usuarioId)
+
+    if (perfilExistente != null) return
+
+    preuniversitarioRepository.save(
+        Preuniversitario(
+            usuarioId = usuarioId,
+            facultad = Facultad(
+                nombre = "Ciencias y Tecnología"
+            )
+        )
+    )
+}
 }

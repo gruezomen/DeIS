@@ -4,25 +4,25 @@ import com.deis.backend.model.Racha
 import com.deis.backend.repository.PreuniversitarioRepository
 import org.springframework.stereotype.Service
 import java.time.LocalDate
+import com.deis.backend.model.Facultad
+import com.deis.backend.model.Preuniversitario
 
 @Service
 class RachaService(
     private val preuniversitarioRepository: PreuniversitarioRepository
 ) {
 
-    fun obtenerRacha(usuarioId: String): Racha {
-        val preuniversitario = preuniversitarioRepository.findByUsuarioId(usuarioId)
-            ?: throw IllegalArgumentException("No se encontró el preuniversitario asociado al usuario")
+   fun obtenerRacha(usuarioId: String): Racha {
+    val preuniversitario = obtenerOCrearPreuniversitario(usuarioId)
 
-        return preuniversitario.racha
-    }
+    return preuniversitario.racha
+}
 
     fun registrarPracticaDiaria(
         usuarioId: String,
         fechaActual: LocalDate = LocalDate.now()
     ): Racha {
-        val preuniversitario = preuniversitarioRepository.findByUsuarioId(usuarioId)
-            ?: throw IllegalArgumentException("No se encontró el preuniversitario asociado al usuario")
+        val preuniversitario = obtenerOCrearPreuniversitario(usuarioId)
 
         val rachaActual = preuniversitario.racha
         val ultimaPractica = rachaActual.ultimaPractica
@@ -66,4 +66,24 @@ class RachaService(
 
         return nuevaRacha
     }
+    private fun obtenerOCrearPreuniversitario(usuarioId: String): Preuniversitario {
+    if (usuarioId.isBlank() || usuarioId == "usuario_anonimo") {
+        throw IllegalArgumentException("Usuario inválido para registrar racha")
+    }
+
+    val preuniversitarioExistente = preuniversitarioRepository.findByUsuarioId(usuarioId)
+
+    if (preuniversitarioExistente != null) {
+        return preuniversitarioExistente
+    }
+
+    return preuniversitarioRepository.save(
+        Preuniversitario(
+            usuarioId = usuarioId,
+            facultad = Facultad(
+                nombre = "Ciencias y Tecnología"
+            )
+        )
+    )
+}
 }
