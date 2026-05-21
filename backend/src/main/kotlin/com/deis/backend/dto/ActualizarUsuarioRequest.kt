@@ -2,9 +2,8 @@ package com.deis.backend.dto
 
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
-import jakarta.validation.constraints.Size
 
-data class RegistroUsuarioRequest(
+data class ActualizarUsuarioRequest(
     @field:NotBlank(message = "El nombre es obligatorio")
     val nombre: String,
 
@@ -12,9 +11,7 @@ data class RegistroUsuarioRequest(
     @field:Email(message = "El correo no tiene un formato válido")
     val correo: String,
 
-    @field:NotBlank(message = "La contraseña es obligatoria")
-    @field:Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres")
-    val contrasena: String,
+    val contrasena: String? = null,
 
     val facultadesIds: List<String> = emptyList()
 )

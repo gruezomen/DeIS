@@ -35,63 +35,160 @@ fun DeISApp() {
                 composable("splash") {
                     SplashScreen(navController)
                 }
+
                 composable("login") {
                     LoginScreen(navController)
                 }
+
                 composable("register") {
                     RegisterScreen(navController)
                 }
+
                 composable("success") {
                     SuccessLoadingScreen(navController)
                 }
+
                 composable("home") {
                     AdminHomeScreen(navController)
                 }
+
+                composable("perfil") {
+                    PerfilScreen(navController)
+                }
+
                 composable("lista_preguntas") {
-                    ListaPreguntasScreen(navController)
-                }
-                composable("lista_bancos/{titulo}") { backStackEntry ->
-                    val titulo = backStackEntry.arguments?.getString("titulo")
-                    ListaBancosScreen(navController, titulo)
-                }
-                composable("lista_bancos") {
-                    ListaBancosScreen(navController, null)
-                }
-                composable("detalles_banco/{id}") { backStackEntry ->
-                    val id = backStackEntry.arguments?.getString("id")
-                    if (id != null) {
-                        DetallesBancoScreen(navController, id)
+                    if (esAdministrador()) {
+                        ListaPreguntasScreen(navController)
+                    } else {
+                        AccesoDenegadoScreen(
+                            navController = navController,
+                            mensaje = "Solo el administrador puede ver, editar, organizar o eliminar preguntas."
+                        )
                     }
                 }
-                composable("crear_pregunta") {
-                    CrearPreguntaScreen(navController)
+
+                composable("lista_bancos/{titulo}") { backStackEntry ->
+                    val titulo = backStackEntry.arguments?.getString("titulo")
+
+                    ListaBancosScreen(
+                        navController = navController,
+                        tituloPersonalizado = titulo
+                    )
                 }
+
+                composable("lista_bancos") {
+                    ListaBancosScreen(
+                        navController = navController,
+                        tituloPersonalizado = null
+                    )
+                }
+
+                composable("detalles_banco/{id}") { backStackEntry ->
+                    val id = backStackEntry.arguments?.getString("id")
+
+                    if (id != null) {
+                        DetallesBancoScreen(
+                            navController = navController,
+                            bancoId = id
+                        )
+                    } else {
+                        AccesoDenegadoScreen(
+                            navController = navController,
+                            mensaje = "No se pudo identificar el banco de preguntas."
+                        )
+                    }
+                }
+
+                composable("crear_pregunta") {
+                    if (esAdministrador()) {
+                        CrearPreguntaScreen(navController)
+                    } else {
+                        AccesoDenegadoScreen(
+                            navController = navController,
+                            mensaje = "Solo el administrador puede crear preguntas."
+                        )
+                    }
+                }
+
+                composable("crear_banco") {
+                    if (esAdministrador()) {
+                        CrearBancoScreen(navController)
+                    } else {
+                        AccesoDenegadoScreen(
+                            navController = navController,
+                            mensaje = "Solo el administrador puede crear bancos de preguntas."
+                        )
+                    }
+                }
+
+                composable("resolver_simulacro/{simulacroId}") { backStackEntry ->
+                    val simulacroId = backStackEntry.arguments?.getString("simulacroId")
+
+                    ResolverPreguntaScreen(
+                        navController = navController,
+                        simulacroId = simulacroId
+                    )
+                }
+
+                composable("resolver_pregunta/{bancoId}/{tiempoMinutos}") { backStackEntry ->
+                    val bancoId = backStackEntry.arguments?.getString("bancoId")
+                    val tiempoMinutos = backStackEntry.arguments
+                        ?.getString("tiempoMinutos")
+                        ?.toIntOrNull()
+
+                    ResolverPreguntaScreen(
+                        navController = navController,
+                        bancoId = bancoId,
+                        tiempoMinutosInicial = tiempoMinutos
+                    )
+                }
+
                 composable("resolver_pregunta/{bancoId}") { backStackEntry ->
                     val bancoId = backStackEntry.arguments?.getString("bancoId")
-                    ResolverPreguntaScreen(navController, bancoId)
+
+                    ResolverPreguntaScreen(
+                        navController = navController,
+                        bancoId = bancoId
+                    )
                 }
+
                 composable("resolver_pregunta") {
-                    ResolverPreguntaScreen(navController, null)
+                    ResolverPreguntaScreen(
+                        navController = navController
+                    )
                 }
-               composable("editar_pregunta/{id}") { backStackEntry ->
-    val id = backStackEntry.arguments?.getString("id")
 
-    CrearPreguntaScreen(
-        navController = navController,
-        preguntaId = id
-    )
-}
+                composable("editar_pregunta/{id}") { backStackEntry ->
+                    val id = backStackEntry.arguments?.getString("id")
 
-composable("organizar_pregunta/{id}") { backStackEntry ->
-    val id = backStackEntry.arguments?.getString("id")
+                    if (esAdministrador()) {
+                        CrearPreguntaScreen(
+                            navController = navController,
+                            preguntaId = id
+                        )
+                    } else {
+                        AccesoDenegadoScreen(
+                            navController = navController,
+                            mensaje = "Solo el administrador puede editar preguntas."
+                        )
+                    }
+                }
 
-    if (id != null) {
-        OrganizarPreguntaScreen(
-            navController = navController,
-            preguntaId = id
-        )
-    }
-}
+                composable("organizar_pregunta/{id}") { backStackEntry ->
+                    val id = backStackEntry.arguments?.getString("id")
+
+                    if (esAdministrador() && id != null) {
+                        OrganizarPreguntaScreen(
+                            navController = navController,
+                            preguntaId = id
+                        )
+                    } else {
+                        AccesoDenegadoScreen(
+                            navController = navController,
+                            mensaje = "Solo el administrador puede organizar preguntas en bancos."
+                        )
+                    }
+                }
             }
         }
     }

@@ -63,7 +63,13 @@ class PreguntaService(
             }
         )
 
-        return preguntaRepository.save(pregunta)
+        val preguntaGuardada = preguntaRepository.save(pregunta)
+
+        if (!request.bancoPreguntaId.isNullOrBlank()) {
+            asociarPreguntaABanco(preguntaGuardada.id!!, request.bancoPreguntaId!!)
+        }
+
+        return preguntaGuardada
     }
 
     fun obtenerTodasLasPreguntas(): List<Pregunta> {
@@ -99,7 +105,17 @@ class PreguntaService(
             }
         )
 
-        return preguntaRepository.save(preguntaActualizada)
+        val preguntaGuardada = preguntaRepository.save(preguntaActualizada)
+
+        if (!request.bancoPreguntaId.isNullOrBlank()) {
+            asociarPreguntaABanco(preguntaGuardada.id!!, request.bancoPreguntaId!!)
+        } else {
+            // Si bancoPreguntaId es null o vacío, podríamos querer desasociarla de cualquier banco
+            // Pero por ahora, el comportamiento de asociarPreguntaABanco ya maneja la lógica de limpiar asociaciones previas si se cambia de banco.
+            // Si el usuario quiere desasociar totalmente, se podría añadir esa lógica.
+        }
+
+        return preguntaGuardada
     }
 
     fun asociarPreguntaABanco(preguntaId: String, bancoPreguntaId: String): Pregunta {

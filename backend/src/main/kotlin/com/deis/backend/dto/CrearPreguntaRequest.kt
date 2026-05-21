@@ -6,5 +6,6 @@ data class CrearPreguntaRequest(
     val dificultad: String,
     val categoria: String,
     val opciones: List<String>,
-    val indiceCorrecta: Int
+    val indiceCorrecta: Int,
+    val bancoPreguntaId: String? = null
 )
