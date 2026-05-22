@@ -98,4 +98,9 @@ suspend fun registrarPracticaDiaria(
     @Path("usuarioId") usuarioId: String
 ): Response<RachaResponse>
 
+    @GET("api/simulacros/intentos/usuario/{usuarioId}/comparacion-rendimiento")
+    suspend fun obtenerComparacionRendimiento(
+        @Path("usuarioId") usuarioId: String
+    ): Response<ComparacionRendimientoResponse>
+    
 }

@@ -30,6 +30,24 @@ data class PromedioGeneralResponse(
     val totalIntentos: Int
 )
 
+enum class EstadoRendimiento {
+    MEJORO,
+    SE_MANTUVO_IGUAL,
+    DISMINUYO,
+    SIN_DATOS,
+    SIN_COMPARACION
+}
+
+data class ComparacionRendimientoResponse(
+    val usuarioId: String,
+    val ultimoResultado: Double?,
+    val resultadoAnterior: Double?,
+    val diferencia: Double?,
+    val estado: EstadoRendimiento,
+    val mensaje: String,
+    val totalIntentos: Int
+)
+
 @RestController
 @RequestMapping("/api/simulacros")
 class SimulacroController(
@@ -116,15 +134,79 @@ class SimulacroController(
         val promedio = if (intentos.isEmpty()) {
             0.0
         } else {
-            redondear(
-                intentos.map { calcularNota(it) }.average()
-            )
+            redondear(intentos.map { calcularNota(it) }.average())
         }
 
         return ResponseEntity.ok(
             PromedioGeneralResponse(
                 usuarioId = usuarioId,
                 promedioGeneral = promedio,
+                totalIntentos = intentos.size
+            )
+        )
+    }
+
+    @GetMapping("/intentos/usuario/{usuarioId}/comparacion-rendimiento")
+    fun compararRendimiento(
+        @PathVariable usuarioId: String
+    ): ResponseEntity<ComparacionRendimientoResponse> {
+        val intentos = intentoSimulacroRepository.findByUsuarioIdOrderByFechaDesc(usuarioId)
+
+        if (intentos.isEmpty()) {
+            return ResponseEntity.ok(
+                ComparacionRendimientoResponse(
+                    usuarioId = usuarioId,
+                    ultimoResultado = null,
+                    resultadoAnterior = null,
+                    diferencia = null,
+                    estado = EstadoRendimiento.SIN_DATOS,
+                    mensaje = "El estudiante aún no tiene intentos registrados.",
+                    totalIntentos = 0
+                )
+            )
+        }
+
+        val ultimoResultado = calcularNota(intentos[0])
+
+        if (intentos.size == 1) {
+            return ResponseEntity.ok(
+                ComparacionRendimientoResponse(
+                    usuarioId = usuarioId,
+                    ultimoResultado = ultimoResultado,
+                    resultadoAnterior = null,
+                    diferencia = null,
+                    estado = EstadoRendimiento.SIN_COMPARACION,
+                    mensaje = "El estudiante solo tiene un intento registrado. No existe un resultado anterior para comparar.",
+                    totalIntentos = 1
+                )
+            )
+        }
+
+        val resultadoAnterior = calcularNota(intentos[1])
+        val diferencia = redondear(ultimoResultado - resultadoAnterior)
+
+        val estado = when {
+            diferencia > 0.0 -> EstadoRendimiento.MEJORO
+            diferencia < 0.0 -> EstadoRendimiento.DISMINUYO
+            else -> EstadoRendimiento.SE_MANTUVO_IGUAL
+        }
+
+        val mensaje = when (estado) {
+            EstadoRendimiento.MEJORO -> "El rendimiento del estudiante mejoró."
+            EstadoRendimiento.SE_MANTUVO_IGUAL -> "El rendimiento del estudiante se mantuvo igual."
+            EstadoRendimiento.DISMINUYO -> "El rendimiento del estudiante disminuyó."
+            EstadoRendimiento.SIN_DATOS -> "El estudiante aún no tiene intentos registrados."
+            EstadoRendimiento.SIN_COMPARACION -> "No existe un resultado anterior para comparar."
+        }
+
+        return ResponseEntity.ok(
+            ComparacionRendimientoResponse(
+                usuarioId = usuarioId,
+                ultimoResultado = ultimoResultado,
+                resultadoAnterior = resultadoAnterior,
+                diferencia = diferencia,
+                estado = estado,
+                mensaje = mensaje,
                 totalIntentos = intentos.size
             )
         )
