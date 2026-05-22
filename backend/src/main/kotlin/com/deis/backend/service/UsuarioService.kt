@@ -3,15 +3,61 @@ package com.deis.backend.service
 import com.deis.backend.dto.*
 import com.deis.backend.model.Usuario
 import com.deis.backend.repository.UsuarioRepository
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.api.client.json.gson.GsonFactory
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.stereotype.Service
+import java.util.Collections
 
 @Service
 class UsuarioService(
-    private val usuarioRepository: UsuarioRepository
+    private val usuarioRepository: UsuarioRepository,
+    @org.springframework.beans.factory.annotation.Value("\${google.client.id}")
+    private val googleClientId: String
 ) {
 
     private val passwordEncoder = BCryptPasswordEncoder()
+
+    private val verifier by lazy {
+        GoogleIdTokenVerifier.Builder(NetHttpTransport(), GsonFactory())
+            .setAudience(Collections.singletonList(googleClientId))
+            .build()
+    }
+
+    fun autenticarConGoogle(request: GoogleLoginRequest): LoginUsuarioResponse {
+        val idToken = verifier.verify(request.idToken)
+            ?: throw IllegalArgumentException("Token de Google inválido")
+        val payload = idToken.payload
+        val email = payload.email
+        val nombre = payload["name"] as String? ?: "Usuario Google"
+
+        var usuario = usuarioRepository.findByGmail(email)
+
+        if (usuario == null) {
+            // Registro automático si no existe
+            usuario = usuarioRepository.save(
+                Usuario(
+                    nombre = nombre,
+                    apellido = "",
+                    gmail = email,
+                    contrasena = "", // No necesaria para usuarios de Google
+                    rol = "PREUNIVERSITARIO",
+                    facultadesIds = emptyList() // El usuario deberá completarlas después en su perfil
+                )
+            )
+        }
+
+        return LoginUsuarioResponse(
+            id = usuario.id,
+            nombre = usuario.nombre,
+            apellido = usuario.apellido,
+            gmail = usuario.gmail,
+            rol = usuario.rol,
+            facultadesIds = usuario.facultadesIds,
+            mensaje = "Autenticación con Google exitosa"
+        )
+    }
 
     fun registrarUsuario(request: RegistroUsuarioRequest): RegistroUsuarioResponse {
         val gmailNormalizado = request.correo.trim().lowercase()

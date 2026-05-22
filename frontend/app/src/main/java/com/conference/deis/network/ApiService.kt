@@ -21,6 +21,11 @@ interface ApiService {
         @Body request: LoginRequest
     ): Response<LoginResponse>
 
+    @POST("api/usuarios/google")
+    suspend fun iniciarSesionGoogle(
+        @Body request: GoogleLoginRequest
+    ): Response<LoginResponse>
+
     @PUT("api/usuarios/{id}")
     suspend fun actualizarPerfil(
         @Path("id") id: String,

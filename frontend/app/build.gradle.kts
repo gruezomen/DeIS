@@ -16,6 +16,8 @@ if (localPropertiesFile.exists()) {
 
 val baseUrl = localProperties.getProperty("BASE_URL")
     ?: error("Falta BASE_URL en frontend/local.properties")
+val googleClientId = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID") ?: ""
+
 android {
     namespace = "com.conference.deis"
     compileSdk = 35
@@ -27,6 +29,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 	buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
+	buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleClientId\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -71,6 +74,7 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

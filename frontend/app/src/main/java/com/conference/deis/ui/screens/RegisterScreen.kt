@@ -1,6 +1,8 @@
 package com.conference.deis.ui.screens
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,13 +17,19 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.conference.deis.BuildConfig
 import com.conference.deis.network.RetrofitInstance
 import com.conference.deis.network.model.Facultad
+import com.conference.deis.network.model.GoogleLoginRequest
 import com.conference.deis.network.model.RegisterRequest
+import com.conference.deis.ui.components.BotonGoogle
 import com.conference.deis.ui.components.RegisterHeaderIcon
 import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
 import com.conference.deis.ui.theme.LinkRed
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,6 +46,46 @@ fun RegisterScreen(navController: NavHostController) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    // Configuración de Google Sign-In
+    val gso = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+            .requestEmail()
+            .build()
+    }
+    val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account?.idToken
+            if (idToken != null) {
+                scope.launch {
+                    cargando = true
+                    try {
+                        val response = RetrofitInstance.api.iniciarSesionGoogle(GoogleLoginRequest(idToken))
+                        if (response.isSuccessful && response.body() != null) {
+                            com.conference.deis.network.UserSession.user = response.body()
+                            Toast.makeText(context, "Registro con Google exitoso", Toast.LENGTH_SHORT).show()
+                            navController.navigate("success")
+                        } else {
+                            Toast.makeText(context, "Error al registrar con Google", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
+                    } finally {
+                        cargando = false
+                    }
+                }
+            }
+        } catch (e: ApiException) {
+            Toast.makeText(context, "Error de Google: ${e.statusCode}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     LaunchedEffect(Unit) {
         try {
             val response = RetrofitInstance.api.obtenerFacultades()
@@ -45,7 +93,7 @@ fun RegisterScreen(navController: NavHostController) {
                 facultades = response.body() ?: emptyList()
             }
         } catch (e: Exception) {
-            // Manejar error silenciosamente o mostrar toast
+            // Manejar error silenciosamente
         }
     }
 
@@ -158,7 +206,7 @@ fun RegisterScreen(navController: NavHostController) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Checkbox(
                                         checked = isSelected,
-                                        onCheckedChange = null // El click lo maneja el DropdownMenuItem
+                                        onCheckedChange = null
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(facultad.nombre)
@@ -203,7 +251,7 @@ fun RegisterScreen(navController: NavHostController) {
             Button(
                 onClick = {
                     if (nombreCompleto.isBlank() || correoElectronico.isBlank() || contrasena.isBlank() || facultadesSeleccionadas.isEmpty()) {
-                        Toast.makeText(context, "Completa todos los campos y selecciona al menos una facultad", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Completa todos los campos", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
 
@@ -220,25 +268,13 @@ fun RegisterScreen(navController: NavHostController) {
                             )
 
                             if (response.isSuccessful && response.body() != null) {
-                                Toast.makeText(
-                                    context,
-                                    response.body()!!.mensaje,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Toast.makeText(context, response.body()!!.mensaje, Toast.LENGTH_SHORT).show()
                                 navController.navigate("login")
                             } else {
-                                Toast.makeText(
-                                    context,
-                                    "No se pudo registrar el usuario",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Toast.makeText(context, "Error en el registro", Toast.LENGTH_SHORT).show()
                             }
                         } catch (e: Exception) {
-                            Toast.makeText(
-                                context,
-                                "No se pudo conectar al servidor",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
                         } finally {
                             cargando = false
                         }
@@ -255,15 +291,19 @@ fun RegisterScreen(navController: NavHostController) {
                 )
             ) {
                 if (cargando) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
                 } else {
                     Text("Registrarse", fontSize = 20.sp)
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            BotonGoogle(
+                onClick = {
+                    launcher.launch(googleSignInClient.signInIntent)
+                }
+            )
         }
     }
 }
