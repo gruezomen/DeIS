@@ -51,31 +51,38 @@ fun LoginScreen(navController: NavHostController) {
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        try {
-            val account = task.getResult(ApiException::class.java)
-            val idToken = account?.idToken
-            if (idToken != null) {
-                scope.launch {
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                val idToken = account?.idToken
+
+                if (idToken != null) {
                     cargando = true
-                    try {
-                        val response = RetrofitInstance.api.iniciarSesionGoogle(GoogleLoginRequest(idToken))
-                        if (response.isSuccessful && response.body() != null) {
-                            com.conference.deis.network.UserSession.user = response.body()
-                            Toast.makeText(context, "Bienvenido ${response.body()!!.nombre}", Toast.LENGTH_SHORT).show()
-                            navController.navigate("success")
-                        } else {
-                            Toast.makeText(context, "Error al autenticar con el servidor", Toast.LENGTH_SHORT).show()
+                    scope.launch {
+                        try {
+                            val response = RetrofitInstance.api.iniciarSesionGoogle(GoogleLoginRequest(idToken))
+                            if (response.isSuccessful && response.body() != null) {
+                                com.conference.deis.network.UserSession.user = response.body()
+                                Toast.makeText(context, "Bienvenido ${response.body()!!.nombre}", Toast.LENGTH_SHORT).show()
+                                navController.navigate("success") {
+                                    popUpTo("login") { inclusive = true }
+                                }
+                            } else {
+                                Toast.makeText(context, "Error al autenticar con el servidor", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
+                        } finally {
+                            cargando = false
                         }
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
-                    } finally {
-                        cargando = false
                     }
+                } else {
+                    Toast.makeText(context, "No se pudo obtener el token de seguridad", Toast.LENGTH_SHORT).show()
                 }
+            } catch (e: ApiException) {
+                Toast.makeText(context, "Fallo de Google: ${e.statusCode}", Toast.LENGTH_SHORT).show()
             }
-        } catch (e: ApiException) {
-            Toast.makeText(context, "Error de Google: ${e.statusCode}", Toast.LENGTH_SHORT).show()
         }
     }
 
