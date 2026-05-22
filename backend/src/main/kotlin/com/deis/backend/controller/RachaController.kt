@@ -86,18 +86,23 @@ class RachaController(
         return RachaResponse(
             diasConsecutivos = racha.diasConsecutivos,
             ultimaPractica = racha.ultimaPractica?.toString(),
-            estadoDelfin = obtenerEstadoDelfin(racha.diasConsecutivos),
+            estadoDelfin = obtenerEstadoDelfin(racha, LocalDate.now()),
             mensaje = mensaje
         )
     }
 
-    private fun obtenerEstadoDelfin(diasConsecutivos: Int): String {
-        return when {
-            diasConsecutivos <= 0 -> "DORMIDO"
-            diasConsecutivos >= 7 -> "FELIZ"
-            else -> "DESPIERTO"
-        }
+    private fun obtenerEstadoDelfin(
+    racha: Racha,
+    fechaActual: LocalDate
+): String {
+    val ultimaPractica = racha.ultimaPractica ?: return "DORMIDO"
+
+    return when {
+        ultimaPractica != fechaActual -> "DORMIDO"
+        racha.diasConsecutivos >= 7 -> "FELIZ"
+        else -> "DESPIERTO"
     }
+}
 
     private fun respuestaError(
         status: HttpStatus,

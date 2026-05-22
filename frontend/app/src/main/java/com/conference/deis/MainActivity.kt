@@ -11,20 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.conference.deis.ui.screens.AccesoDenegadoScreen
-import com.conference.deis.ui.screens.AdminHomeScreen
-import com.conference.deis.ui.screens.CrearBancoScreen
-import com.conference.deis.ui.screens.CrearPreguntaScreen
-import com.conference.deis.ui.screens.DetallesBancoScreen
-import com.conference.deis.ui.screens.ListaBancosScreen
-import com.conference.deis.ui.screens.ListaPreguntasScreen
-import com.conference.deis.ui.screens.LoginScreen
-import com.conference.deis.ui.screens.OrganizarPreguntaScreen
-import com.conference.deis.ui.screens.RegisterScreen
-import com.conference.deis.ui.screens.ResolverPreguntaScreen
-import com.conference.deis.ui.screens.SplashScreen
-import com.conference.deis.ui.screens.SuccessLoadingScreen
-import com.conference.deis.ui.screens.esAdministrador
+import com.conference.deis.ui.screens.*
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,6 +50,10 @@ fun DeISApp() {
 
                 composable("home") {
                     AdminHomeScreen(navController)
+                }
+
+                composable("perfil") {
+                    PerfilScreen(navController)
                 }
 
                 composable("lista_preguntas") {

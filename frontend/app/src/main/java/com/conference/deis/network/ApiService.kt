@@ -21,6 +21,12 @@ interface ApiService {
         @Body request: LoginRequest
     ): Response<LoginResponse>
 
+    @PUT("api/usuarios/{id}")
+    suspend fun actualizarPerfil(
+        @Path("id") id: String,
+        @Body request: RegisterRequest
+    ): Response<RegisterResponse>
+
     @POST("api/preguntas")
     suspend fun crearPregunta(
         @Body request: CreateQuestionRequest
@@ -47,6 +53,9 @@ interface ApiService {
     suspend fun obtenerBancoPorId(
         @Path("id") id: String
     ): Response<BancoPregunta>
+
+    @GET("api/facultades")
+    suspend fun obtenerFacultades(): Response<List<Facultad>>
 
     @POST("api/bancos-preguntas")
     suspend fun crearBanco(

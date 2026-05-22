@@ -1,9 +1,6 @@
 package com.deis.backend.service
 
-import com.deis.backend.dto.RegistroUsuarioRequest
-import com.deis.backend.dto.RegistroUsuarioResponse
-import com.deis.backend.dto.LoginUsuarioRequest
-import com.deis.backend.dto.LoginUsuarioResponse
+import com.deis.backend.dto.*
 import com.deis.backend.model.Usuario
 import com.deis.backend.repository.UsuarioRepository
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
@@ -11,6 +8,7 @@ import org.springframework.stereotype.Service
 import com.deis.backend.model.Facultad
 import com.deis.backend.model.Preuniversitario
 import com.deis.backend.repository.PreuniversitarioRepository
+
 
 @Service
 class UsuarioService(
@@ -33,7 +31,8 @@ class UsuarioService(
                 apellido = "",
                 gmail = gmailNormalizado,
                 contrasena = passwordEncoder.encode(request.contrasena),
-                rol = "PREUNIVERSITARIO"
+                rol = "PREUNIVERSITARIO",
+                facultadesIds = request.facultadesIds
             )
         )
         crearPerfilPreuniversitarioSiNoExiste(usuarioGuardado.id)
@@ -44,6 +43,7 @@ class UsuarioService(
             apellido = usuarioGuardado.apellido,
             gmail = usuarioGuardado.gmail,
             rol = usuarioGuardado.rol,
+            facultadesIds = usuarioGuardado.facultadesIds,
             mensaje = "Usuario registrado correctamente"
         )
     }
@@ -69,9 +69,11 @@ class UsuarioService(
             apellido = usuario.apellido,
             gmail = usuario.gmail,
             rol = usuario.rol,
+            facultadesIds = usuario.facultadesIds,
             mensaje = "Inicio de sesión exitoso"
         )
     }
+
     
     private fun crearPerfilPreuniversitarioSiNoExiste(usuarioId: String?) {
     if (usuarioId.isNullOrBlank()) return
@@ -87,6 +89,40 @@ class UsuarioService(
                 nombre = "Ciencias y Tecnología"
             )
         )
+    )
+}
+
+fun actualizarPerfil(id: String, request: ActualizarUsuarioRequest): RegistroUsuarioResponse {
+    val usuario = usuarioRepository.findById(id)
+        .orElseThrow { IllegalArgumentException("Usuario no encontrado") }
+
+    if (request.facultadesIds.isEmpty()) {
+        throw IllegalArgumentException("Debe seleccionar al menos una facultad")
+    }
+
+    val nuevaContrasena = if (!request.contrasena.isNullOrBlank()) {
+        passwordEncoder.encode(request.contrasena)
+    } else {
+        usuario.contrasena
+    }
+
+    val usuarioActualizado = usuarioRepository.save(
+        usuario.copy(
+            nombre = request.nombre.trim(),
+            apellido = "",
+            contrasena = nuevaContrasena,
+            facultadesIds = request.facultadesIds
+        )
+    )
+
+    return RegistroUsuarioResponse(
+        id = usuarioActualizado.id,
+        nombre = usuarioActualizado.nombre,
+        apellido = usuarioActualizado.apellido,
+        gmail = usuarioActualizado.gmail,
+        rol = usuarioActualizado.rol,
+        facultadesIds = usuarioActualizado.facultadesIds,
+        mensaje = "Perfil actualizado correctamente"
     )
 }
 }

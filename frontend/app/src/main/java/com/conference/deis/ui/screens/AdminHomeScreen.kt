@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -25,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,12 +53,16 @@ fun AdminHomeScreen(navController: NavHostController) {
     var totalPreguntas by remember { mutableStateOf(0) }
     var totalBancos by remember { mutableStateOf(0) }
     var cargandoResumen by remember { mutableStateOf(true) }
+<<<<<<< HEAD
     var diasRacha by remember { mutableStateOf(0) }
     var estadoDelfin by remember { mutableStateOf("DORMIDO") }
     var cargandoRacha by remember { mutableStateOf(false) }
    LaunchedEffect(Unit) {
     try {
         cargandoResumen = true
+=======
+    var menuExpandido by remember { mutableStateOf(false) }
+>>>>>>> origin/develop
 
         val responsePreguntas = RetrofitInstance.api.obtenerPreguntas()
         val responseBancos = RetrofitInstance.api.obtenerBancosPreguntas()
@@ -117,10 +124,24 @@ fun AdminHomeScreen(navController: NavHostController) {
                         modifier = Modifier
                             .padding(end = 12.dp)
                             .size(34.dp)
-                            .background(Color(0xFFE6E6E6), CircleShape),
+                            .background(Color(0xFFE6E6E6), CircleShape)
+                            .clickable { menuExpandido = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Text("U")
+
+                        DropdownMenu(
+                            expanded = menuExpandido,
+                            onDismissRequest = { menuExpandido = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Perfil") },
+                                onClick = {
+                                    menuExpandido = false
+                                    navController.navigate("perfil")
+                                }
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(

@@ -4,13 +4,16 @@ import com.deis.backend.dto.RegistroUsuarioRequest
 import com.deis.backend.dto.RegistroUsuarioResponse
 import com.deis.backend.dto.LoginUsuarioRequest
 import com.deis.backend.dto.LoginUsuarioResponse
+import com.deis.backend.dto.ActualizarUsuarioRequest
 import com.deis.backend.service.UsuarioService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
@@ -37,6 +40,15 @@ class UsuarioController(
         return ResponseEntity.ok(response)
     }
 
+    @PutMapping("/{id}")
+    fun actualizarPerfil(
+        @PathVariable id: String,
+        @Valid @RequestBody request: ActualizarUsuarioRequest
+    ): ResponseEntity<RegistroUsuarioResponse> {
+        val response = usuarioService.actualizarPerfil(id, request)
+        return ResponseEntity.ok(response)
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun manejarErroresValidacion(ex: MethodArgumentNotValidException): ResponseEntity<Map<String, Any>> {
         val errores = ex.bindingResult.fieldErrors.associate { error ->
@@ -55,6 +67,13 @@ class UsuarioController(
     fun manejarIllegalArgument(ex: IllegalArgumentException): ResponseEntity<Map<String, String>> {
         return ResponseEntity.badRequest().body(
             mapOf("mensaje" to (ex.message ?: "Solicitud inválida"))
+        )
+    }
+
+    @ExceptionHandler(IllegalStateException::class)
+    fun manejarIllegalState(ex: IllegalStateException): ResponseEntity<Map<String, String>> {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+            mapOf("mensaje" to (ex.message ?: "Error interno del sistema"))
         )
     }
 }
