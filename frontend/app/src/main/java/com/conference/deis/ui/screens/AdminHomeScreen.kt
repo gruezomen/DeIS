@@ -55,9 +55,7 @@ fun AdminHomeScreen(navController: NavHostController) {
     var cargandoResumen by remember { mutableStateOf(true) }
     var menuExpandido by remember { mutableStateOf(false) }
 
-    var diasRacha by remember { mutableStateOf(0) }
-    var estadoDelfin by remember { mutableStateOf("DORMIDO") }
-    var cargandoRacha by remember { mutableStateOf(false) }
+    
     val esAdmin = UserSession.user?.rol == "ADMINISTRADOR"
 
     LaunchedEffect(Unit) {
@@ -81,29 +79,6 @@ fun AdminHomeScreen(navController: NavHostController) {
             cargandoResumen = false
         }
 
-        if (!esAdmin) {
-            try {
-                cargandoRacha = true
-
-                val usuarioId = UserSession.user?.id
-
-                if (!usuarioId.isNullOrBlank()) {
-                    val responseRacha = RetrofitInstance.api.obtenerRacha(usuarioId)
-
-                    if (responseRacha.isSuccessful) {
-                        responseRacha.body()?.let { racha ->
-                            diasRacha = racha.diasConsecutivos
-                            estadoDelfin = racha.estadoDelfin
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                diasRacha = 0
-                estadoDelfin = "DORMIDO"
-            } finally {
-                cargandoRacha = false
-            }
-        }
     }
 
     Scaffold(
@@ -229,25 +204,11 @@ fun AdminHomeScreen(navController: NavHostController) {
                 .background(Color.White)
                 .padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Información del sistema",
-                    fontSize = 14.sp,
-                    color = Color.Black
-                )
-
-                if (!esAdministrador()) {
-                    RachaMiniCard(
-                        diasConsecutivos = diasRacha,
-                        estadoDelfin = estadoDelfin,
-                        cargando = cargandoRacha
-                    )
-                }
-            }
+            Text(
+    text = "Información del sistema",
+    fontSize = 14.sp,
+    color = Color.Black
+)
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -329,58 +290,7 @@ fun AdminHomeScreen(navController: NavHostController) {
     }
 }
 
-@Composable
-private fun RachaMiniCard(
-    diasConsecutivos: Int,
-    estadoDelfin: String,
-    cargando: Boolean
-) {
-    val estadoVisual = when {
-        diasConsecutivos <= 0 || estadoDelfin == "DORMIDO" -> "Dormido"
-        diasConsecutivos >= 7 || estadoDelfin == "FELIZ" -> "Feliz"
-        else -> "Despierto"
-    }
 
-    val iconoEstado = when (estadoVisual) {
-        "Dormido" -> "💤"
-        "Feliz" -> "⭐"
-        else -> "🔥"
-    }
-
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFEAF3FF)
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.delfin),
-                contentDescription = "Delfín de racha",
-                modifier = Modifier.size(26.dp)
-            )
-
-            Column {
-                Text(
-                    text = if (cargando) "..." else "$diasConsecutivos días",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = BlueBackground
-                )
-
-                Text(
-                    text = if (cargando) "Cargando" else "$iconoEstado $estadoVisual",
-                    fontSize = 10.sp,
-                    color = Color.DarkGray
-                )
-            }
-        }
-    }
-}
 
 
 
