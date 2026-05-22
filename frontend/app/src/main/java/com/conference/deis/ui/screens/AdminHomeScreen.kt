@@ -2,16 +2,21 @@ package com.conference.deis.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -27,25 +32,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.clickable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.conference.deis.R
 import com.conference.deis.network.RetrofitInstance
+import com.conference.deis.network.UserSession
 import com.conference.deis.ui.components.ActionBox
 import com.conference.deis.ui.components.InfoCard
 import com.conference.deis.ui.theme.BlueBackground
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.ui.text.font.FontWeight
-import com.conference.deis.network.UserSession
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,58 +53,58 @@ fun AdminHomeScreen(navController: NavHostController) {
     var totalPreguntas by remember { mutableStateOf(0) }
     var totalBancos by remember { mutableStateOf(0) }
     var cargandoResumen by remember { mutableStateOf(true) }
-<<<<<<< HEAD
+    var menuExpandido by remember { mutableStateOf(false) }
+
     var diasRacha by remember { mutableStateOf(0) }
     var estadoDelfin by remember { mutableStateOf("DORMIDO") }
     var cargandoRacha by remember { mutableStateOf(false) }
-   LaunchedEffect(Unit) {
-    try {
-        cargandoResumen = true
-=======
-    var menuExpandido by remember { mutableStateOf(false) }
->>>>>>> origin/develop
+    val esAdmin = UserSession.user?.rol == "ADMINISTRADOR"
 
-        val responsePreguntas = RetrofitInstance.api.obtenerPreguntas()
-        val responseBancos = RetrofitInstance.api.obtenerBancosPreguntas()
-
-        if (responsePreguntas.isSuccessful) {
-            totalPreguntas = responsePreguntas.body().orEmpty().size
-        }
-
-        if (responseBancos.isSuccessful) {
-            totalBancos = responseBancos.body().orEmpty().size
-        }
-    } catch (e: Exception) {
-        totalPreguntas = 0
-        totalBancos = 0
-    } finally {
-        cargandoResumen = false
-    }
-
-    if (!esAdministrador()) {
+    LaunchedEffect(Unit) {
         try {
-            cargandoRacha = true
+            cargandoResumen = true
 
-            val usuarioId = UserSession.user?.id
+            val responsePreguntas = RetrofitInstance.api.obtenerPreguntas()
+            val responseBancos = RetrofitInstance.api.obtenerBancosPreguntas()
 
-            if (!usuarioId.isNullOrBlank()) {
-                val responseRacha = RetrofitInstance.api.obtenerRacha(usuarioId)
+            if (responsePreguntas.isSuccessful) {
+                totalPreguntas = responsePreguntas.body().orEmpty().size
+            }
 
-                if (responseRacha.isSuccessful) {
-                    responseRacha.body()?.let { racha ->
-                        diasRacha = racha.diasConsecutivos
-                        estadoDelfin = racha.estadoDelfin
-                    }
-                }
+            if (responseBancos.isSuccessful) {
+                totalBancos = responseBancos.body().orEmpty().size
             }
         } catch (e: Exception) {
-            diasRacha = 0
-            estadoDelfin = "DORMIDO"
+            totalPreguntas = 0
+            totalBancos = 0
         } finally {
-            cargandoRacha = false
+            cargandoResumen = false
+        }
+
+        if (!esAdmin) {
+            try {
+                cargandoRacha = true
+
+                val usuarioId = UserSession.user?.id
+
+                if (!usuarioId.isNullOrBlank()) {
+                    val responseRacha = RetrofitInstance.api.obtenerRacha(usuarioId)
+
+                    if (responseRacha.isSuccessful) {
+                        responseRacha.body()?.let { racha ->
+                            diasRacha = racha.diasConsecutivos
+                            estadoDelfin = racha.estadoDelfin
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                diasRacha = 0
+                estadoDelfin = "DORMIDO"
+            } finally {
+                cargandoRacha = false
+            }
         }
     }
-}
 
     Scaffold(
         topBar = {
@@ -130,18 +130,66 @@ fun AdminHomeScreen(navController: NavHostController) {
                     ) {
                         Text("U")
 
-                        DropdownMenu(
-                            expanded = menuExpandido,
-                            onDismissRequest = { menuExpandido = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Perfil") },
-                                onClick = {
-                                    menuExpandido = false
-                                    navController.navigate("perfil")
-                                }
-                            )
-                        }
+                       DropdownMenu(
+    expanded = menuExpandido,
+    onDismissRequest = { menuExpandido = false }
+) {
+    DropdownMenuItem(
+        text = { Text("Perfil") },
+        onClick = {
+            menuExpandido = false
+            navController.navigate("perfil")
+        }
+    )
+
+    if (!esAdmin) {
+        DropdownMenuItem(
+            text = { Text("Mi racha") },
+            onClick = {
+                menuExpandido = false
+                navController.navigate("mi_racha")
+            }
+        )
+
+        DropdownMenuItem(
+            text = { Text("Mis logros") },
+            onClick = {
+                menuExpandido = false
+            }
+        )
+
+        DropdownMenuItem(
+            text = { Text("Recompensas") },
+            onClick = {
+                menuExpandido = false
+            }
+        )
+
+        DropdownMenuItem(
+            text = { Text("Estadísticas") },
+            onClick = {
+                menuExpandido = false
+            }
+        )
+
+        DropdownMenuItem(
+            text = { Text("Historial") },
+            onClick = {
+                menuExpandido = false
+            }
+        )
+    }
+
+    DropdownMenuItem(
+        text = { Text("Cerrar sesión") },
+        onClick = {
+            menuExpandido = false
+            navController.navigate("login") {
+                popUpTo(0)
+            }
+        }
+    )
+}
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -182,24 +230,24 @@ fun AdminHomeScreen(navController: NavHostController) {
                 .padding(16.dp)
         ) {
             Row(
-    modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.SpaceBetween,
-    verticalAlignment = Alignment.CenterVertically
-) {
-    Text(
-        text = "Información del sistema",
-        fontSize = 14.sp,
-        color = Color.Black
-    )
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Información del sistema",
+                    fontSize = 14.sp,
+                    color = Color.Black
+                )
 
-    if (!esAdministrador()) {
-        RachaMiniCard(
-            diasConsecutivos = diasRacha,
-            estadoDelfin = estadoDelfin,
-            cargando = cargandoRacha
-        )
-    }
-}
+                if (!esAdministrador()) {
+                    RachaMiniCard(
+                        diasConsecutivos = diasRacha,
+                        estadoDelfin = estadoDelfin,
+                        cargando = cargandoRacha
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -231,7 +279,7 @@ fun AdminHomeScreen(navController: NavHostController) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (esAdministrador()) {
+         if (esAdmin) {
                 ActionBox(
                     texto = "Crear pregunta",
                     onClick = { navController.navigate("crear_pregunta") }
@@ -280,6 +328,7 @@ fun AdminHomeScreen(navController: NavHostController) {
         }
     }
 }
+
 @Composable
 private fun RachaMiniCard(
     diasConsecutivos: Int,
@@ -332,3 +381,7 @@ private fun RachaMiniCard(
         }
     }
 }
+
+
+
+
