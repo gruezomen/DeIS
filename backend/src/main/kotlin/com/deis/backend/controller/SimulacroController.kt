@@ -7,11 +7,27 @@ import com.deis.backend.repository.SimulacroRepository
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
+import kotlin.math.round
 
 data class CrearSimulacroRequest(
     val bancoId: String? = null,
     val tiempo: Int,
     val preguntaIds: List<String> = emptyList()
+)
+
+data class ResultadoHistoricoResponse(
+    val id: String?,
+    val bancoId: String,
+    val puntaje: Int,
+    val totalPreguntas: Int,
+    val nota: Double,
+    val fecha: String
+)
+
+data class PromedioGeneralResponse(
+    val usuarioId: String,
+    val promedioGeneral: Double,
+    val totalIntentos: Int
 )
 
 @RestController
@@ -47,6 +63,7 @@ class SimulacroController(
     @GetMapping("/{id}")
     fun obtenerSimulacroPorId(@PathVariable id: String): ResponseEntity<Any> {
         val simulacro = simulacroRepository.findById(id)
+
         return if (simulacro.isPresent) {
             ResponseEntity.ok(simulacro.get())
         } else {
@@ -63,11 +80,64 @@ class SimulacroController(
     }
 
     @GetMapping("/intentos/usuario/{usuarioId}")
-    fun obtenerIntentosPorUsuario(@PathVariable usuarioId: String): ResponseEntity<List<IntentoSimulacro>> {
-        // En una implementación real, se filtraría en el repository.
-        // Por simplicidad para esta tarea, filtramos aquí si no queremos añadir el método al repo todavía.
-        val todos = intentoSimulacroRepository.findAll()
-        val filtrados = todos.filter { it.usuarioId == usuarioId }
-        return ResponseEntity.ok(filtrados)
+    fun obtenerIntentosPorUsuario(
+        @PathVariable usuarioId: String
+    ): ResponseEntity<List<IntentoSimulacro>> {
+        val intentos = intentoSimulacroRepository.findByUsuarioIdOrderByFechaDesc(usuarioId)
+        return ResponseEntity.ok(intentos)
+    }
+
+    @GetMapping("/intentos/usuario/{usuarioId}/historial")
+    fun obtenerHistorialResultados(
+        @PathVariable usuarioId: String
+    ): ResponseEntity<List<ResultadoHistoricoResponse>> {
+        val historial = intentoSimulacroRepository
+            .findByUsuarioIdOrderByFechaDesc(usuarioId)
+            .map { intento ->
+                ResultadoHistoricoResponse(
+                    id = intento.id,
+                    bancoId = intento.bancoId,
+                    puntaje = intento.puntaje,
+                    totalPreguntas = intento.totalPreguntas,
+                    nota = calcularNota(intento),
+                    fecha = intento.fecha.toString()
+                )
+            }
+
+        return ResponseEntity.ok(historial)
+    }
+
+    @GetMapping("/intentos/usuario/{usuarioId}/promedio-general")
+    fun calcularPromedioGeneral(
+        @PathVariable usuarioId: String
+    ): ResponseEntity<PromedioGeneralResponse> {
+        val intentos = intentoSimulacroRepository.findByUsuarioIdOrderByFechaDesc(usuarioId)
+
+        val promedio = if (intentos.isEmpty()) {
+            0.0
+        } else {
+            redondear(
+                intentos.map { calcularNota(it) }.average()
+            )
+        }
+
+        return ResponseEntity.ok(
+            PromedioGeneralResponse(
+                usuarioId = usuarioId,
+                promedioGeneral = promedio,
+                totalIntentos = intentos.size
+            )
+        )
+    }
+
+    private fun calcularNota(intento: IntentoSimulacro): Double {
+        if (intento.totalPreguntas <= 0) return 0.0
+
+        val nota = (intento.puntaje.toDouble() / intento.totalPreguntas.toDouble()) * 100.0
+        return redondear(nota)
+    }
+
+    private fun redondear(valor: Double): Double {
+        return round(valor * 100.0) / 100.0
     }
 }
