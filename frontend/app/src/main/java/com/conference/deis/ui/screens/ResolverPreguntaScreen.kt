@@ -235,37 +235,60 @@ fun ResolverPreguntaScreen(
 
 
     fun intentarGuardarEnBackend(puntajeFinal: Int) {
-        scope.launch {
-            guardandoResultado = true
-            errorGuardado = false
+    scope.launch {
+        guardandoResultado = true
+        errorGuardado = false
 
-            try {
-                if (!hayConexionInternet(context)) {
-                    errorGuardado = true
-                    return@launch
-                }
-
-                val usuarioId = UserSession.user?.id ?: "usuario_anonimo"
-
-                val response = RetrofitInstance.api.guardarIntentoSimulacro(
-                    IntentoSimulacro(
-                        usuarioId = usuarioId,
-                        bancoId = bancoIdParaIntento,
-                        puntaje = puntajeFinal,
-                        totalPreguntas = preguntas.size
-                    )
-                )
-
-                if (!response.isSuccessful) {
-                    errorGuardado = true
-                }
-            } catch (e: Exception) {
+        try {
+            if (!hayConexionInternet(context)) {
                 errorGuardado = true
-            } finally {
-                guardandoResultado = false
+                return@launch
             }
+
+            val usuarioId = UserSession.user?.id ?: "usuario_anonimo"
+
+            val responseIntento = RetrofitInstance.api.guardarIntentoSimulacro(
+                IntentoSimulacro(
+                    usuarioId = usuarioId,
+                    bancoId = bancoIdParaIntento,
+                    puntaje = puntajeFinal,
+                    totalPreguntas = preguntas.size
+                )
+            )
+
+            if (!responseIntento.isSuccessful) {
+                errorGuardado = true
+                return@launch
+            }
+
+            val responseRacha = RetrofitInstance.api.registrarPracticaDiaria(usuarioId)
+
+            if (!responseRacha.isSuccessful) {
+                errorGuardado = true
+                Toast.makeText(
+                    context,
+                    "Se guardó el resultado, pero no se pudo actualizar la racha",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@launch
+            }
+
+            val racha = responseRacha.body()
+
+            if (racha != null) {
+                Toast.makeText(
+                    context,
+                    racha.mensaje,
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        } catch (e: Exception) {
+            errorGuardado = true
+        } finally {
+            guardandoResultado = false
         }
     }
+}
 
     fun finalizarSimulacro(tiempoTerminado: Boolean) {
         if (practicaFinalizada || preguntas.isEmpty()) return

@@ -5,10 +5,15 @@ import com.deis.backend.model.Usuario
 import com.deis.backend.repository.UsuarioRepository
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.stereotype.Service
+import com.deis.backend.model.Facultad
+import com.deis.backend.model.Preuniversitario
+import com.deis.backend.repository.PreuniversitarioRepository
+
 
 @Service
 class UsuarioService(
-    private val usuarioRepository: UsuarioRepository
+    private val usuarioRepository: UsuarioRepository,
+    private val preuniversitarioRepository: PreuniversitarioRepository
 ) {
 
     private val passwordEncoder = BCryptPasswordEncoder()
@@ -30,6 +35,7 @@ class UsuarioService(
                 facultadesIds = request.facultadesIds
             )
         )
+        crearPerfilPreuniversitarioSiNoExiste(usuarioGuardado.id)
 
         return RegistroUsuarioResponse(
             id = usuarioGuardado.id,
@@ -68,37 +74,55 @@ class UsuarioService(
         )
     }
 
-    fun actualizarPerfil(id: String, request: ActualizarUsuarioRequest): RegistroUsuarioResponse {
-        val usuario = usuarioRepository.findById(id)
-            .orElseThrow { IllegalArgumentException("Usuario no encontrado") }
+    
+    private fun crearPerfilPreuniversitarioSiNoExiste(usuarioId: String?) {
+    if (usuarioId.isNullOrBlank()) return
 
-        if (request.facultadesIds.isEmpty()) {
-            throw IllegalArgumentException("Debe seleccionar al menos una facultad")
-        }
+    val perfilExistente = preuniversitarioRepository.findByUsuarioId(usuarioId)
 
-        val nuevaContrasena = if (!request.contrasena.isNullOrBlank()) {
-            passwordEncoder.encode(request.contrasena)
-        } else {
-            usuario.contrasena
-        }
+    if (perfilExistente != null) return
 
-        val usuarioActualizado = usuarioRepository.save(
-            usuario.copy(
-                nombre = request.nombre.trim(),
-                apellido = "", 
-                contrasena = nuevaContrasena,
-                facultadesIds = request.facultadesIds
+    preuniversitarioRepository.save(
+        Preuniversitario(
+            usuarioId = usuarioId,
+            facultad = Facultad(
+                nombre = "Ciencias y Tecnología"
             )
         )
+    )
+}
 
-        return RegistroUsuarioResponse(
-            id = usuarioActualizado.id,
-            nombre = usuarioActualizado.nombre,
-            apellido = usuarioActualizado.apellido,
-            gmail = usuarioActualizado.gmail,
-            rol = usuarioActualizado.rol,
-            facultadesIds = usuarioActualizado.facultadesIds,
-            mensaje = "Perfil actualizado correctamente"
-        )
+fun actualizarPerfil(id: String, request: ActualizarUsuarioRequest): RegistroUsuarioResponse {
+    val usuario = usuarioRepository.findById(id)
+        .orElseThrow { IllegalArgumentException("Usuario no encontrado") }
+
+    if (request.facultadesIds.isEmpty()) {
+        throw IllegalArgumentException("Debe seleccionar al menos una facultad")
     }
+
+    val nuevaContrasena = if (!request.contrasena.isNullOrBlank()) {
+        passwordEncoder.encode(request.contrasena)
+    } else {
+        usuario.contrasena
+    }
+
+    val usuarioActualizado = usuarioRepository.save(
+        usuario.copy(
+            nombre = request.nombre.trim(),
+            apellido = "",
+            contrasena = nuevaContrasena,
+            facultadesIds = request.facultadesIds
+        )
+    )
+
+    return RegistroUsuarioResponse(
+        id = usuarioActualizado.id,
+        nombre = usuarioActualizado.nombre,
+        apellido = usuarioActualizado.apellido,
+        gmail = usuarioActualizado.gmail,
+        rol = usuarioActualizado.rol,
+        facultadesIds = usuarioActualizado.facultadesIds,
+        mensaje = "Perfil actualizado correctamente"
+    )
+}
 }

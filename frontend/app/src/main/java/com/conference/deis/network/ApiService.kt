@@ -88,5 +88,14 @@ interface ApiService {
         @Path("id") id: String
     ): Response<Simulacro>
 
+@GET("api/racha/{usuarioId}")
+suspend fun obtenerRacha(
+    @Path("usuarioId") usuarioId: String
+): Response<RachaResponse>
+
+@POST("api/racha/{usuarioId}/practica")
+suspend fun registrarPracticaDiaria(
+    @Path("usuarioId") usuarioId: String
+): Response<RachaResponse>
 
 }

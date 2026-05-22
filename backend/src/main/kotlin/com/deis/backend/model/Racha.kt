@@ -1,5 +1,8 @@
 package com.deis.backend.model
 
+import java.time.LocalDate
+
 data class Racha(
-    val puntos: Int = 0
+    val diasConsecutivos: Int = 0,
+    val ultimaPractica: LocalDate? = null
 )
