@@ -9,10 +9,14 @@ import com.google.api.client.json.gson.GsonFactory
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.stereotype.Service
 import java.util.Collections
+import com.deis.backend.model.Facultad
+import com.deis.backend.model.Preuniversitario
+import com.deis.backend.repository.PreuniversitarioRepository
 
 @Service
 class UsuarioService(
     private val usuarioRepository: UsuarioRepository,
+    private val preuniversitarioRepository: PreuniversitarioRepository,
     @org.springframework.beans.factory.annotation.Value("\${google.client.id}")
     private val googleClientId: String
 ) {
@@ -47,6 +51,9 @@ class UsuarioService(
                 )
             )
         }
+        
+        // Asegurar que tenga perfil preuniversitario
+        crearPerfilPreuniversitarioSiNoExiste(usuario.id)
 
         return LoginUsuarioResponse(
             id = usuario.id,
@@ -76,6 +83,7 @@ class UsuarioService(
                 facultadesIds = request.facultadesIds
             )
         )
+        crearPerfilPreuniversitarioSiNoExiste(usuarioGuardado.id)
 
         return RegistroUsuarioResponse(
             id = usuarioGuardado.id,
@@ -114,6 +122,23 @@ class UsuarioService(
         )
     }
 
+    private fun crearPerfilPreuniversitarioSiNoExiste(usuarioId: String?) {
+        if (usuarioId.isNullOrBlank()) return
+
+        val perfilExistente = preuniversitarioRepository.findByUsuarioId(usuarioId)
+
+        if (perfilExistente != null) return
+
+        preuniversitarioRepository.save(
+            Preuniversitario(
+                usuarioId = usuarioId,
+                facultad = Facultad(
+                    nombre = "Ciencias y Tecnología"
+                )
+            )
+        )
+    }
+
     fun actualizarPerfil(id: String, request: ActualizarUsuarioRequest): RegistroUsuarioResponse {
         val usuario = usuarioRepository.findById(id)
             .orElseThrow { IllegalArgumentException("Usuario no encontrado") }
@@ -131,7 +156,7 @@ class UsuarioService(
         val usuarioActualizado = usuarioRepository.save(
             usuario.copy(
                 nombre = request.nombre.trim(),
-                apellido = "", 
+                apellido = "",
                 contrasena = nuevaContrasena,
                 facultadesIds = request.facultadesIds
             )
