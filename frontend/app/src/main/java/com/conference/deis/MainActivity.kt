@@ -35,6 +35,10 @@ fun DeISApp() {
                 composable("mi_racha") {
                    MiRachaScreen(navController)
                   }
+                
+                composable("mi_progreso") {
+                    MiProgresoScreen(navController)
+                }
                   
                 composable("splash") {
                     SplashScreen(navController)
