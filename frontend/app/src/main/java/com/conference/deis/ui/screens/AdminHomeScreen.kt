@@ -144,6 +144,15 @@ fun AdminHomeScreen(navController: NavHostController) {
             text = { Text("Estadísticas") },
             onClick = {
                 menuExpandido = false
+                navController.navigate("mi_progreso")
+            }
+        )
+
+        DropdownMenuItem(
+            text = { Text("Historial") },
+            onClick = {
+                menuExpandido = false
+                navController.navigate("mi_progreso")
             }
         )
 
