@@ -240,12 +240,14 @@ private fun ResumenProgreso(
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         MiniResumenCard(
             titulo = "Intentos",
-            valor = "${comparacion?.totalIntentos ?: intentos.size}"
+            valor = "${comparacion?.totalIntentos ?: intentos.size}",
+            modifier = Modifier.weight(1f)
         )
 
         MiniResumenCard(
             titulo = "Último",
-            valor = "${ultimo.roundToInt()}%"
+            valor = "${ultimo.roundToInt()}%",
+            modifier = Modifier.weight(1f)
         )
     }
 }
@@ -394,12 +396,11 @@ private fun HistorialItem(intento: IntentoSimulacro) {
 @Composable
 private fun MiniResumenCard(
     titulo: String,
-    valor: String
+    valor: String,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
-            .height(90.dp)
-            .weight(1f),
+        modifier = modifier.height(90.dp),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
