@@ -366,7 +366,7 @@ private fun HistorialProgreso(intentos: List<IntentoSimulacro>) {
             )
 
             HistorialResumenCard(
-                titulo = "Promedio histórico",
+                titulo = "Promedio",
                 valor = "${promedioHistorico.roundToInt()}%",
                 detalle = "Últimos 5 intentos",
                 modifier = Modifier.weight(1f)
