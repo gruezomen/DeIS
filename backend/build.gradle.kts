@@ -25,7 +25,9 @@ dependencies {
 	implementation("org.springframework.security:spring-security-crypto")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-	implementation("me.paulschwarz:spring-dotenv:4.0.0")
+    implementation("me.paulschwarz:spring-dotenv:4.0.0")
+    implementation("com.google.api-client:google-api-client:2.7.0")
+    implementation("com.google.oauth-client:google-oauth-client-jetty:1.36.0")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 

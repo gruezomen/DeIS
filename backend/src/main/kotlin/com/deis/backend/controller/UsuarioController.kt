@@ -5,6 +5,7 @@ import com.deis.backend.dto.RegistroUsuarioResponse
 import com.deis.backend.dto.LoginUsuarioRequest
 import com.deis.backend.dto.LoginUsuarioResponse
 import com.deis.backend.dto.ActualizarUsuarioRequest
+import com.deis.backend.dto.GoogleLoginRequest
 import com.deis.backend.service.UsuarioService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -37,6 +38,14 @@ class UsuarioController(
         @Valid @RequestBody request: LoginUsuarioRequest
     ): ResponseEntity<LoginUsuarioResponse> {
         val response = usuarioService.loginUsuario(request)
+        return ResponseEntity.ok(response)
+    }
+
+    @PostMapping("/google")
+    fun loginGoogle(
+        @Valid @RequestBody request: GoogleLoginRequest
+    ): ResponseEntity<LoginUsuarioResponse> {
+        val response = usuarioService.autenticarConGoogle(request)
         return ResponseEntity.ok(response)
     }
 

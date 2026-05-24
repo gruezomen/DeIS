@@ -18,6 +18,39 @@ import com.conference.deis.R
 import com.conference.deis.ui.theme.*
 
 @Composable
+fun BotonGoogle(
+    texto: String = "Continuar con Google",
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.White,
+            contentColor = Color.Black
+        ),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            // Aquí se podría poner un icono de Google si estuviera disponible en drawables
+            // Image(painter = painterResource(id = R.drawable.ic_google), ...)
+            Text(
+                text = texto,
+                fontSize = 14.sp,
+                color = Color.Black
+            )
+        }
+    }
+}
+
+@Composable
 fun LogoSection() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Image(
