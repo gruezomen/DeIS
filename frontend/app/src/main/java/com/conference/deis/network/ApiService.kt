@@ -112,5 +112,9 @@ suspend fun obtenerComparacionRendimiento(
 suspend fun obtenerIntentosPorUsuario(
     @Path("usuarioId") usuarioId: String
 ): Response<List<IntentoSimulacro>>
-    
+
+@GET("api/logros/usuario/{usuarioId}")
+suspend fun obtenerLogrosUsuario(
+    @Path("usuarioId") usuarioId: String
+): Response<LogrosUsuarioResponse>    
 }

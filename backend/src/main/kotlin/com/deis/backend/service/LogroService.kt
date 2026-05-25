@@ -4,6 +4,8 @@ import com.deis.backend.model.LogroDesbloqueado
 import com.deis.backend.repository.LogroDesbloqueadoRepository
 import com.deis.backend.repository.LogroRepository
 import org.springframework.stereotype.Service
+import com.deis.backend.dto.LogroItemResponse
+import com.deis.backend.dto.LogrosUsuarioResponse
 
 @Service
 class LogroService(
@@ -92,5 +94,39 @@ class LogroService(
         }
 
         return nuevosLogros
+    }
+
+    fun obtenerLogrosUsuario(usuarioId: String): LogrosUsuarioResponse {
+        val logros = logroRepository.findAll()
+        val desbloqueadosUsuario = logroDesbloqueadoRepository.findByUsuarioId(usuarioId)
+
+        val mapaDesbloqueados = desbloqueadosUsuario.associateBy { it.logroCodigo }
+
+        val desbloqueados = mutableListOf<LogroItemResponse>()
+        val pendientes = mutableListOf<LogroItemResponse>()
+
+        logros.forEach { logro ->
+            val desbloqueado = mapaDesbloqueados[logro.codigo]
+
+            val item = LogroItemResponse(
+                codigo = logro.codigo,
+                titulo = logro.titulo,
+                descripcion = logro.descripcion,
+                desbloqueado = desbloqueado != null,
+                fechaDesbloqueo = desbloqueado?.fechaDesbloqueo?.toString()
+            )
+
+            if (desbloqueado != null) {
+                desbloqueados.add(item)
+            } else {
+                pendientes.add(item)
+            }
+        }
+
+        return LogrosUsuarioResponse(
+            usuarioId = usuarioId,
+            desbloqueados = desbloqueados,
+            pendientes = pendientes
+        )
     }
 }
