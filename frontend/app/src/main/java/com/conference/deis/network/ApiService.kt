@@ -81,7 +81,7 @@ interface ApiService {
     @POST("api/simulacros/intentos")
     suspend fun guardarIntentoSimulacro(
         @Body request: IntentoSimulacro
-    ): Response<IntentoSimulacro>
+    ): Response<GuardarIntentoResponse>
 
     @POST("api/simulacros")
     suspend fun crearSimulacro(
@@ -112,5 +112,9 @@ suspend fun obtenerComparacionRendimiento(
 suspend fun obtenerIntentosPorUsuario(
     @Path("usuarioId") usuarioId: String
 ): Response<List<IntentoSimulacro>>
-    
+
+@GET("api/logros/usuario/{usuarioId}")
+suspend fun obtenerLogrosUsuario(
+    @Path("usuarioId") usuarioId: String
+): Response<LogrosUsuarioResponse>    
 }

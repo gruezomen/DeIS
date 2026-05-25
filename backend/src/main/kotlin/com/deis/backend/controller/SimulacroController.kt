@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
 import kotlin.math.round
+import com.deis.backend.service.LogroService
 
 data class CrearSimulacroRequest(
     val bancoId: String? = null,
@@ -62,7 +63,8 @@ data class ComparacionRendimientoResponse(
 @RequestMapping("/api/simulacros")
 class SimulacroController(
     private val intentoSimulacroRepository: IntentoSimulacroRepository,
-    private val simulacroRepository: SimulacroRepository
+    private val simulacroRepository: SimulacroRepository,
+    private val logroService: LogroService
 ) {
 
     @PostMapping
@@ -152,7 +154,44 @@ class SimulacroController(
         )
 
         val guardado = intentoSimulacroRepository.save(intento)
-        return ResponseEntity.ok(guardado)
+
+        val totalIntentos = intentoSimulacroRepository
+            .findByUsuarioIdOrderByFechaDesc(guardado.usuarioId)
+            .size
+
+        val porcentajeAciertos = if (guardado.totalPreguntas > 0) {
+            (guardado.puntaje * 100) / guardado.totalPreguntas
+        } else {
+            0
+        }
+
+        val nuevosLogros = logroService.verificarLogrosPractica(
+            usuarioId = guardado.usuarioId,
+            totalPracticasCompletadas = totalIntentos,
+            porcentajeAciertos = porcentajeAciertos
+        )
+
+        println("===== LOGROS =====")
+        println("Usuario: ${guardado.usuarioId}")
+        println("Total intentos: $totalIntentos")
+        println("Porcentaje de aciertos: $porcentajeAciertos")
+
+        if (nuevosLogros.isEmpty()) {
+            println("No se desbloqueó ningún logro nuevo.")
+        } else {
+            nuevosLogros.forEach {
+                println("Logro desbloqueado: ${it.logroCodigo}")
+            }
+        }
+
+        println("==================")
+
+        return ResponseEntity.ok(
+            mapOf(
+                "intento" to guardado,
+                "nuevosLogros" to nuevosLogros
+            )
+        )
     }
 
     @GetMapping("/intentos/usuario/{usuarioId}")

@@ -11,11 +11,13 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDate
+import com.deis.backend.service.LogroService
 
 @RestController
 @RequestMapping("/api/racha")
 class RachaController(
-    private val rachaService: RachaService
+    private val rachaService: RachaService,
+    private val logroService: LogroService
 ) {
 
     @GetMapping("/{usuarioId}")
@@ -48,6 +50,25 @@ class RachaController(
             val fechaActual = LocalDate.now()
             val rachaAnterior = rachaService.obtenerRacha(usuarioId)
             val rachaActualizada = rachaService.registrarPracticaDiaria(usuarioId, fechaActual)
+
+            val nuevosLogros = logroService.verificarLogroRacha(
+                usuarioId = usuarioId,
+                diasConsecutivos = rachaActualizada.diasConsecutivos
+            )
+
+            println("===== LOGROS RACHA =====")
+            println("Usuario: $usuarioId")
+            println("Días consecutivos: ${rachaActualizada.diasConsecutivos}")
+
+            if (nuevosLogros.isEmpty()) {
+                println("No se desbloqueó ningún logro nuevo por racha.")
+            } else {
+                nuevosLogros.forEach {
+                    println("Logro desbloqueado por racha: ${it.logroCodigo}")
+                }
+            }
+
+            println("========================")
 
             val mensaje = when {
                 rachaAnterior.ultimaPractica == fechaActual ->
