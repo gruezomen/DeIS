@@ -129,4 +129,37 @@ class LogroService(
             pendientes = pendientes
         )
     }
+
+    fun verificarLogrosSimulacro(
+        usuarioId: String,
+        totalSimulacrosCompletados: Int
+    ): List<LogroDesbloqueado> {
+        val nuevosLogros = mutableListOf<LogroDesbloqueado>()
+
+        fun intentarDesbloquear(codigo: String) {
+            val logro = logroRepository.findByCodigo(codigo) ?: return
+
+            val yaExiste = logroDesbloqueadoRepository
+                .existsByUsuarioIdAndLogroCodigo(usuarioId, codigo)
+
+            if (!yaExiste) {
+                val desbloqueado = LogroDesbloqueado(
+                    usuarioId = usuarioId,
+                    logroCodigo = codigo
+                )
+                logroDesbloqueadoRepository.save(desbloqueado)
+                nuevosLogros.add(desbloqueado)
+            }
+        }
+
+        if (totalSimulacrosCompletados >= 1) {
+            intentarDesbloquear("PRIMER_SIMULACRO")
+        }
+
+        if (totalSimulacrosCompletados >= 3) {
+            intentarDesbloquear("TRES_SIMULACROS")
+        }
+
+        return nuevosLogros
+    }
 }
