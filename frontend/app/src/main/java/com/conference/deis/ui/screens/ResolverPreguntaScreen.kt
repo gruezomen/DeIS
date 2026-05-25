@@ -295,7 +295,7 @@ fun ResolverPreguntaScreen(
             }
         }
     }
-}
+
 
     fun finalizarSimulacro(tiempoTerminado: Boolean) {
         if (practicaFinalizada || preguntas.isEmpty()) return
@@ -326,6 +326,8 @@ fun ResolverPreguntaScreen(
                     esCorrecta = esOk
                 )
             } else {
+                incorrectas++
+
                 historialEstados[pregunta.id] = EstadoPregunta(
                     preguntaId = pregunta.id,
                     opcionSeleccionadaIndex = null,
@@ -340,9 +342,9 @@ fun ResolverPreguntaScreen(
         finalizadoPorTiempo = tiempoTerminado
         practicaFinalizada = true
         tiempoRestanteSegundos = if (tiempoTerminado) 0 else tiempoRestanteSegundos
-        
+
         claveTemporizador?.let { clave ->
-        limpiarEstadoTemporizador(context, clave)
+            limpiarEstadoTemporizador(context, clave)
         }
 
         intentarGuardarEnBackend(
@@ -664,7 +666,12 @@ errorSincronizacionTemporizador = estadoTemporizador.mensajeError
                             preguntaRevisionIndex = nuevoIndex.coerceIn(0, preguntas.lastIndex)
                         },
                         onReintentarGuardado = {
-                            intentarGuardarEnBackend(puntuacion)
+                            val incorrectas = (preguntas.size - puntuacion).coerceAtLeast(0)
+
+                            intentarGuardarEnBackend(
+                                respuestasCorrectas = puntuacion,
+                                respuestasIncorrectas = incorrectas
+                            )
                         },
                         onReintentarPractica = {
                             reiniciarPracticaManteniendoTiempo()
