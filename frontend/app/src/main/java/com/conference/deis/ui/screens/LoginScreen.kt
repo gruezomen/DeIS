@@ -39,13 +39,19 @@ fun LoginScreen(navController: NavHostController) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Configuración de Google Sign-In
+    val googleWebClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID
+
     val gso = remember {
-        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+        val builder = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
-            .build()
+
+        if (googleWebClientId.isNotBlank()) {
+            builder.requestIdToken(googleWebClientId)
+        }
+
+        builder.build()
     }
+    
     val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
 
     val launcher = rememberLauncherForActivityResult(
