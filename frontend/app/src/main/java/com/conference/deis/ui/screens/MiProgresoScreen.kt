@@ -244,7 +244,6 @@ private fun ResumenProgreso(
             InfoMetricCard(
                 titulo = "% de rendimiento",
                 valor = "${metricas.rendimientoGeneral.roundToInt()}%",
-                icono = "◎",
                 fondo = Color(0xFFEAF4FF),
                 modifier = Modifier.weight(1f)
             )
@@ -252,7 +251,6 @@ private fun ResumenProgreso(
             InfoMetricCard(
                 titulo = "Promedio general",
                 valor = "${metricas.promedioGeneral}/100",
-                icono = "☆",
                 fondo = Color(0xFFEAF2FF),
                 modifier = Modifier.weight(1f)
             )
@@ -644,7 +642,6 @@ private fun HistorialProgreso(intentos: List<IntentoSimulacro>) {
 private fun InfoMetricCard(
     titulo: String,
     valor: String,
-    icono: String,
     fondo: Color,
     modifier: Modifier = Modifier
 ) {
@@ -660,10 +657,6 @@ private fun InfoMetricCard(
                 .padding(14.dp),
             verticalArrangement = Arrangement.Center
         ) {
-            Text(text = icono, fontSize = 20.sp)
-
-            Spacer(modifier = Modifier.height(4.dp))
-
             Text(
                 text = titulo,
                 fontSize = 13.sp,
