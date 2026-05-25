@@ -204,7 +204,15 @@ class PreguntaService(
                     throw IllegalArgumentException("La opcion correcta no es valida")
                 }
             }
-            // Por ahora solo implementamos lógica de validación para estos dos
+            TipoPregunta.COMPLEMENTACION -> {
+                if (request.opciones.size != 1) {
+                    throw IllegalArgumentException("Debe enviar exactamente 1 opcion para complementacion")
+                }
+                if (request.indiceCorrecta != 0) {
+                    throw IllegalArgumentException("El indice de la opcion correcta debe ser 0")
+                }
+            }
+            // Por ahora solo implementamos lógica de validación para estos tres
             else -> {}
         }
 
