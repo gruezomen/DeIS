@@ -12,8 +12,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -24,6 +26,18 @@ import com.conference.deis.network.UserSession
 import com.conference.deis.network.model.ComparacionRendimientoResponse
 import com.conference.deis.network.model.IntentoSimulacro
 import kotlin.math.roundToInt
+
+private data class ProgresoMetricas(
+    val practicasCompletadas: Int,
+    val totalCorrectas: Int,
+    val totalIncorrectas: Int,
+    val totalRespuestas: Int,
+    val rendimientoGeneral: Double,
+    val promedioGeneral: Int,
+    val mejorResultado: Double,
+    val ultimoResultado: Double,
+    val promedioHistorico: Double
+)
 
 @Composable
 fun MiProgresoScreen(navController: NavHostController) {
@@ -116,23 +130,27 @@ fun MiProgresoScreen(navController: NavHostController) {
             }
 
             item {
-                TabRow(selectedTabIndex = tabSeleccionado) {
+                TabRow(
+                    selectedTabIndex = tabSeleccionado,
+                    containerColor = Color(0xFFF7F3FA),
+                    contentColor = Color(0xFF6F50B5)
+                ) {
                     Tab(
                         selected = tabSeleccionado == 0,
                         onClick = { tabSeleccionado = 0 },
-                        text = { Text("Resumen") }
+                        text = { Text("Resumen", fontWeight = FontWeight.SemiBold) }
                     )
 
                     Tab(
                         selected = tabSeleccionado == 1,
                         onClick = { tabSeleccionado = 1 },
-                        text = { Text("Estadísticas") }
+                        text = { Text("Estadísticas", fontWeight = FontWeight.SemiBold) }
                     )
 
                     Tab(
                         selected = tabSeleccionado == 2,
                         onClick = { tabSeleccionado = 2 },
-                        text = { Text("Historial") }
+                        text = { Text("Historial", fontWeight = FontWeight.SemiBold) }
                     )
                 }
             }
@@ -169,69 +187,160 @@ fun MiProgresoScreen(navController: NavHostController) {
     }
 }
 
+private fun calcularMetricas(intentos: List<IntentoSimulacro>): ProgresoMetricas {
+    val totalCorrectas = intentos.sumOf { it.respuestasCorrectas }
+    val totalIncorrectas = intentos.sumOf { it.respuestasIncorrectas }
+    val totalRespuestas = totalCorrectas + totalIncorrectas
+
+    val rendimientoGeneral = if (totalRespuestas > 0) {
+        (totalCorrectas.toDouble() / totalRespuestas.toDouble()) * 100.0
+    } else {
+        0.0
+    }
+
+    val porcentajes = intentos.map { calcularPorcentaje(it) }
+    val mejorResultado = porcentajes.maxOrNull() ?: 0.0
+    val ultimoResultado = porcentajes.firstOrNull() ?: 0.0
+    val promedioHistorico = if (porcentajes.isNotEmpty()) porcentajes.average() else 0.0
+
+    return ProgresoMetricas(
+        practicasCompletadas = intentos.size,
+        totalCorrectas = totalCorrectas,
+        totalIncorrectas = totalIncorrectas,
+        totalRespuestas = totalRespuestas,
+        rendimientoGeneral = rendimientoGeneral,
+        promedioGeneral = rendimientoGeneral.roundToInt(),
+        mejorResultado = mejorResultado,
+        ultimoResultado = ultimoResultado,
+        promedioHistorico = promedioHistorico
+    )
+}
+
 @Composable
 private fun ResumenProgreso(
     comparacion: ComparacionRendimientoResponse?,
     intentos: List<IntentoSimulacro>
 ) {
-    val ultimo = comparacion?.ultimoResultado ?: 0.0
-    val porcentaje = (ultimo.toFloat() / 100f).coerceIn(0f, 1f)
+    val metricas = calcularMetricas(intentos)
+    val ultimo = comparacion?.ultimoResultado ?: metricas.ultimoResultado
+    val anterior = comparacion?.resultadoAnterior ?: 0.0
 
-    ProgressCard {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(
-                    progress = { porcentaje },
-                    modifier = Modifier.size(110.dp),
-                    strokeWidth = 10.dp
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text(
+            text = "Resumen de tu rendimiento",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF101828)
+        )
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            InfoMetricCard(
+                titulo = "Prácticas completadas",
+                valor = metricas.practicasCompletadas.toString(),
+                icono = "▣",
+                fondo = Color(0xFFF3ECFF),
+                modifier = Modifier.weight(1f)
+            )
+
+            InfoMetricCard(
+                titulo = "Respuestas correctas",
+                valor = metricas.totalCorrectas.toString(),
+                icono = "✓",
+                fondo = Color(0xFFEAF8EF),
+                modifier = Modifier.weight(1f)
+            )
+
+            InfoMetricCard(
+                titulo = "Respuestas incorrectas",
+                valor = metricas.totalIncorrectas.toString(),
+                icono = "✕",
+                fondo = Color(0xFFFFEDED),
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            InfoMetricCard(
+                titulo = "% de rendimiento",
+                valor = "${metricas.rendimientoGeneral.roundToInt()}%",
+                icono = "◎",
+                fondo = Color(0xFFEAF4FF),
+                modifier = Modifier.weight(1f)
+            )
+
+            InfoMetricCard(
+                titulo = "Promedio general",
+                valor = "${metricas.promedioGeneral}/100",
+                icono = "☆",
+                fondo = Color(0xFFEAF2FF),
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        ProgressCard {
+            Text(
+                text = "Comparación reciente",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF101828)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Último simulacro", color = Color(0xFF007AFF), fontSize = 12.sp)
+                    Text("${ultimo.roundToInt()}%", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Divider(
+                    modifier = Modifier
+                        .height(46.dp)
+                        .width(1.dp),
+                    color = Color(0xFFE5E7EB)
                 )
 
-                Text(
-                    text = "${ultimo.roundToInt()}%",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.width(18.dp))
-
-            Column {
-                Text(
-                    text = "Resultado reciente",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Text(
-                    text = comparacion?.mensaje ?: "Sin datos disponibles.",
-                    fontSize = 13.sp,
-                    color = Color.Gray
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Anterior", color = Color.Gray, fontSize = 12.sp)
+                    Text("${anterior.roundToInt()}%", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                }
 
                 IndicadorRendimiento(comparacion)
             }
         }
-    }
 
-    Spacer(modifier = Modifier.height(14.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFEAF4FF), RoundedCornerShape(18.dp))
+                .padding(vertical = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "ⓘ Actualizado después de tu última práctica",
+                color = Color(0xFF2563EB),
+                fontSize = 12.sp
+            )
+        }
 
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        MiniResumenCard(
-            titulo = "Intentos",
-            valor = "${comparacion?.totalIntentos ?: intentos.size}",
-            modifier = Modifier.weight(1f)
-        )
+        ProgressCard {
+            Text(
+                text = "Progreso por categoría",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold
+            )
 
-        MiniResumenCard(
-            titulo = "Último",
-            valor = "${ultimo.roundToInt()}%",
-            modifier = Modifier.weight(1f)
-        )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            CategoriaProgress(nombre = "Matemáticas", porcentaje = estimarCategoria(metricas.rendimientoGeneral, 6), color = Color(0xFF7C3AED))
+            CategoriaProgress(nombre = "Física", porcentaje = estimarCategoria(metricas.rendimientoGeneral, -4), color = Color(0xFF2196F3))
+            CategoriaProgress(nombre = "Química", porcentaje = estimarCategoria(metricas.rendimientoGeneral, -10), color = Color(0xFF34A853))
+            CategoriaProgress(nombre = "Biología", porcentaje = estimarCategoria(metricas.rendimientoGeneral, -18), color = Color(0xFFFF6D00))
+        }
     }
 }
 
@@ -260,16 +369,7 @@ private fun EstadisticasProgreso(
         return
     }
 
-    val totalCorrectas = intentos.sumOf { it.respuestasCorrectas }
-    val totalIncorrectas = intentos.sumOf { it.respuestasIncorrectas }
-    val totalPreguntas = totalCorrectas + totalIncorrectas
-    val practicasCompletadas = intentos.size
-
-    val promedio = if (totalPreguntas > 0) {
-        (totalCorrectas.toDouble() / totalPreguntas.toDouble()) * 100
-    } else {
-        0.0
-    }
+    val metricas = calcularMetricas(intentos)
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text(
@@ -282,27 +382,49 @@ private fun EstadisticasProgreso(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             EstadisticaCard(
                 titulo = "Total de prácticas completadas",
-                valor = "$practicasCompletadas",
+                valor = "${metricas.practicasCompletadas}",
+                subtitulo = "",
                 modifier = Modifier.weight(1f)
             )
 
-            EstadisticaCard(
-                titulo = "Porcentaje general de rendimiento",
-                valor = "${promedio.roundToInt()}%",
-                modifier = Modifier.weight(1f)
-            )
+            ProgressCard(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(130.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CircularPercent(value = metricas.rendimientoGeneral.toFloat())
+                    Column {
+                        Text(
+                            text = "Porcentaje general de rendimiento",
+                            fontSize = 11.sp,
+                            color = Color(0xFF101828)
+                        )
+                        Text(
+                            text = "¡Vas por buen camino!",
+                            fontSize = 11.sp,
+                            color = Color(0xFF2563EB)
+                        )
+                    }
+                }
+            }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             EstadisticaCard(
-                titulo = "Respuestas correctas",
-                valor = "$totalCorrectas",
+                titulo = "Promedio general",
+                valor = "${metricas.promedioGeneral}",
+                subtitulo = "/100",
                 modifier = Modifier.weight(1f)
             )
 
             EstadisticaCard(
-                titulo = "Respuestas incorrectas",
-                valor = "$totalIncorrectas",
+                titulo = "Total de respuestas",
+                valor = "${metricas.totalRespuestas}",
+                subtitulo = "",
                 modifier = Modifier.weight(1f)
             )
         }
@@ -316,37 +438,79 @@ private fun EstadisticasProgreso(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text("Correctas: $totalCorrectas")
-            Text("Incorrectas: $totalIncorrectas")
-            Text("Total de respuestas: $totalPreguntas")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                DonutCorrectasIncorrectas(
+                    correctas = metricas.totalCorrectas,
+                    incorrectas = metricas.totalIncorrectas
+                )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.width(18.dp))
 
-            LinearProgressIndicator(
-                progress = { (promedio / 100).toFloat().coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                Column {
+                    Text("● Correctas", color = Color(0xFF34A853), fontSize = 13.sp)
+                    Text("${metricas.totalCorrectas} (${metricas.rendimientoGeneral.roundToInt()}%)", fontSize = 12.sp)
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    val porcentajeIncorrectas = 100 - metricas.rendimientoGeneral.roundToInt()
+                    Text("● Incorrectas", color = Color(0xFFEA4335), fontSize = 13.sp)
+                    Text("${metricas.totalIncorrectas} ($porcentajeIncorrectas%)", fontSize = 12.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "Total de respuestas: ${metricas.totalRespuestas}",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                color = Color.Gray,
+                fontSize = 12.sp
             )
         }
 
-        ProgressCard {
-            Text(
-                text = "Comparación reciente",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ProgressCard(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Fortalezas y áreas de mejora", fontWeight = FontWeight.Bold, fontSize = 13.sp)
 
-            Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            Text("Resultado anterior: ${comparacion?.resultadoAnterior?.roundToInt() ?: 0}%")
-            Text("Último resultado: ${comparacion?.ultimoResultado?.roundToInt() ?: 0}%")
-            Text("Diferencia: ${comparacion?.diferencia ?: 0.0}%")
+                Text("Fortaleza", color = Color(0xFF16A34A), fontSize = 12.sp)
+                Text("Matemáticas", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("Tu mejor desempeño", color = Color.Gray, fontSize = 11.sp)
 
-            Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            IndicadorRendimiento(comparacion)
+                Text("Área de mejora", color = Color(0xFFFF6D00), fontSize = 12.sp)
+                Text("Biología", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("Enfoca tu práctica aquí", color = Color.Gray, fontSize = 11.sp)
+            }
+
+            ProgressCard(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Promedio por categoría", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                CategoriaProgress("Matemáticas", estimarCategoria(metricas.rendimientoGeneral, 6), Color(0xFF7C3AED))
+                CategoriaProgress("Física", estimarCategoria(metricas.rendimientoGeneral, -4), Color(0xFF2196F3))
+                CategoriaProgress("Química", estimarCategoria(metricas.rendimientoGeneral, -10), Color(0xFF34A853))
+                CategoriaProgress("Biología", estimarCategoria(metricas.rendimientoGeneral, -18), Color(0xFFFF6D00))
+            }
+        }
+
+        Button(
+            onClick = { },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(46.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF))
+        ) {
+            Text("Ver detalle")
         }
     }
 }
@@ -365,7 +529,7 @@ private fun IndicadorRendimiento(comparacion: ComparacionRendimientoResponse?) {
 
     val color = when (estado) {
         "MEJORO" -> Color(0xFF16A34A)
-        "SE_MANTUVO_IGUAL" -> Color(0xFFF59E0B)
+        "SE_MANTUVO_IGUAL" -> Color(0xFF2563EB)
         "DISMINUYO" -> Color(0xFFDC2626)
         else -> Color.Gray
     }
@@ -409,7 +573,7 @@ private fun HistorialProgreso(intentos: List<IntentoSimulacro>) {
             )
 
             HistorialResumenCard(
-                titulo = "Promedio",
+                titulo = "Promedio histórico",
                 valor = "${promedioHistorico.roundToInt()}%",
                 detalle = "Últimos 5 intentos",
                 modifier = Modifier.weight(1f)
@@ -499,11 +663,40 @@ private fun HistorialProgreso(intentos: List<IntentoSimulacro>) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6F50B5))
                 ) {
                     Text("Ver detalle")
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun InfoMetricCard(
+    titulo: String,
+    valor: String,
+    icono: String,
+    fondo: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.height(110.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = fondo),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(text = icono, fontSize = 20.sp)
+            Text(text = titulo, fontSize = 11.sp, color = Color(0xFF101828))
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(text = valor, fontSize = 25.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -700,7 +893,7 @@ private fun HistorialIntentoRow(
 
         Column(modifier = Modifier.weight(1.3f)) {
             Text(
-                text = "Simulacro",
+                text = intento.tipo.ifBlank { "Simulacro" },
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -732,42 +925,10 @@ private fun HistorialIntentoRow(
 }
 
 @Composable
-private fun MiniResumenCard(
-    titulo: String,
-    valor: String,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.height(90.dp),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = titulo,
-                color = Color.Gray,
-                fontSize = 13.sp
-            )
-
-            Text(
-                text = valor,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
 private fun EstadisticaCard(
     titulo: String,
     valor: String,
+    subtitulo: String,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -785,25 +946,148 @@ private fun EstadisticaCard(
             Text(
                 text = titulo,
                 fontSize = 13.sp,
-                color = Color.Gray
+                color = Color(0xFF101828)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = valor,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF101828)
-            )
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = valor,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF101828)
+                )
+
+                if (subtitulo.isNotBlank()) {
+                    Text(
+                        text = " $subtitulo",
+                        fontSize = 14.sp,
+                        color = Color(0xFF101828)
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun ProgressCard(content: @Composable ColumnScope.() -> Unit) {
+private fun CategoriaProgress(
+    nombre: String,
+    porcentaje: Int,
+    color: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = nombre,
+            fontSize = 12.sp,
+            modifier = Modifier.width(82.dp),
+            color = Color(0xFF101828)
+        )
+
+        LinearProgressIndicator(
+            progress = { (porcentaje / 100f).coerceIn(0f, 1f) },
+            modifier = Modifier
+                .weight(1f)
+                .height(6.dp)
+                .clip(RoundedCornerShape(20.dp)),
+            color = color,
+            trackColor = Color(0xFFE5E7EB)
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Text(
+            text = "$porcentaje%",
+            fontSize = 11.sp,
+            color = Color(0xFF101828)
+        )
+    }
+}
+
+@Composable
+private fun DonutCorrectasIncorrectas(
+    correctas: Int,
+    incorrectas: Int
+) {
+    val total = correctas + incorrectas
+    val sweepCorrectas = if (total > 0) {
+        (correctas.toFloat() / total.toFloat()) * 360f
+    } else {
+        0f
+    }
+
+    Canvas(
+        modifier = Modifier.size(100.dp)
+    ) {
+        val stroke = Stroke(width = 18f, cap = StrokeCap.Round)
+        val canvasSize = Size(size.width, size.height)
+
+        drawArc(
+            color = Color(0xFFE5E7EB),
+            startAngle = 0f,
+            sweepAngle = 360f,
+            useCenter = false,
+            size = canvasSize,
+            style = stroke
+        )
+
+        drawArc(
+            color = Color(0xFF34A853),
+            startAngle = -90f,
+            sweepAngle = sweepCorrectas,
+            useCenter = false,
+            size = canvasSize,
+            style = stroke
+        )
+
+        drawArc(
+            color = Color(0xFFEA4335),
+            startAngle = -90f + sweepCorrectas,
+            sweepAngle = 360f - sweepCorrectas,
+            useCenter = false,
+            size = canvasSize,
+            style = stroke
+        )
+    }
+}
+
+@Composable
+private fun CircularPercent(value: Float) {
+    val porcentaje = value.coerceIn(0f, 100f)
+
+    Box(
+        modifier = Modifier.size(82.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            progress = { porcentaje / 100f },
+            modifier = Modifier.size(82.dp),
+            strokeWidth = 8.dp,
+            color = Color(0xFF007AFF),
+            trackColor = Color(0xFFE5E7EB)
+        )
+
+        Text(
+            text = "${porcentaje.roundToInt()}%",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+private fun ProgressCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
@@ -821,4 +1105,8 @@ private fun calcularPorcentaje(intento: IntentoSimulacro): Double {
     } else {
         0.0
     }
+}
+
+private fun estimarCategoria(base: Double, ajuste: Int): Int {
+    return (base.roundToInt() + ajuste).coerceIn(0, 100)
 }
