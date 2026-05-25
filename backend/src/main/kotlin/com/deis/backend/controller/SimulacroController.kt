@@ -16,6 +16,16 @@ data class CrearSimulacroRequest(
     val preguntaIds: List<String> = emptyList()
 )
 
+data class CrearIntentoSimulacroRequest(
+    val usuarioId: String,
+    val bancoId: String,
+    val tipo: String = "SIMULACRO",
+    val puntaje: Int,
+    val totalPreguntas: Int,
+    val respuestasCorrectas: Int,
+    val respuestasIncorrectas: Int
+)
+
 data class ResultadoHistoricoResponse(
     val id: String?,
     val bancoId: String,
@@ -94,11 +104,59 @@ class SimulacroController(
     }
 
     @PostMapping("/intentos")
-    fun guardarIntento(@RequestBody intento: IntentoSimulacro): ResponseEntity<Any> {
+    fun guardarIntento(
+        @RequestBody request: CrearIntentoSimulacroRequest
+    ): ResponseEntity<Any> {
+        if (request.usuarioId.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                mapOf("mensaje" to "El usuario es obligatorio")
+            )
+        }
+
+        if (request.bancoId.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                mapOf("mensaje" to "El banco o práctica es obligatorio")
+            )
+        }
+
+        if (request.totalPreguntas <= 0) {
+            return ResponseEntity.badRequest().body(
+                mapOf("mensaje" to "El total de preguntas debe ser mayor a cero")
+            )
+        }
+
+        if (request.puntaje < 0) {
+            return ResponseEntity.badRequest().body(
+                mapOf("mensaje" to "El puntaje no puede ser negativo")
+            )
+        }
+
+        if (request.respuestasCorrectas < 0 || request.respuestasIncorrectas < 0) {
+            return ResponseEntity.badRequest().body(
+                mapOf("mensaje" to "Las respuestas correctas e incorrectas no pueden ser negativas")
+            )
+        }
+
+        if (request.respuestasCorrectas + request.respuestasIncorrectas != request.totalPreguntas) {
+            return ResponseEntity.badRequest().body(
+                mapOf("mensaje" to "La suma de respuestas correctas e incorrectas debe coincidir con el total de preguntas")
+            )
+        }
+
+        val intento = IntentoSimulacro(
+            usuarioId = request.usuarioId,
+            bancoId = request.bancoId,
+            tipo = request.tipo,
+            puntaje = request.puntaje,
+            totalPreguntas = request.totalPreguntas,
+            respuestasCorrectas = request.respuestasCorrectas,
+            respuestasIncorrectas = request.respuestasIncorrectas
+        )
+
         val guardado = intentoSimulacroRepository.save(intento)
 
         val totalIntentos = intentoSimulacroRepository
-            .findByUsuarioIdOrderByFechaDesc(intento.usuarioId)
+            .findByUsuarioIdOrderByFechaDesc(guardado.usuarioId)
             .size
 
         val porcentajeAciertos = if (guardado.totalPreguntas > 0) {
@@ -117,6 +175,7 @@ class SimulacroController(
         println("Usuario: ${guardado.usuarioId}")
         println("Total intentos: $totalIntentos")
         println("Porcentaje de aciertos: $porcentajeAciertos")
+
         if (nuevosLogros.isEmpty()) {
             println("No se desbloqueó ningún logro nuevo.")
         } else {
@@ -124,6 +183,7 @@ class SimulacroController(
                 println("Logro desbloqueado: ${it.logroCodigo}")
             }
         }
+
         println("==================")
 
         return ResponseEntity.ok(
