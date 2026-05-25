@@ -250,11 +250,17 @@ fun ResolverPreguntaScreen(
 
                 val usuarioId = UserSession.user?.id ?: "usuario_anonimo"
 
+                val tipoIntento = if (simulacroId != null || tiempoMinutosInicial != null) {
+                    "SIMULACRO"
+                } else {
+                    "PRACTICA"
+                }
+
                 val responseIntento = RetrofitInstance.api.guardarIntentoSimulacro(
                     IntentoSimulacro(
                         usuarioId = usuarioId,
                         bancoId = bancoIdParaIntento,
-                        tipo = "SIMULACRO",
+                        tipo = tipoIntento,
                         puntaje = respuestasCorrectas,
                         totalPreguntas = preguntas.size,
                         respuestasCorrectas = respuestasCorrectas,

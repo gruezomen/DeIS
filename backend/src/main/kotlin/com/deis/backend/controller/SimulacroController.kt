@@ -155,9 +155,10 @@ class SimulacroController(
 
         val guardado = intentoSimulacroRepository.save(intento)
 
-        val totalIntentos = intentoSimulacroRepository
+        val intentosUsuario = intentoSimulacroRepository
             .findByUsuarioIdOrderByFechaDesc(guardado.usuarioId)
-            .size
+
+        val totalIntentos = intentosUsuario.size
 
         val porcentajeAciertos = if (guardado.totalPreguntas > 0) {
             (guardado.puntaje * 100) / guardado.totalPreguntas
@@ -165,21 +166,44 @@ class SimulacroController(
             0
         }
 
-        val nuevosLogros = logroService.verificarLogrosPractica(
+        val nuevosLogrosPractica = logroService.verificarLogrosPractica(
             usuarioId = guardado.usuarioId,
             totalPracticasCompletadas = totalIntentos,
             porcentajeAciertos = porcentajeAciertos
         )
 
+        val totalSimulacros = intentosUsuario.count { it.tipo == "SIMULACRO" }
+    
+        println("===== INTENTOS DEL USUARIO =====")
+        intentosUsuario.forEach {
+            println("id=${it.id}, tipo=${it.tipo}, bancoId=${it.bancoId}, fecha=${it.fecha}")
+        }
+        println("Tipo intento actual: ${guardado.tipo}")
+        println("Total simulacros contados: $totalSimulacros")
+        println("===============================")
+
+        val nuevosLogrosSimulacro = if (guardado.tipo == "SIMULACRO") {
+            logroService.verificarLogrosSimulacro(
+                usuarioId = guardado.usuarioId,
+                totalSimulacrosCompletados = totalSimulacros
+            )
+        } else {
+            emptyList()
+        }
+
+        val todosLosNuevosLogros = nuevosLogrosPractica + nuevosLogrosSimulacro
+
         println("===== LOGROS =====")
         println("Usuario: ${guardado.usuarioId}")
+        println("Tipo intento: ${guardado.tipo}")
         println("Total intentos: $totalIntentos")
+        println("Total simulacros: $totalSimulacros")
         println("Porcentaje de aciertos: $porcentajeAciertos")
 
-        if (nuevosLogros.isEmpty()) {
+        if (todosLosNuevosLogros.isEmpty()) {
             println("No se desbloqueó ningún logro nuevo.")
         } else {
-            nuevosLogros.forEach {
+            todosLosNuevosLogros.forEach {
                 println("Logro desbloqueado: ${it.logroCodigo}")
             }
         }
@@ -189,7 +213,7 @@ class SimulacroController(
         return ResponseEntity.ok(
             mapOf(
                 "intento" to guardado,
-                "nuevosLogros" to nuevosLogros
+                "nuevosLogros" to todosLosNuevosLogros
             )
         )
     }
