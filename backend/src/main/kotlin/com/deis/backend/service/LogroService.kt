@@ -56,4 +56,41 @@ class LogroService(
 
         return nuevosLogros
     }
+
+    fun verificarLogroRacha(
+        usuarioId: String,
+        diasConsecutivos: Int
+    ): List<LogroDesbloqueado> {
+        val nuevosLogros = mutableListOf<LogroDesbloqueado>()
+
+        fun intentarDesbloquear(codigo: String) {
+            println("Buscando logro con código: $codigo")
+
+            val logro = logroRepository.findByCodigo(codigo)
+
+            println("Resultado encontrado: $logro")
+
+            if (logro == null) {
+                return
+            }
+
+            val yaExiste = logroDesbloqueadoRepository
+                .existsByUsuarioIdAndLogroCodigo(usuarioId, codigo)
+
+            if (!yaExiste) {
+                val desbloqueado = LogroDesbloqueado(
+                    usuarioId = usuarioId,
+                    logroCodigo = codigo
+                )
+                logroDesbloqueadoRepository.save(desbloqueado)
+                nuevosLogros.add(desbloqueado)
+            }
+        }
+
+        if (diasConsecutivos >= 3) {
+            intentarDesbloquear("RACHA_3_DIAS")
+        }
+
+        return nuevosLogros
+    }
 }
