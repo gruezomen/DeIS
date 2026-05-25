@@ -233,31 +233,12 @@ private fun ResumenProgreso(
             color = Color(0xFF101828)
         )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            InfoMetricCard(
-                titulo = "Prácticas completadas",
-                valor = metricas.practicasCompletadas.toString(),
-                icono = "▣",
-                fondo = Color(0xFFF3ECFF),
-                modifier = Modifier.weight(1f)
-            )
-
-            InfoMetricCard(
-                titulo = "Respuestas correctas",
-                valor = metricas.totalCorrectas.toString(),
-                icono = "✓",
-                fondo = Color(0xFFEAF8EF),
-                modifier = Modifier.weight(1f)
-            )
-
-            InfoMetricCard(
-                titulo = "Respuestas incorrectas",
-                valor = metricas.totalIncorrectas.toString(),
-                icono = "✕",
-                fondo = Color(0xFFFFEDED),
-                modifier = Modifier.weight(1f)
-            )
-        }
+        InfoMetricCard(
+            titulo = "Simulacros completados",
+            valor = metricas.practicasCompletadas.toString(),
+            fondo = Color(0xFFF3ECFF),
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             InfoMetricCard(
@@ -313,20 +294,6 @@ private fun ResumenProgreso(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFFEAF4FF), RoundedCornerShape(18.dp))
-                .padding(vertical = 10.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "ⓘ Actualizado después de tu última práctica",
-                color = Color(0xFF2563EB),
-                fontSize = 12.sp
-            )
-        }
-
         ProgressCard {
             Text(
                 text = "Progreso por categoría",
@@ -352,7 +319,7 @@ private fun EstadisticasProgreso(
     if (intentos.isEmpty()) {
         ProgressCard {
             Text(
-                text = "Aún no tienes prácticas registradas.",
+                text = "Aún no tienes simulacros registrados.",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF101828)
@@ -361,7 +328,7 @@ private fun EstadisticasProgreso(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Completa una práctica o simulacro para ver tus estadísticas generales.",
+                text = "Completa un simulacro para ver tus estadísticas generales.",
                 fontSize = 14.sp,
                 color = Color.Gray
             )
@@ -381,7 +348,7 @@ private fun EstadisticasProgreso(
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             EstadisticaCard(
-                titulo = "Total de prácticas completadas",
+                titulo = "Total de simulacros completados",
                 valor = "${metricas.practicasCompletadas}",
                 subtitulo = "",
                 modifier = Modifier.weight(1f)
@@ -390,25 +357,25 @@ private fun EstadisticasProgreso(
             ProgressCard(
                 modifier = Modifier
                     .weight(1f)
-                    .height(130.dp)
+                    .height(150.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
                     CircularPercent(value = metricas.rendimientoGeneral.toFloat())
-                    Column {
-                        Text(
-                            text = "Porcentaje general de rendimiento",
-                            fontSize = 11.sp,
-                            color = Color(0xFF101828)
-                        )
-                        Text(
-                            text = "¡Vas por buen camino!",
-                            fontSize = 11.sp,
-                            color = Color(0xFF2563EB)
-                        )
-                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Porcentaje de rendimiento",
+                        fontSize = 11.sp,
+                        color = Color(0xFF101828),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 14.sp
+                    )
+
                 }
             }
         }
@@ -682,7 +649,7 @@ private fun InfoMetricCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(110.dp),
+        modifier = modifier.height(112.dp),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = fondo),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -690,13 +657,28 @@ private fun InfoMetricCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
+                .padding(14.dp),
             verticalArrangement = Arrangement.Center
         ) {
             Text(text = icono, fontSize = 20.sp)
-            Text(text = titulo, fontSize = 11.sp, color = Color(0xFF101828))
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = titulo,
+                fontSize = 13.sp,
+                color = Color(0xFF101828),
+                lineHeight = 16.sp
+            )
+
             Spacer(modifier = Modifier.height(6.dp))
-            Text(text = valor, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+
+            Text(
+                text = valor,
+                fontSize = 25.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF101828)
+            )
         }
     }
 }
