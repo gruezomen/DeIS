@@ -253,9 +253,10 @@ private fun EstadisticasProgreso(
     comparacion: ComparacionRendimientoResponse?,
     intentos: List<IntentoSimulacro>
 ) {
-    val totalCorrectas = intentos.sumOf { it.puntaje }
-    val totalPreguntas = intentos.sumOf { it.totalPreguntas }
-    val incorrectas = (totalPreguntas - totalCorrectas).coerceAtLeast(0)
+    val totalCorrectas = intentos.sumOf { it.respuestasCorrectas }
+    val incorrectas = intentos.sumOf { it.respuestasIncorrectas }
+    val totalPreguntas = totalCorrectas + incorrectas
+    val practicasCompletadas = intentos.size
     val promedio = if (totalPreguntas > 0) {
         (totalCorrectas.toDouble() / totalPreguntas.toDouble()) * 100
     } else {
@@ -282,6 +283,7 @@ private fun EstadisticasProgreso(
 
         Spacer(modifier = Modifier.height(14.dp))
 
+        Text("Prácticas completadas: $practicasCompletadas")
         Text("Correctas: $totalCorrectas")
         Text("Incorrectas: $incorrectas")
         Text("Total respondidas: $totalPreguntas")

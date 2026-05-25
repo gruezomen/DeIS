@@ -234,58 +234,65 @@ fun ResolverPreguntaScreen(
     
 
 
-    fun intentarGuardarEnBackend(puntajeFinal: Int) {
-    scope.launch {
-        guardandoResultado = true
-        errorGuardado = false
+    fun intentarGuardarEnBackend(
+        respuestasCorrectas: Int,
+        respuestasIncorrectas: Int
+    ) {
+        scope.launch {
+            guardandoResultado = true
+            errorGuardado = false
 
-        try {
-            if (!hayConexionInternet(context)) {
-                errorGuardado = true
-                return@launch
-            }
+            try {
+                if (!hayConexionInternet(context)) {
+                    errorGuardado = true
+                    return@launch
+                }
 
-            val usuarioId = UserSession.user?.id ?: "usuario_anonimo"
+                val usuarioId = UserSession.user?.id ?: "usuario_anonimo"
 
-            val responseIntento = RetrofitInstance.api.guardarIntentoSimulacro(
-                IntentoSimulacro(
-                    usuarioId = usuarioId,
-                    bancoId = bancoIdParaIntento,
-                    puntaje = puntajeFinal,
-                    totalPreguntas = preguntas.size
+                val responseIntento = RetrofitInstance.api.guardarIntentoSimulacro(
+                    IntentoSimulacro(
+                        usuarioId = usuarioId,
+                        bancoId = bancoIdParaIntento,
+                        tipo = "SIMULACRO",
+                        puntaje = respuestasCorrectas,
+                        totalPreguntas = preguntas.size,
+                        respuestasCorrectas = respuestasCorrectas,
+                        respuestasIncorrectas = respuestasIncorrectas
+                    )
                 )
-            )
 
-            if (!responseIntento.isSuccessful) {
+                if (!responseIntento.isSuccessful) {
+                    errorGuardado = true
+                    return@launch
+                }
+
+                val responseRacha = RetrofitInstance.api.registrarPracticaDiaria(usuarioId)
+
+                if (!responseRacha.isSuccessful) {
+                    errorGuardado = true
+                    Toast.makeText(
+                        context,
+                        "Se guardó el resultado, pero no se pudo actualizar la racha",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@launch
+                }
+
+                val racha = responseRacha.body()
+
+                if (racha != null) {
+                    Toast.makeText(
+                        context,
+                        racha.mensaje,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
                 errorGuardado = true
-                return@launch
+            } finally {
+                guardandoResultado = false
             }
-
-            val responseRacha = RetrofitInstance.api.registrarPracticaDiaria(usuarioId)
-
-            if (!responseRacha.isSuccessful) {
-                errorGuardado = true
-                Toast.makeText(
-                    context,
-                    "Se guardó el resultado, pero no se pudo actualizar la racha",
-                    Toast.LENGTH_SHORT
-                ).show()
-                return@launch
-            }
-
-            val racha = responseRacha.body()
-
-            if (racha != null) {
-                Toast.makeText(
-                    context,
-                    racha.mensaje,
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        } catch (e: Exception) {
-            errorGuardado = true
-        } finally {
-            guardandoResultado = false
         }
     }
 }
@@ -296,6 +303,7 @@ fun ResolverPreguntaScreen(
         guardarEstadoActual()
 
         var correctas = 0
+        var incorrectas = 0
 
         preguntas.forEach { pregunta ->
             val estado = historialEstados[pregunta.id]
@@ -306,6 +314,8 @@ fun ResolverPreguntaScreen(
 
                 if (esOk) {
                     correctas++
+                } else {
+                    incorrectas++
                 }
 
                 historialEstados[pregunta.id] = (estado ?: EstadoPregunta(
@@ -335,7 +345,10 @@ fun ResolverPreguntaScreen(
         limpiarEstadoTemporizador(context, clave)
         }
 
-        intentarGuardarEnBackend(correctas)
+        intentarGuardarEnBackend(
+            respuestasCorrectas = correctas,
+            respuestasIncorrectas = incorrectas
+        )
     }
 
     fun finalizarPracticaConfirmada() {
