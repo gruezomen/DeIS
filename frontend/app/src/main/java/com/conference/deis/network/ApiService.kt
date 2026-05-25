@@ -81,7 +81,7 @@ interface ApiService {
     @POST("api/simulacros/intentos")
     suspend fun guardarIntentoSimulacro(
         @Body request: IntentoSimulacro
-    ): Response<IntentoSimulacro>
+    ): Response<GuardarIntentoResponse>
 
     @POST("api/simulacros")
     suspend fun crearSimulacro(
