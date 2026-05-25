@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -123,11 +122,13 @@ fun MiProgresoScreen(navController: NavHostController) {
                         onClick = { tabSeleccionado = 0 },
                         text = { Text("Resumen") }
                     )
+
                     Tab(
                         selected = tabSeleccionado == 1,
                         onClick = { tabSeleccionado = 1 },
                         text = { Text("Estadísticas") }
                     )
+
                     Tab(
                         selected = tabSeleccionado == 2,
                         onClick = { tabSeleccionado = 2 },
@@ -254,9 +255,10 @@ private fun EstadisticasProgreso(
     intentos: List<IntentoSimulacro>
 ) {
     val totalCorrectas = intentos.sumOf { it.respuestasCorrectas }
-    val incorrectas = intentos.sumOf { it.respuestasIncorrectas }
-    val totalPreguntas = totalCorrectas + incorrectas
+    val totalIncorrectas = intentos.sumOf { it.respuestasIncorrectas }
+    val totalPreguntas = totalCorrectas + totalIncorrectas
     val practicasCompletadas = intentos.size
+
     val promedio = if (totalPreguntas > 0) {
         (totalCorrectas.toDouble() / totalPreguntas.toDouble()) * 100
     } else {
@@ -273,6 +275,7 @@ private fun EstadisticasProgreso(
         Spacer(modifier = Modifier.height(14.dp))
 
         Text("Promedio general: ${promedio.roundToInt()}%")
+
         LinearProgressIndicator(
             progress = { (promedio / 100).toFloat().coerceIn(0f, 1f) },
             modifier = Modifier
@@ -285,7 +288,7 @@ private fun EstadisticasProgreso(
 
         Text("Prácticas completadas: $practicasCompletadas")
         Text("Correctas: $totalCorrectas")
-        Text("Incorrectas: $incorrectas")
+        Text("Incorrectas: $totalIncorrectas")
         Text("Total respondidas: $totalPreguntas")
     }
 
@@ -740,7 +743,7 @@ private fun ProgressCard(content: @Composable ColumnScope.() -> Unit) {
 
 private fun calcularPorcentaje(intento: IntentoSimulacro): Double {
     return if (intento.totalPreguntas > 0) {
-        (intento.puntaje.toDouble() / intento.totalPreguntas.toDouble()) * 100.0
+        (intento.respuestasCorrectas.toDouble() / intento.totalPreguntas.toDouble()) * 100.0
     } else {
         0.0
     }
