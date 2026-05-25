@@ -160,23 +160,9 @@ fun MiProgresoScreen(navController: NavHostController) {
                 }
             } else {
                 when (tabSeleccionado) {
-                    0 -> {
-                        item {
-                            ResumenProgreso(comparacion, intentos)
-                        }
-                    }
-
-                    1 -> {
-                        item {
-                            EstadisticasProgreso(comparacion, intentos)
-                        }
-                    }
-
-                    2 -> {
-                        item {
-                            HistorialProgreso(intentos)
-                        }
-                    }
+                    0 -> item { ResumenProgreso(comparacion, intentos) }
+                    1 -> item { EstadisticasProgreso(comparacion, intentos) }
+                    2 -> item { HistorialProgreso(intentos) }
                 }
             }
         }
@@ -254,6 +240,26 @@ private fun EstadisticasProgreso(
     comparacion: ComparacionRendimientoResponse?,
     intentos: List<IntentoSimulacro>
 ) {
+    if (intentos.isEmpty()) {
+        ProgressCard {
+            Text(
+                text = "Aún no tienes prácticas registradas.",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF101828)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Completa una práctica o simulacro para ver tus estadísticas generales.",
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
+        }
+        return
+    }
+
     val totalCorrectas = intentos.sumOf { it.respuestasCorrectas }
     val totalIncorrectas = intentos.sumOf { it.respuestasIncorrectas }
     val totalPreguntas = totalCorrectas + totalIncorrectas
@@ -265,51 +271,83 @@ private fun EstadisticasProgreso(
         0.0
     }
 
-    ProgressCard {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text(
             text = "Estadísticas generales",
             fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF101828)
         )
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            EstadisticaCard(
+                titulo = "Total de prácticas completadas",
+                valor = "$practicasCompletadas",
+                modifier = Modifier.weight(1f)
+            )
 
-        Text("Promedio general: ${promedio.roundToInt()}%")
+            EstadisticaCard(
+                titulo = "Porcentaje general de rendimiento",
+                valor = "${promedio.roundToInt()}%",
+                modifier = Modifier.weight(1f)
+            )
+        }
 
-        LinearProgressIndicator(
-            progress = { (promedio / 100).toFloat().coerceIn(0f, 1f) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .clip(RoundedCornerShape(20.dp))
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            EstadisticaCard(
+                titulo = "Respuestas correctas",
+                valor = "$totalCorrectas",
+                modifier = Modifier.weight(1f)
+            )
 
-        Spacer(modifier = Modifier.height(14.dp))
+            EstadisticaCard(
+                titulo = "Respuestas incorrectas",
+                valor = "$totalIncorrectas",
+                modifier = Modifier.weight(1f)
+            )
+        }
 
-        Text("Prácticas completadas: $practicasCompletadas")
-        Text("Correctas: $totalCorrectas")
-        Text("Incorrectas: $totalIncorrectas")
-        Text("Total respondidas: $totalPreguntas")
-    }
+        ProgressCard {
+            Text(
+                text = "Correctas vs Incorrectas",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
 
-    Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-    ProgressCard {
-        Text(
-            text = "Comparación reciente",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
-        )
+            Text("Correctas: $totalCorrectas")
+            Text("Incorrectas: $totalIncorrectas")
+            Text("Total de respuestas: $totalPreguntas")
 
-        Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-        Text("Resultado anterior: ${comparacion?.resultadoAnterior?.roundToInt() ?: 0}%")
-        Text("Último resultado: ${comparacion?.ultimoResultado?.roundToInt() ?: 0}%")
-        Text("Diferencia: ${comparacion?.diferencia ?: 0.0}%")
+            LinearProgressIndicator(
+                progress = { (promedio / 100).toFloat().coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(20.dp))
+            )
+        }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        ProgressCard {
+            Text(
+                text = "Comparación reciente",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
 
-        IndicadorRendimiento(comparacion)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text("Resultado anterior: ${comparacion?.resultadoAnterior?.roundToInt() ?: 0}%")
+            Text("Último resultado: ${comparacion?.ultimoResultado?.roundToInt() ?: 0}%")
+            Text("Diferencia: ${comparacion?.diferencia ?: 0.0}%")
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            IndicadorRendimiento(comparacion)
+        }
     }
 }
 
@@ -721,6 +759,42 @@ private fun MiniResumenCard(
                 text = valor,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun EstadisticaCard(
+    titulo: String,
+    valor: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.height(130.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = titulo,
+                fontSize = 13.sp,
+                color = Color.Gray
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = valor,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF101828)
             )
         }
     }
