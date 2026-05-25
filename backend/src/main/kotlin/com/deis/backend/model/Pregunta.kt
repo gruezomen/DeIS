@@ -12,5 +12,6 @@ data class Pregunta(
     val video: String,
     val dificultad: Dificultad,
     val categoria: Categoria,
+    val tipo: TipoPregunta = TipoPregunta.SELECCION_MULTIPLE,
     val opciones: List<Opcion> = emptyList()
 )
