@@ -161,6 +161,8 @@ class SimulacroController(
             .findByUsuarioIdOrderByFechaDesc(guardado.usuarioId)
 
         val totalIntentos = intentosUsuario.size
+        val totalPracticas = intentosUsuario.count { it.tipo == "PRACTICA" }
+        val totalSimulacros = intentosUsuario.count { it.tipo == "SIMULACRO" }
 
         val porcentajeAciertos = if (guardado.totalPreguntas > 0) {
             (guardado.puntaje * 100) / guardado.totalPreguntas
@@ -170,7 +172,8 @@ class SimulacroController(
 
         val nuevasRecompensas = recompensaService.guardarRecompensasPorResultado(
             usuarioId = guardado.usuarioId,
-            porcentaje = porcentajeAciertos
+            porcentaje = porcentajeAciertos,
+            tipoIntento = guardado.tipo
         )
 
         if (nuevasRecompensas.isEmpty()) {
@@ -181,19 +184,22 @@ class SimulacroController(
             }
         }
 
-        val nuevosLogrosPractica = logroService.verificarLogrosPractica(
-            usuarioId = guardado.usuarioId,
-            totalPracticasCompletadas = totalIntentos,
-            porcentajeAciertos = porcentajeAciertos
-        )
-
-        val totalSimulacros = intentosUsuario.count { it.tipo == "SIMULACRO" }
+        val nuevosLogrosPractica = if (guardado.tipo == "PRACTICA") {
+            logroService.verificarLogrosPractica(
+                usuarioId = guardado.usuarioId,
+                totalPracticasCompletadas = totalIntentos,
+                porcentajeAciertos = porcentajeAciertos
+            )
+        } else {
+            emptyList()
+        }
     
         println("===== INTENTOS DEL USUARIO =====")
         intentosUsuario.forEach {
             println("id=${it.id}, tipo=${it.tipo}, bancoId=${it.bancoId}, fecha=${it.fecha}")
         }
         println("Tipo intento actual: ${guardado.tipo}")
+        println("Total practicas contadas: $totalPracticas")
         println("Total simulacros contados: $totalSimulacros")
         println("===============================")
 

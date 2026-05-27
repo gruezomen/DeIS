@@ -15,7 +15,8 @@ class RecompensaService(
 
     fun guardarRecompensasPorResultado(
         usuarioId: String,
-        porcentaje: Int
+        porcentaje: Int,
+        tipoIntento: String
     ): List<RecompensaObtenida> {
         val nuevasRecompensas = mutableListOf<RecompensaObtenida>()
 
@@ -35,10 +36,22 @@ class RecompensaService(
             }
         }
 
-        when {
-            porcentaje <= 39 -> intentarGuardar("RECOMPENSA_BAJA")
-            porcentaje <= 79 -> intentarGuardar("RECOMPENSA_MEDIA")
-            else -> intentarGuardar("RECOMPENSA_ALTA")
+        when (tipoIntento) {
+            "PRACTICA" -> {
+                when {
+                    porcentaje <= 39 -> intentarGuardar("RECOMPENSA_BAJA_PRACTICA")
+                    porcentaje <= 79 -> intentarGuardar("RECOMPENSA_MEDIA_PRACTICA")
+                    else -> intentarGuardar("RECOMPENSA_ALTA_PRACTICA")
+                }
+            }
+
+            "SIMULACRO" -> {
+                when {
+                    porcentaje <= 39 -> intentarGuardar("RECOMPENSA_BAJA_SIMULACRO")
+                    porcentaje <= 79 -> intentarGuardar("RECOMPENSA_MEDIA_SIMULACRO")
+                    else -> intentarGuardar("RECOMPENSA_ALTA_SIMULACRO")
+                }
+            }
         }
 
         return nuevasRecompensas
