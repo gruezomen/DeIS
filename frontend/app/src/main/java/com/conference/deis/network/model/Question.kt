@@ -7,6 +7,7 @@ data class Question(
     val video: String,
     val dificultad: String,
     val categoria: Category,
+    val tipo: String = "SELECCION_MULTIPLE",
     val opciones: List<Option>
 )
 

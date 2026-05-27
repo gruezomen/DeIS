@@ -39,6 +39,7 @@ fun CrearPreguntaScreen(
         return
     }
     var categoriaSeleccionada by remember { mutableStateOf("") }
+    var tipoSeleccionado by remember { mutableStateOf("SELECCION_MULTIPLE") }
     var enunciado by remember { mutableStateOf("") }
     var opcionA by remember { mutableStateOf("") }
     var opcionB by remember { mutableStateOf("") }
@@ -58,6 +59,35 @@ fun CrearPreguntaScreen(
     val esEdicion = preguntaId != null
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    // Al cambiar de tipo, resetear opciones e indiceCorrecta si es necesario
+    LaunchedEffect(tipoSeleccionado) {
+        if (!esEdicion) {
+            when (tipoSeleccionado) {
+                "VERDADERO_FALSO" -> {
+                    opcionA = "Verdadero"
+                    opcionB = "Falso"
+                    opcionC = ""
+                    opcionD = ""
+                    if (indiceCorrecta > 1) indiceCorrecta = -1
+                }
+                "COMPLEMENTACION" -> {
+                    opcionA = ""
+                    opcionB = ""
+                    opcionC = ""
+                    opcionD = ""
+                    indiceCorrecta = 0
+                }
+                else -> {
+                    opcionA = ""
+                    opcionB = ""
+                    opcionC = ""
+                    opcionD = ""
+                    indiceCorrecta = -1
+                }
+            }
+        }
+    }
 
     // Cargar bancos
     LaunchedEffect(Unit) {
@@ -81,17 +111,24 @@ fun CrearPreguntaScreen(
         scope.launch {
             cargando = true
             try {
+                val opciones = when (tipoSeleccionado) {
+                    "VERDADERO_FALSO" -> listOf("Verdadero", "Falso")
+                    "COMPLEMENTACION" -> listOf(opcionA.trim())
+                    else -> listOf(
+                        opcionA.trim(),
+                        opcionB.trim(),
+                        opcionC.trim(),
+                        opcionD.trim()
+                    )
+                }
+
                 val request = CreateQuestionRequest(
                     enunciado = enunciado.trim(),
                     solucion = explicacion.trim(),
                     dificultad = dificultadSeleccionada,
                     categoria = categoriaSeleccionada,
-                    opciones = listOf(
-                        opcionA.trim(),
-                        opcionB.trim(),
-                        opcionC.trim(),
-                        opcionD.trim()
-                    ),
+                    tipo = tipoSeleccionado,
+                    opciones = opciones,
                     indiceCorrecta = indiceCorrecta,
                     bancoPreguntaId = bancoSeleccionadoId
                 )
@@ -118,6 +155,7 @@ fun CrearPreguntaScreen(
                         opcionD = ""
                         explicacion = ""
                         indiceCorrecta = -1
+                        tipoSeleccionado = "SELECCION_MULTIPLE"
                     }
                 } else {
                     Toast.makeText(context, "Error en el servidor", Toast.LENGTH_SHORT).show()
@@ -164,11 +202,18 @@ fun CrearPreguntaScreen(
                 if (response.isSuccessful && response.body() != null) {
                     val p = response.body()!!
                     categoriaSeleccionada = p.categoria.nombre
+                    tipoSeleccionado = p.tipo
                     enunciado = p.enunciado
                     explicacion = p.solucion
                     dificultadSeleccionada = p.dificultad
                     
-                    if (p.opciones.size >= 4) {
+                    if (tipoSeleccionado == "VERDADERO_FALSO") {
+                        if (p.opciones.size >= 2) {
+                            opcionA = p.opciones[0].texto
+                            opcionB = p.opciones[1].texto
+                            indiceCorrecta = p.opciones.indexOfFirst { it.esCorrecta }
+                        }
+                    } else if (p.opciones.size >= 4) {
                         opcionA = p.opciones[0].texto
                         opcionB = p.opciones[1].texto
                         opcionC = p.opciones[2].texto
@@ -297,6 +342,42 @@ fun CrearPreguntaScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
+                Text("Tipo de Pregunta", fontSize = 14.sp, color = Color.Black)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    BotonTipoPregunta(
+                        texto = "Selección Múltiple",
+                        seleccionado = tipoSeleccionado == "SELECCION_MULTIPLE",
+                        onClick = { tipoSeleccionado = "SELECCION_MULTIPLE" },
+                        modifier = Modifier.weight(1f)
+                    )
+                    BotonTipoPregunta(
+                        texto = "Falso/Verdadero",
+                        seleccionado = tipoSeleccionado == "VERDADERO_FALSO",
+                        onClick = { tipoSeleccionado = "VERDADERO_FALSO" },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    BotonTipoPregunta(
+                        texto = "Complementación",
+                        seleccionado = tipoSeleccionado == "COMPLEMENTACION",
+                        onClick = { tipoSeleccionado = "COMPLEMENTACION" },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
                 Text("Dificultad", fontSize = 14.sp, color = Color.Black)
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -337,42 +418,56 @@ fun CrearPreguntaScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                Text("Opciones (marca la correcta)", fontSize = 14.sp, color = Color.Black)
+                Text(
+                    text = if (tipoSeleccionado == "COMPLEMENTACION") "Respuesta Correcta" else "Opciones (marca la correcta)",
+                    fontSize = 14.sp,
+                    color = Color.Black
+                )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                OpcionEditable(
-                    texto = opcionA,
-                    seleccionada = indiceCorrecta == 0,
-                    onTextoChange = { opcionA = it },
-                    onClick = { indiceCorrecta = 0 }
-                )
+                if (tipoSeleccionado == "COMPLEMENTACION") {
+                    CampoGris(
+                        valor = opcionA,
+                        placeholder = "Escribe la respuesta correcta",
+                        onValueChange = { opcionA = it }
+                    )
+                } else {
+                    OpcionEditable(
+                        texto = opcionA,
+                        seleccionada = indiceCorrecta == 0,
+                        onTextoChange = { if (tipoSeleccionado != "VERDADERO_FALSO") opcionA = it },
+                        onClick = { indiceCorrecta = 0 }
+                    )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                OpcionEditable(
-                    texto = opcionB,
-                    seleccionada = indiceCorrecta == 1,
-                    onTextoChange = { opcionB = it },
-                    onClick = { indiceCorrecta = 1 }
-                )
+                    OpcionEditable(
+                        texto = opcionB,
+                        seleccionada = indiceCorrecta == 1,
+                        onTextoChange = { if (tipoSeleccionado != "VERDADERO_FALSO") opcionB = it },
+                        onClick = { indiceCorrecta = 1 }
+                    )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                    if (tipoSeleccionado == "SELECCION_MULTIPLE") {
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                OpcionEditable(
-                    texto = opcionC,
-                    seleccionada = indiceCorrecta == 2,
-                    onTextoChange = { opcionC = it },
-                    onClick = { indiceCorrecta = 2 }
-                )
+                        OpcionEditable(
+                            texto = opcionC,
+                            seleccionada = indiceCorrecta == 2,
+                            onTextoChange = { opcionC = it },
+                            onClick = { indiceCorrecta = 2 }
+                        )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                OpcionEditable(
-                    texto = opcionD,
-                    seleccionada = indiceCorrecta == 3,
-                    onTextoChange = { opcionD = it },
-                    onClick = { indiceCorrecta = 3 }
-                )
+                        OpcionEditable(
+                            texto = opcionD,
+                            seleccionada = indiceCorrecta == 3,
+                            onTextoChange = { opcionD = it },
+                            onClick = { indiceCorrecta = 3 }
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
@@ -455,14 +550,26 @@ fun CrearPreguntaScreen(
                             return@Button
                         }
 
-                        if (opcionA.isBlank() || opcionB.isBlank() || opcionC.isBlank() || opcionD.isBlank()) {
-                            Toast.makeText(context, "Completa las 4 opciones", Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
-
-                        if (indiceCorrecta !in 0..3) {
-                            Toast.makeText(context, "Selecciona la opcion correcta", Toast.LENGTH_SHORT).show()
-                            return@Button
+                        if (tipoSeleccionado == "SELECCION_MULTIPLE") {
+                            if (opcionA.isBlank() || opcionB.isBlank() || opcionC.isBlank() || opcionD.isBlank()) {
+                                Toast.makeText(context, "Completa las 4 opciones", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            if (indiceCorrecta !in 0..3) {
+                                Toast.makeText(context, "Selecciona la opcion correcta", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                        } else if (tipoSeleccionado == "VERDADERO_FALSO") {
+                            if (indiceCorrecta !in 0..1) {
+                                Toast.makeText(context, "Selecciona si es Verdadero o Falso", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                        } else if (tipoSeleccionado == "COMPLEMENTACION") {
+                            if (opcionA.isBlank()) {
+                                Toast.makeText(context, "La respuesta correcta es obligatoria", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            indiceCorrecta = 0
                         }
 
                         if (explicacion.isBlank()) {

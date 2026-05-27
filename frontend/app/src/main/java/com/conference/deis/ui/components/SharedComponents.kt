@@ -154,6 +154,31 @@ fun BotonDificultad(
 }
 
 @Composable
+fun BotonTipoPregunta(
+    texto: String,
+    seleccionado: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .background(
+                if (seleccionado) CardColorBox else ActionBoxColor,
+                RoundedCornerShape(10.dp)
+            )
+            .clickable { onClick() }
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = texto,
+            color = Color.Black,
+            fontSize = 13.sp
+        )
+    }
+}
+
+@Composable
 fun OpcionEditable(
     texto: String,
     seleccionada: Boolean,
