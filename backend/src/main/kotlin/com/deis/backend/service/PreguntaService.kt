@@ -5,6 +5,7 @@ import com.deis.backend.model.Categoria
 import com.deis.backend.model.Dificultad
 import com.deis.backend.model.Opcion
 import com.deis.backend.model.Pregunta
+import com.deis.backend.model.TipoPregunta
 import com.deis.backend.repository.BancoPreguntaRepository
 import com.deis.backend.repository.PreguntaRepository
 import org.springframework.stereotype.Service
@@ -55,6 +56,7 @@ class PreguntaService(
                 nombre = request.categoria.trim(),
                 descripcion = ""
             ),
+            tipo = TipoPregunta.valueOf(request.tipo.trim().uppercase()),
             opciones = request.opciones.mapIndexed { index, texto ->
                 Opcion(
                     texto = texto.trim(),
@@ -97,6 +99,7 @@ class PreguntaService(
                 nombre = request.categoria.trim(),
                 descripcion = ""
             ),
+            tipo = TipoPregunta.valueOf(request.tipo.trim().uppercase()),
             opciones = request.opciones.mapIndexed { index, texto ->
                 Opcion(
                     texto = texto.trim(),
@@ -109,10 +112,6 @@ class PreguntaService(
 
         if (!request.bancoPreguntaId.isNullOrBlank()) {
             asociarPreguntaABanco(preguntaGuardada.id!!, request.bancoPreguntaId!!)
-        } else {
-            // Si bancoPreguntaId es null o vacío, podríamos querer desasociarla de cualquier banco
-            // Pero por ahora, el comportamiento de asociarPreguntaABanco ya maneja la lógica de limpiar asociaciones previas si se cambia de banco.
-            // Si el usuario quiere desasociar totalmente, se podría añadir esa lógica.
         }
 
         return preguntaGuardada
@@ -182,16 +181,43 @@ class PreguntaService(
             throw IllegalArgumentException("La dificultad no es valida")
         }
 
-        if (request.opciones.size != 4) {
-            throw IllegalArgumentException("Debe enviar exactamente 4 opciones")
+        val tipoNormalizado = request.tipo.trim().uppercase()
+        val tiposPermitidos = TipoPregunta.entries.map { it.name }
+        if (tipoNormalizado !in tiposPermitidos) {
+            throw IllegalArgumentException("El tipo de pregunta no es valido")
+        }
+
+        when (TipoPregunta.valueOf(tipoNormalizado)) {
+            TipoPregunta.SELECCION_MULTIPLE -> {
+                if (request.opciones.size != 4) {
+                    throw IllegalArgumentException("Debe enviar exactamente 4 opciones para seleccion multiple")
+                }
+                if (request.indiceCorrecta !in 0..3) {
+                    throw IllegalArgumentException("La opcion correcta no es valida")
+                }
+            }
+            TipoPregunta.VERDADERO_FALSO -> {
+                if (request.opciones.size != 2) {
+                    throw IllegalArgumentException("Debe enviar exactamente 2 opciones para verdadero/falso")
+                }
+                if (request.indiceCorrecta !in 0..1) {
+                    throw IllegalArgumentException("La opcion correcta no es valida")
+                }
+            }
+            TipoPregunta.COMPLEMENTACION -> {
+                if (request.opciones.size != 1) {
+                    throw IllegalArgumentException("Debe enviar exactamente 1 opcion para complementacion")
+                }
+                if (request.indiceCorrecta != 0) {
+                    throw IllegalArgumentException("El indice de la opcion correcta debe ser 0")
+                }
+            }
+            // Por ahora solo implementamos lógica de validación para estos tres
+            else -> {}
         }
 
         if (request.opciones.any { it.isBlank() }) {
             throw IllegalArgumentException("Todas las opciones deben tener texto")
-        }
-
-        if (request.indiceCorrecta !in 0..3) {
-            throw IllegalArgumentException("La opcion correcta no es valida")
         }
     }
 }

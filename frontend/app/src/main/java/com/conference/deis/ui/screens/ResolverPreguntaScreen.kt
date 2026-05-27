@@ -62,6 +62,7 @@ import com.conference.deis.network.UserSession
 import com.conference.deis.network.model.IntentoSimulacro
 import com.conference.deis.network.model.Option
 import com.conference.deis.network.model.Question
+import com.conference.deis.ui.components.*
 import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
 import kotlinx.coroutines.delay
@@ -208,6 +209,8 @@ fun ResolverPreguntaScreen(
     var guardandoResultado by remember { mutableStateOf(false) }
     var errorGuardado by remember { mutableStateOf(false) }
 
+    val respuestasComplementacion = remember { mutableStateMapOf<String, String>() }
+
     var duracionSimulacroSegundos by remember { mutableStateOf<Int?>(null) }
     var tiempoRestanteSegundos by remember { mutableStateOf<Int?>(null) }
     var finalizadoPorTiempo by remember { mutableStateOf(false) }
@@ -316,33 +319,53 @@ fun ResolverPreguntaScreen(
 
         preguntas.forEach { pregunta ->
             val estado = historialEstados[pregunta.id]
-            val seleccion = estado?.opcionSeleccionadaIndex
-
-            if (seleccion != null && seleccion in pregunta.opciones.indices) {
-                val esOk = pregunta.opciones[seleccion].esCorrecta
-
+            
+            if (pregunta.tipo == "COMPLEMENTACION") {
+                val respuestaUsuario = respuestasComplementacion[pregunta.id]?.trim()?.lowercase() ?: ""
+                val respuestaCorrecta = pregunta.opciones.firstOrNull()?.texto?.trim()?.lowercase() ?: ""
+                
+                val esOk = respuestaUsuario.isNotBlank() && respuestaUsuario == respuestaCorrecta
                 if (esOk) {
                     correctas++
                 } else {
                     incorrectas++
                 }
-
-                historialEstados[pregunta.id] = (estado ?: EstadoPregunta(
+                
+                historialEstados[pregunta.id] = EstadoPregunta(
                     preguntaId = pregunta.id,
-                    opcionSeleccionadaIndex = seleccion
-                )).copy(
+                    opcionSeleccionadaIndex = if (respuestaUsuario.isNotBlank()) 0 else null,
                     respondida = true,
                     esCorrecta = esOk
                 )
             } else {
-                incorrectas++
+                val seleccion = estado?.opcionSeleccionadaIndex
 
-                historialEstados[pregunta.id] = EstadoPregunta(
-                    preguntaId = pregunta.id,
-                    opcionSeleccionadaIndex = null,
-                    respondida = true,
-                    esCorrecta = false
-                )
+                if (seleccion != null && seleccion in pregunta.opciones.indices) {
+                    val esOk = pregunta.opciones[seleccion].esCorrecta
+
+                    if (esOk) {
+                        correctas++
+                    } else {
+                        incorrectas++
+                    }
+
+                    historialEstados[pregunta.id] = (estado ?: EstadoPregunta(
+                        preguntaId = pregunta.id,
+                        opcionSeleccionadaIndex = seleccion
+                    )).copy(
+                        respondida = true,
+                        esCorrecta = esOk
+                    )
+                } else {
+                    incorrectas++
+
+                    historialEstados[pregunta.id] = EstadoPregunta(
+                        preguntaId = pregunta.id,
+                        opcionSeleccionadaIndex = null,
+                        respondida = true,
+                        esCorrecta = false
+                    )
+                }
             }
         }
 
@@ -667,6 +690,7 @@ errorSincronizacionTemporizador = estadoTemporizador.mensajeError
                         total = preguntas.size,
                         preguntas = preguntas,
                         historialEstados = historialEstados,
+                        respuestasComplementacion = respuestasComplementacion,
                         preguntaRevisionIndex = preguntaRevisionIndex,
                         guardando = guardandoResultado,
                         errorGuardado = errorGuardado,
@@ -704,6 +728,7 @@ errorSincronizacionTemporizador = estadoTemporizador.mensajeError
                     PreguntaPracticaContenido(
                         pregunta = preguntaActual,
                         opcionSeleccionadaIndex = opcionSeleccionadaIndex,
+                        respuestasComplementacion = respuestasComplementacion,
                         preguntaNumero = preguntaActualIndex + 1,
                         totalPreguntas = preguntas.size,
                         esRespondida = (estadoActual?.respondida ?: false) || respuestasBloqueadas,
@@ -730,6 +755,9 @@ errorSincronizacionTemporizador = estadoTemporizador.mensajeError
                                 guardarEstadoActual(index)
                             }
                         },
+                        onGuardarEstado = { index -> 
+                            guardarEstadoActual(index)
+                        },
                         onFinalizar = {
                             if (!respuestasBloqueadas) {
                                 mostrarConfirmacionFinalizar = true
@@ -746,6 +774,7 @@ errorSincronizacionTemporizador = estadoTemporizador.mensajeError
 private fun PreguntaPracticaContenido(
     pregunta: Question,
     opcionSeleccionadaIndex: Int?,
+    respuestasComplementacion: MutableMap<String, String>,
     preguntaNumero: Int,
     totalPreguntas: Int,
     esRespondida: Boolean,
@@ -755,6 +784,7 @@ private fun PreguntaPracticaContenido(
     onSiguientePregunta: () -> Unit,
     onAnteriorPregunta: () -> Unit,
     onOpcionSeleccionada: (Int) -> Unit,
+    onGuardarEstado: (Int?) -> Unit,
     onFinalizar: () -> Unit
 ) {
     Column(
@@ -854,39 +884,74 @@ private fun PreguntaPracticaContenido(
                 }
             }
 
-            item {
-                Text(
-                    text = "Opciones",
-                    fontSize = 16.sp,
-                    color = Color.Black,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            if (pregunta.opciones.isEmpty()) {
+            if (pregunta.tipo == "COMPLEMENTACION") {
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(containerColor = FieldBackground)
-                    ) {
+                    Text(
+                        text = "Completa el espacio",
+                        fontSize = 16.sp,
+                        color = Color.Black,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                
+                item {
+                    val respuestaActual = respuestasComplementacion[pregunta.id] ?: ""
+                    CampoGris(
+                        valor = respuestaActual,
+                        placeholder = "Respuesta...",
+                        onValueChange = { 
+                            if (!respuestasBloqueadas && !esRespondida) {
+                                respuestasComplementacion[pregunta.id] = it
+                                onGuardarEstado(if (it.isNotBlank()) 0 else null)
+                            }
+                        }
+                    )
+                    
+                    if (esRespondida || respuestasBloqueadas) {
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Esta pregunta no tiene opciones registradas. Puedes finalizarla como pregunta sin responder.",
-                            color = Color.Gray,
+                            text = "Respuesta guardada: $respuestaActual",
                             fontSize = 14.sp,
-                            modifier = Modifier.padding(14.dp)
+                            color = BlueBackground,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
             } else {
-                itemsIndexed(pregunta.opciones) { index, opcion ->
-                    OpcionSimpleItem(
-                        index = index,
-                        opcion = opcion,
-                        seleccionada = opcionSeleccionadaIndex == index,
-                        bloqueada = esRespondida || respuestasBloqueadas,
-                        onClick = { onOpcionSeleccionada(index) }
+                item {
+                    Text(
+                        text = "Opciones",
+                        fontSize = 16.sp,
+                        color = Color.Black,
+                        fontWeight = FontWeight.SemiBold
                     )
+                }
+
+                if (pregunta.opciones.isEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = FieldBackground)
+                        ) {
+                            Text(
+                                text = "Esta pregunta no tiene opciones registradas. Puedes finalizarla como pregunta sin responder.",
+                                color = Color.Gray,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(14.dp)
+                            )
+                        }
+                    }
+                } else {
+                    itemsIndexed(pregunta.opciones) { index, opcion ->
+                        OpcionSimpleItem(
+                            index = index,
+                            opcion = opcion,
+                            seleccionada = opcionSeleccionadaIndex == index,
+                            bloqueada = esRespondida || respuestasBloqueadas,
+                            onClick = { onOpcionSeleccionada(index) }
+                        )
+                    }
                 }
             }
         }
@@ -1031,6 +1096,7 @@ private fun ResultadosPanel(
     total: Int,
     preguntas: List<Question>,
     historialEstados: Map<String, EstadoPregunta>,
+    respuestasComplementacion: Map<String, String>,
     preguntaRevisionIndex: Int,
     guardando: Boolean,
     errorGuardado: Boolean,
@@ -1159,6 +1225,7 @@ private fun ResultadosPanel(
             RevisionPreguntaCard(
                 preguntas = preguntas,
                 historialEstados = historialEstados,
+                respuestasComplementacion = respuestasComplementacion,
                 preguntaRevisionIndex = preguntaRevisionIndex,
                 onPreguntaRevisionChange = onPreguntaRevisionChange
             )
@@ -1363,6 +1430,7 @@ private fun EstadoGuardadoResultado(
 private fun RevisionPreguntaCard(
     preguntas: List<Question>,
     historialEstados: Map<String, EstadoPregunta>,
+    respuestasComplementacion: Map<String, String>,
     preguntaRevisionIndex: Int,
     onPreguntaRevisionChange: (Int) -> Unit
 ) {
@@ -1440,8 +1508,8 @@ private fun RevisionPreguntaCard(
                 )
 
                 Text(
-                    text = "Tu respuesta: ${opcionElegida?.texto ?: "Sin responder"}",
-                    color = if (opcionElegida == null) Color.Red else Color.Black,
+                    text = "Tu respuesta: ${if (preguntaRevision.tipo == "COMPLEMENTACION") (respuestasComplementacion[preguntaRevision.id] ?: "Sin responder") else (opcionElegida?.texto ?: "Sin responder")}",
+                    color = if ((preguntaRevision.tipo == "COMPLEMENTACION" && respuestasComplementacion[preguntaRevision.id].isNullOrBlank()) || (preguntaRevision.tipo != "COMPLEMENTACION" && opcionElegida == null)) Color.Red else Color.Black,
                     fontSize = 14.sp
                 )
 
@@ -1452,26 +1520,28 @@ private fun RevisionPreguntaCard(
                     fontWeight = FontWeight.SemiBold
                 )
 
-                if (preguntaRevision.opciones.isEmpty()) {
-                    Text(
-                        text = "No se pudieron cargar las opciones para esta resolución.",
-                        color = Color.Red,
-                        fontSize = 14.sp
-                    )
-                } else {
-                    Text(
-                        text = "Opciones revisadas",
-                        color = Color.Black,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    preguntaRevision.opciones.forEachIndexed { index, opcion ->
-                        OpcionRevisionItem(
-                            index = index,
-                            opcion = opcion,
-                            seleccionada = estadoRevision?.opcionSeleccionadaIndex == index
+                if (preguntaRevision.tipo != "COMPLEMENTACION") {
+                    if (preguntaRevision.opciones.isEmpty()) {
+                        Text(
+                            text = "No se pudieron cargar las opciones para esta resolución.",
+                            color = Color.Red,
+                            fontSize = 14.sp
                         )
+                    } else {
+                        Text(
+                            text = "Opciones revisadas",
+                            color = Color.Black,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        preguntaRevision.opciones.forEachIndexed { index, opcion ->
+                            OpcionRevisionItem(
+                                index = index,
+                                opcion = opcion,
+                                seleccionada = estadoRevision?.opcionSeleccionadaIndex == index
+                            )
+                        }
                     }
                 }
 
