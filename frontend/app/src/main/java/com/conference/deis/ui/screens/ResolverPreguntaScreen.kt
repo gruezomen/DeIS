@@ -66,6 +66,9 @@ import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.conference.deis.network.model.MensajeRecompensa
+import com.conference.deis.network.model.TipoRecompensa
+import com.conference.deis.ui.utils.ProveedorRecompensas
 
 private data class EstadoPregunta(
     val preguntaId: String,
@@ -1033,6 +1036,7 @@ private fun ResultadosPanel(
     onSalir: () -> Unit
 ) {
     val porcentaje = if (total == 0) 0 else (puntuacion * 100) / total
+    val recompensa = ProveedorRecompensas.obtenerRecompensa(porcentaje)
 
     val sinResponder = preguntas.count { pregunta ->
         historialEstados[pregunta.id]?.opcionSeleccionadaIndex == null
@@ -1108,6 +1112,13 @@ private fun ResultadosPanel(
         }
 
         item {
+            TarjetaRecompensaVisual(
+                recompensa = recompensa,
+                porcentaje = porcentaje
+            )
+        }
+
+        item {
             ResultadoFila(
                 titulo = "Respuestas correctas",
                 valor = puntuacion.toString()
@@ -1165,6 +1176,79 @@ private fun ResultadosPanel(
             ) {
                 Text("Salir")
             }
+        }
+    }
+}
+
+@Composable
+private fun TarjetaRecompensaVisual(
+    recompensa: MensajeRecompensa,
+    porcentaje: Int
+) {
+    val colorFondo = when (recompensa.tipo) {
+        TipoRecompensa.BAJO -> Color(0xFFFFF3E0)
+        TipoRecompensa.MEDIO -> Color(0xFFE3F2FD)
+        TipoRecompensa.ALTO -> Color(0xFFE8F5E9)
+        TipoRecompensa.RACHA -> Color(0xFFF3E5F5)
+    }
+
+    val colorTexto = when (recompensa.tipo) {
+        TipoRecompensa.BAJO -> Color(0xFFE65100)
+        TipoRecompensa.MEDIO -> Color(0xFF1565C0)
+        TipoRecompensa.ALTO -> Color(0xFF2E7D32)
+        TipoRecompensa.RACHA -> Color(0xFF6A1B9A)
+    }
+
+    val etiqueta = when (recompensa.tipo) {
+        TipoRecompensa.BAJO -> "Resultado bajo"
+        TipoRecompensa.MEDIO -> "Resultado medio"
+        TipoRecompensa.ALTO -> "Resultado alto"
+        TipoRecompensa.RACHA -> "Recompensa especial"
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = colorFondo),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Recompensa motivacional",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorTexto
+            )
+
+            Text(
+                text = etiqueta,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colorTexto
+            )
+
+            Text(
+                text = recompensa.titulo,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+
+            Text(
+                text = recompensa.mensaje,
+                fontSize = 14.sp,
+                color = Color.DarkGray
+            )
+
+            Text(
+                text = "Tu rendimiento fue de $porcentaje%",
+                fontSize = 13.sp,
+                color = colorTexto,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
