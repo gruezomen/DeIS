@@ -116,5 +116,10 @@ suspend fun obtenerIntentosPorUsuario(
 @GET("api/logros/usuario/{usuarioId}")
 suspend fun obtenerLogrosUsuario(
     @Path("usuarioId") usuarioId: String
-): Response<LogrosUsuarioResponse>    
+): Response<LogrosUsuarioResponse> 
+
+@GET("api/recompensas/usuario/{usuarioId}")
+suspend fun obtenerRecompensasUsuario(
+    @Path("usuarioId") usuarioId: String
+): Response<RecompensasUsuarioResponse>
 }

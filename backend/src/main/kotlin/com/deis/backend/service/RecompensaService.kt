@@ -4,6 +4,8 @@ import com.deis.backend.model.RecompensaObtenida
 import com.deis.backend.repository.RecompensaObtenidaRepository
 import com.deis.backend.repository.RecompensaRepository
 import org.springframework.stereotype.Service
+import com.deis.backend.dto.RecompensaItemResponse
+import com.deis.backend.dto.RecompensasUsuarioResponse
 
 @Service
 class RecompensaService(
@@ -68,5 +70,27 @@ class RecompensaService(
         }
 
         return nuevasRecompensas
+    }
+
+    fun obtenerRecompensasUsuario(usuarioId: String): RecompensasUsuarioResponse {
+        val obtenidas = recompensaObtenidaRepository.findByUsuarioId(usuarioId)
+        val mapaRecompensas = recompensaRepository.findAll().associateBy { it.codigo }
+
+        val recompensas = obtenidas.mapNotNull { obtenida ->
+            val recompensa = mapaRecompensas[obtenida.recompensaCodigo] ?: return@mapNotNull null
+
+            RecompensaItemResponse(
+                codigo = recompensa.codigo,
+                titulo = recompensa.titulo,
+                descripcion = recompensa.descripcion,
+                tipo = recompensa.tipo,
+                fechaObtencion = obtenida.fechaObtencion.toString()
+            )
+        }
+
+        return RecompensasUsuarioResponse(
+            usuarioId = usuarioId,
+            recompensas = recompensas.sortedByDescending { it.fechaObtencion }
+        )
     }
 }
