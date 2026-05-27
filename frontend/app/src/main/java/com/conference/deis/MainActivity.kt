@@ -39,6 +39,10 @@ fun DeISApp() {
                 composable("mi_progreso") {
                     MiProgresoScreen(navController)
                 }
+
+                composable("mis_logros") {
+                    MisLogrosScreen(navController)
+                }
                   
                 composable("splash") {
                     SplashScreen(navController)

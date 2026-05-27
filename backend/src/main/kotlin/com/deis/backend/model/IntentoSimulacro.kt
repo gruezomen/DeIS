@@ -10,7 +10,10 @@ data class IntentoSimulacro(
     val id: String? = null,
     val usuarioId: String,
     val bancoId: String,
+    val tipo: String = "SIMULACRO",
     val puntaje: Int,
     val totalPreguntas: Int,
+    val respuestasCorrectas: Int = puntaje,
+    val respuestasIncorrectas: Int = (totalPreguntas - puntaje).coerceAtLeast(0),
     val fecha: LocalDateTime = LocalDateTime.now()
 )

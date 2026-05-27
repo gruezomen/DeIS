@@ -8,11 +8,22 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
 import kotlin.math.round
+import com.deis.backend.service.LogroService
 
 data class CrearSimulacroRequest(
     val bancoId: String? = null,
     val tiempo: Int,
     val preguntaIds: List<String> = emptyList()
+)
+
+data class CrearIntentoSimulacroRequest(
+    val usuarioId: String,
+    val bancoId: String,
+    val tipo: String = "SIMULACRO",
+    val puntaje: Int,
+    val totalPreguntas: Int,
+    val respuestasCorrectas: Int,
+    val respuestasIncorrectas: Int
 )
 
 data class ResultadoHistoricoResponse(
@@ -52,7 +63,8 @@ data class ComparacionRendimientoResponse(
 @RequestMapping("/api/simulacros")
 class SimulacroController(
     private val intentoSimulacroRepository: IntentoSimulacroRepository,
-    private val simulacroRepository: SimulacroRepository
+    private val simulacroRepository: SimulacroRepository,
+    private val logroService: LogroService
 ) {
 
     @PostMapping
@@ -92,9 +104,118 @@ class SimulacroController(
     }
 
     @PostMapping("/intentos")
-    fun guardarIntento(@RequestBody intento: IntentoSimulacro): ResponseEntity<IntentoSimulacro> {
+    fun guardarIntento(
+        @RequestBody request: CrearIntentoSimulacroRequest
+    ): ResponseEntity<Any> {
+        if (request.usuarioId.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                mapOf("mensaje" to "El usuario es obligatorio")
+            )
+        }
+
+        if (request.bancoId.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                mapOf("mensaje" to "El banco o práctica es obligatorio")
+            )
+        }
+
+        if (request.totalPreguntas <= 0) {
+            return ResponseEntity.badRequest().body(
+                mapOf("mensaje" to "El total de preguntas debe ser mayor a cero")
+            )
+        }
+
+        if (request.puntaje < 0) {
+            return ResponseEntity.badRequest().body(
+                mapOf("mensaje" to "El puntaje no puede ser negativo")
+            )
+        }
+
+        if (request.respuestasCorrectas < 0 || request.respuestasIncorrectas < 0) {
+            return ResponseEntity.badRequest().body(
+                mapOf("mensaje" to "Las respuestas correctas e incorrectas no pueden ser negativas")
+            )
+        }
+
+        if (request.respuestasCorrectas + request.respuestasIncorrectas != request.totalPreguntas) {
+            return ResponseEntity.badRequest().body(
+                mapOf("mensaje" to "La suma de respuestas correctas e incorrectas debe coincidir con el total de preguntas")
+            )
+        }
+
+        val intento = IntentoSimulacro(
+            usuarioId = request.usuarioId,
+            bancoId = request.bancoId,
+            tipo = request.tipo,
+            puntaje = request.puntaje,
+            totalPreguntas = request.totalPreguntas,
+            respuestasCorrectas = request.respuestasCorrectas,
+            respuestasIncorrectas = request.respuestasIncorrectas
+        )
+
         val guardado = intentoSimulacroRepository.save(intento)
-        return ResponseEntity.ok(guardado)
+
+        val intentosUsuario = intentoSimulacroRepository
+            .findByUsuarioIdOrderByFechaDesc(guardado.usuarioId)
+
+        val totalIntentos = intentosUsuario.size
+
+        val porcentajeAciertos = if (guardado.totalPreguntas > 0) {
+            (guardado.puntaje * 100) / guardado.totalPreguntas
+        } else {
+            0
+        }
+
+        val nuevosLogrosPractica = logroService.verificarLogrosPractica(
+            usuarioId = guardado.usuarioId,
+            totalPracticasCompletadas = totalIntentos,
+            porcentajeAciertos = porcentajeAciertos
+        )
+
+        val totalSimulacros = intentosUsuario.count { it.tipo == "SIMULACRO" }
+    
+        println("===== INTENTOS DEL USUARIO =====")
+        intentosUsuario.forEach {
+            println("id=${it.id}, tipo=${it.tipo}, bancoId=${it.bancoId}, fecha=${it.fecha}")
+        }
+        println("Tipo intento actual: ${guardado.tipo}")
+        println("Total simulacros contados: $totalSimulacros")
+        println("===============================")
+
+        val nuevosLogrosSimulacro = if (guardado.tipo == "SIMULACRO") {
+            logroService.verificarLogrosSimulacro(
+                usuarioId = guardado.usuarioId,
+                totalSimulacrosCompletados = totalSimulacros
+            )
+        } else {
+            emptyList()
+        }
+
+        val todosLosNuevosLogros = nuevosLogrosPractica + nuevosLogrosSimulacro
+
+        println("===== LOGROS =====")
+        println("Usuario: ${guardado.usuarioId}")
+        println("Tipo intento: ${guardado.tipo}")
+        println("Total intentos: $totalIntentos")
+        println("Total simulacros: $totalSimulacros")
+        println("Porcentaje de aciertos: $porcentajeAciertos")
+
+        if (todosLosNuevosLogros.isEmpty()) {
+            println("No se desbloqueó ningún logro nuevo.")
+        } else {
+            todosLosNuevosLogros.forEach {
+                println("Logro desbloqueado: ${it.logroCodigo}")
+            }
+        }
+
+        println("==================")
+
+        return ResponseEntity.ok(
+            mapOf(
+                "intento" to guardado,
+                "nuevosLogros" to todosLosNuevosLogros
+            )
+        )
     }
 
     @GetMapping("/intentos/usuario/{usuarioId}")

@@ -130,6 +130,7 @@ fun AdminHomeScreen(navController: NavHostController) {
             text = { Text("Mis logros") },
             onClick = {
                 menuExpandido = false
+                navController.navigate("mis_logros")
             }
         )
 

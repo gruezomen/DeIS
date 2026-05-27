@@ -237,61 +237,74 @@ fun ResolverPreguntaScreen(
     
 
 
-    fun intentarGuardarEnBackend(puntajeFinal: Int) {
-    scope.launch {
-        guardandoResultado = true
-        errorGuardado = false
+    fun intentarGuardarEnBackend(
+        respuestasCorrectas: Int,
+        respuestasIncorrectas: Int
+    ) {
+        scope.launch {
+            guardandoResultado = true
+            errorGuardado = false
 
-        try {
-            if (!hayConexionInternet(context)) {
-                errorGuardado = true
-                return@launch
-            }
+            try {
+                if (!hayConexionInternet(context)) {
+                    errorGuardado = true
+                    return@launch
+                }
 
-            val usuarioId = UserSession.user?.id ?: "usuario_anonimo"
+                val usuarioId = UserSession.user?.id ?: "usuario_anonimo"
 
-            val responseIntento = RetrofitInstance.api.guardarIntentoSimulacro(
-                IntentoSimulacro(
-                    usuarioId = usuarioId,
-                    bancoId = bancoIdParaIntento,
-                    puntaje = puntajeFinal,
-                    totalPreguntas = preguntas.size
+                val tipoIntento = if (simulacroId != null || tiempoMinutosInicial != null) {
+                    "SIMULACRO"
+                } else {
+                    "PRACTICA"
+                }
+
+                val responseIntento = RetrofitInstance.api.guardarIntentoSimulacro(
+                    IntentoSimulacro(
+                        usuarioId = usuarioId,
+                        bancoId = bancoIdParaIntento,
+                        tipo = tipoIntento,
+                        puntaje = respuestasCorrectas,
+                        totalPreguntas = preguntas.size,
+                        respuestasCorrectas = respuestasCorrectas,
+                        respuestasIncorrectas = respuestasIncorrectas
+                    )
                 )
-            )
 
-            if (!responseIntento.isSuccessful) {
+                if (!responseIntento.isSuccessful) {
+                    errorGuardado = true
+                    return@launch
+                }
+
+                val responseRacha = RetrofitInstance.api.registrarPracticaDiaria(usuarioId)
+
+                if (!responseRacha.isSuccessful) {
+                    errorGuardado = true
+                    Toast.makeText(
+                        context,
+                        "Se guardó el resultado, pero no se pudo actualizar la racha",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@launch
+                }
+
+                val racha = responseRacha.body()
+
+                if (racha != null) {
+                    Toast.makeText(
+                        context,
+                        racha.mensaje,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
                 errorGuardado = true
-                return@launch
+            } finally {
+                guardandoResultado = false
             }
-
-            val responseRacha = RetrofitInstance.api.registrarPracticaDiaria(usuarioId)
-
-            if (!responseRacha.isSuccessful) {
-                errorGuardado = true
-                Toast.makeText(
-                    context,
-                    "Se guardó el resultado, pero no se pudo actualizar la racha",
-                    Toast.LENGTH_SHORT
-                ).show()
-                return@launch
-            }
-
-            val racha = responseRacha.body()
-
-            if (racha != null) {
-                Toast.makeText(
-                    context,
-                    racha.mensaje,
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        } catch (e: Exception) {
-            errorGuardado = true
-        } finally {
-            guardandoResultado = false
         }
     }
-}
+
 
     fun finalizarSimulacro(tiempoTerminado: Boolean) {
         if (practicaFinalizada || preguntas.isEmpty()) return
@@ -299,6 +312,7 @@ fun ResolverPreguntaScreen(
         guardarEstadoActual()
 
         var correctas = 0
+        var incorrectas = 0
 
         preguntas.forEach { pregunta ->
             val estado = historialEstados[pregunta.id]
@@ -308,7 +322,11 @@ fun ResolverPreguntaScreen(
                 val respuestaCorrecta = pregunta.opciones.firstOrNull()?.texto?.trim()?.lowercase() ?: ""
                 
                 val esOk = respuestaUsuario.isNotBlank() && respuestaUsuario == respuestaCorrecta
-                if (esOk) correctas++
+                if (esOk) {
+                    correctas++
+                } else {
+                    incorrectas++
+                }
                 
                 historialEstados[pregunta.id] = EstadoPregunta(
                     preguntaId = pregunta.id,
@@ -324,6 +342,8 @@ fun ResolverPreguntaScreen(
 
                     if (esOk) {
                         correctas++
+                    } else {
+                        incorrectas++
                     }
 
                     historialEstados[pregunta.id] = (estado ?: EstadoPregunta(
@@ -334,6 +354,8 @@ fun ResolverPreguntaScreen(
                         esCorrecta = esOk
                     )
                 } else {
+                    incorrectas++
+
                     historialEstados[pregunta.id] = EstadoPregunta(
                         preguntaId = pregunta.id,
                         opcionSeleccionadaIndex = null,
@@ -349,12 +371,15 @@ fun ResolverPreguntaScreen(
         finalizadoPorTiempo = tiempoTerminado
         practicaFinalizada = true
         tiempoRestanteSegundos = if (tiempoTerminado) 0 else tiempoRestanteSegundos
-        
+
         claveTemporizador?.let { clave ->
-        limpiarEstadoTemporizador(context, clave)
+            limpiarEstadoTemporizador(context, clave)
         }
 
-        intentarGuardarEnBackend(correctas)
+        intentarGuardarEnBackend(
+            respuestasCorrectas = correctas,
+            respuestasIncorrectas = incorrectas
+        )
     }
 
     fun finalizarPracticaConfirmada() {
@@ -671,7 +696,12 @@ errorSincronizacionTemporizador = estadoTemporizador.mensajeError
                             preguntaRevisionIndex = nuevoIndex.coerceIn(0, preguntas.lastIndex)
                         },
                         onReintentarGuardado = {
-                            intentarGuardarEnBackend(puntuacion)
+                            val incorrectas = (preguntas.size - puntuacion).coerceAtLeast(0)
+
+                            intentarGuardarEnBackend(
+                                respuestasCorrectas = puntuacion,
+                                respuestasIncorrectas = incorrectas
+                            )
                         },
                         onReintentarPractica = {
                             reiniciarPracticaManteniendoTiempo()
