@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
 import kotlin.math.round
 import com.deis.backend.service.LogroService
+import com.deis.backend.service.RecompensaService
 
 data class CrearSimulacroRequest(
     val bancoId: String? = null,
@@ -64,7 +65,8 @@ data class ComparacionRendimientoResponse(
 class SimulacroController(
     private val intentoSimulacroRepository: IntentoSimulacroRepository,
     private val simulacroRepository: SimulacroRepository,
-    private val logroService: LogroService
+    private val logroService: LogroService,
+    private val recompensaService: RecompensaService
 ) {
 
     @PostMapping
@@ -159,6 +161,8 @@ class SimulacroController(
             .findByUsuarioIdOrderByFechaDesc(guardado.usuarioId)
 
         val totalIntentos = intentosUsuario.size
+        val totalPracticas = intentosUsuario.count { it.tipo == "PRACTICA" }
+        val totalSimulacros = intentosUsuario.count { it.tipo == "SIMULACRO" }
 
         val porcentajeAciertos = if (guardado.totalPreguntas > 0) {
             (guardado.puntaje * 100) / guardado.totalPreguntas
@@ -166,19 +170,36 @@ class SimulacroController(
             0
         }
 
-        val nuevosLogrosPractica = logroService.verificarLogrosPractica(
+        val nuevasRecompensas = recompensaService.guardarRecompensasPorResultado(
             usuarioId = guardado.usuarioId,
-            totalPracticasCompletadas = totalIntentos,
-            porcentajeAciertos = porcentajeAciertos
+            porcentaje = porcentajeAciertos,
+            tipoIntento = guardado.tipo
         )
 
-        val totalSimulacros = intentosUsuario.count { it.tipo == "SIMULACRO" }
+        if (nuevasRecompensas.isEmpty()) {
+            println("No se guardó ninguna recompensa nueva por resultado.")
+        } else {
+            nuevasRecompensas.forEach {
+                println("Recompensa guardada: ${it.recompensaCodigo}")
+            }
+        }
+
+        val nuevosLogrosPractica = if (guardado.tipo == "PRACTICA") {
+            logroService.verificarLogrosPractica(
+                usuarioId = guardado.usuarioId,
+                totalPracticasCompletadas = totalIntentos,
+                porcentajeAciertos = porcentajeAciertos
+            )
+        } else {
+            emptyList()
+        }
     
         println("===== INTENTOS DEL USUARIO =====")
         intentosUsuario.forEach {
             println("id=${it.id}, tipo=${it.tipo}, bancoId=${it.bancoId}, fecha=${it.fecha}")
         }
         println("Tipo intento actual: ${guardado.tipo}")
+        println("Total practicas contadas: $totalPracticas")
         println("Total simulacros contados: $totalSimulacros")
         println("===============================")
 
@@ -213,7 +234,8 @@ class SimulacroController(
         return ResponseEntity.ok(
             mapOf(
                 "intento" to guardado,
-                "nuevosLogros" to todosLosNuevosLogros
+                "nuevosLogros" to todosLosNuevosLogros,
+                "nuevasRecompensas" to nuevasRecompensas
             )
         )
     }

@@ -12,12 +12,14 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDate
 import com.deis.backend.service.LogroService
+import com.deis.backend.service.RecompensaService
 
 @RestController
 @RequestMapping("/api/racha")
 class RachaController(
     private val rachaService: RachaService,
-    private val logroService: LogroService
+    private val logroService: LogroService,
+    private val recompensaService: RecompensaService
 ) {
 
     @GetMapping("/{usuarioId}")
@@ -50,6 +52,19 @@ class RachaController(
             val fechaActual = LocalDate.now()
             val rachaAnterior = rachaService.obtenerRacha(usuarioId)
             val rachaActualizada = rachaService.registrarPracticaDiaria(usuarioId, fechaActual)
+
+            val nuevasRecompensas = recompensaService.guardarRecompensaPorRachaActiva(
+                usuarioId = usuarioId,
+                diasConsecutivos = rachaActualizada.diasConsecutivos
+            )
+
+            if (nuevasRecompensas.isEmpty()) {
+                println("No se guardó ninguna recompensa nueva por racha.")
+            } else {
+                nuevasRecompensas.forEach {
+                    println("Recompensa guardada por racha: ${it.recompensaCodigo}")
+                }
+            }
 
             val nuevosLogros = logroService.verificarLogroRacha(
                 usuarioId = usuarioId,
