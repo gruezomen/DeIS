@@ -48,7 +48,7 @@ class RecompensaService(
     ): List<RecompensaObtenida> {
         val nuevasRecompensas = mutableListOf<RecompensaObtenida>()
 
-        if (diasConsecutivos <= 0) {
+        if (diasConsecutivos < 3) {
             return nuevasRecompensas
         }
 

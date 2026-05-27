@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
 import kotlin.math.round
 import com.deis.backend.service.LogroService
+import com.deis.backend.service.RecompensaService
 
 data class CrearSimulacroRequest(
     val bancoId: String? = null,
@@ -64,7 +65,8 @@ data class ComparacionRendimientoResponse(
 class SimulacroController(
     private val intentoSimulacroRepository: IntentoSimulacroRepository,
     private val simulacroRepository: SimulacroRepository,
-    private val logroService: LogroService
+    private val logroService: LogroService,
+    private val recompensaService: RecompensaService
 ) {
 
     @PostMapping
@@ -166,6 +168,19 @@ class SimulacroController(
             0
         }
 
+        val nuevasRecompensas = recompensaService.guardarRecompensasPorResultado(
+            usuarioId = guardado.usuarioId,
+            porcentaje = porcentajeAciertos
+        )
+
+        if (nuevasRecompensas.isEmpty()) {
+            println("No se guardó ninguna recompensa nueva por resultado.")
+        } else {
+            nuevasRecompensas.forEach {
+                println("Recompensa guardada: ${it.recompensaCodigo}")
+            }
+        }
+
         val nuevosLogrosPractica = logroService.verificarLogrosPractica(
             usuarioId = guardado.usuarioId,
             totalPracticasCompletadas = totalIntentos,
@@ -213,7 +228,8 @@ class SimulacroController(
         return ResponseEntity.ok(
             mapOf(
                 "intento" to guardado,
-                "nuevosLogros" to todosLosNuevosLogros
+                "nuevosLogros" to todosLosNuevosLogros,
+                "nuevasRecompensas" to nuevasRecompensas
             )
         )
     }
