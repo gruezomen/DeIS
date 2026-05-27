@@ -72,6 +72,18 @@ fun MisRecompensasScreen(navController: NavHostController) {
         }
     }
 
+    val recompensasPractica = recompensasUsuario?.recompensas?.filter {
+        it.tipo.contains("PRACTICA")
+    }.orEmpty()
+
+    val recompensasSimulacro = recompensasUsuario?.recompensas?.filter {
+        it.tipo.contains("SIMULACRO")
+    }.orEmpty()
+
+    val recompensasRacha = recompensasUsuario?.recompensas?.filter {
+        it.tipo == "RACHA"
+    }.orEmpty()
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -114,7 +126,11 @@ fun MisRecompensasScreen(navController: NavHostController) {
                 }
 
                 recompensasUsuario != null -> {
-                    if (recompensasUsuario!!.recompensas.isEmpty()) {
+                    if (
+                        recompensasPractica.isEmpty() &&
+                        recompensasSimulacro.isEmpty() &&
+                        recompensasRacha.isEmpty()
+                    ) {
                         TextoVacioRecompensas(
                             "Aún no tienes recompensas registradas."
                         )
@@ -124,8 +140,34 @@ fun MisRecompensasScreen(navController: NavHostController) {
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(recompensasUsuario!!.recompensas) { recompensa ->
-                                RecompensaCard(recompensa)
+                            if (recompensasPractica.isNotEmpty()) {
+                                item {
+                                    TituloSeccionRecompensas("Recompensas de práctica")
+                                }
+
+                                items(recompensasPractica) { recompensa ->
+                                    RecompensaCard(recompensa)
+                                }
+                            }
+
+                            if (recompensasSimulacro.isNotEmpty()) {
+                                item {
+                                    TituloSeccionRecompensas("Recompensas de simulacro")
+                                }
+
+                                items(recompensasSimulacro) { recompensa ->
+                                    RecompensaCard(recompensa)
+                                }
+                            }
+
+                            if (recompensasRacha.isNotEmpty()) {
+                                item {
+                                    TituloSeccionRecompensas("Recompensas de racha")
+                                }
+
+                                items(recompensasRacha) { recompensa ->
+                                    RecompensaCard(recompensa)
+                                }
                             }
                         }
                     }
@@ -136,21 +178,49 @@ fun MisRecompensasScreen(navController: NavHostController) {
 }
 
 @Composable
+private fun TituloSeccionRecompensas(titulo: String) {
+    Text(
+        text = titulo,
+        fontSize = 20.sp,
+        fontWeight = FontWeight.Bold,
+        color = BlueBackground,
+        modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+    )
+}
+
+@Composable
 private fun RecompensaCard(recompensa: RecompensaItemResponse) {
     val colorFondo = when (recompensa.tipo) {
-        "BAJO" -> Color(0xFFFFF3E0)
-        "MEDIO" -> Color(0xFFE3F2FD)
-        "ALTO" -> Color(0xFFE8F5E9)
+        "BAJO_PRACTICA" -> Color(0xFFFFF3E0)
+        "MEDIO_PRACTICA" -> Color(0xFFE3F2FD)
+        "ALTO_PRACTICA" -> Color(0xFFE8F5E9)
+        "BAJO_SIMULACRO" -> Color(0xFFFFF3E0)
+        "MEDIO_SIMULACRO" -> Color(0xFFE3F2FD)
+        "ALTO_SIMULACRO" -> Color(0xFFE8F5E9)
         "RACHA" -> Color(0xFFF3E5F5)
         else -> FieldBackground
     }
 
     val colorTexto = when (recompensa.tipo) {
-        "BAJO" -> Color(0xFFE65100)
-        "MEDIO" -> Color(0xFF1565C0)
-        "ALTO" -> Color(0xFF2E7D32)
+        "BAJO_PRACTICA" -> Color(0xFFE65100)
+        "MEDIO_PRACTICA" -> Color(0xFF1565C0)
+        "ALTO_PRACTICA" -> Color(0xFF2E7D32)
+        "BAJO_SIMULACRO" -> Color(0xFFE65100)
+        "MEDIO_SIMULACRO" -> Color(0xFF1565C0)
+        "ALTO_SIMULACRO" -> Color(0xFF2E7D32)
         "RACHA" -> Color(0xFF6A1B9A)
         else -> BlueBackground
+    }
+
+    val tipoLegible = when (recompensa.tipo) {
+        "BAJO_PRACTICA" -> "Resultado bajo en práctica"
+        "MEDIO_PRACTICA" -> "Resultado medio en práctica"
+        "ALTO_PRACTICA" -> "Resultado alto en práctica"
+        "BAJO_SIMULACRO" -> "Resultado bajo en simulacro"
+        "MEDIO_SIMULACRO" -> "Resultado medio en simulacro"
+        "ALTO_SIMULACRO" -> "Resultado alto en simulacro"
+        "RACHA" -> "Constancia por racha"
+        else -> recompensa.tipo
     }
 
     Card(
@@ -174,7 +244,7 @@ private fun RecompensaCard(recompensa: RecompensaItemResponse) {
             )
 
             Text(
-                text = "Tipo: ${recompensa.tipo}",
+                text = "Tipo: $tipoLegible",
                 fontSize = 13.sp,
                 color = colorTexto,
                 modifier = Modifier.padding(top = 8.dp)

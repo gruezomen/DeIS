@@ -671,6 +671,11 @@ errorSincronizacionTemporizador = estadoTemporizador.mensajeError
                         guardando = guardandoResultado,
                         errorGuardado = errorGuardado,
                         finalizadoPorTiempo = finalizadoPorTiempo,
+                        tipoIntento = if (simulacroId != null || tiempoMinutosInicial != null) {
+                            "SIMULACRO"
+                        } else {
+                            "PRACTICA"
+                        },
                         onPreguntaRevisionChange = { nuevoIndex ->
                             preguntaRevisionIndex = nuevoIndex.coerceIn(0, preguntas.lastIndex)
                         },
@@ -1030,14 +1035,17 @@ private fun ResultadosPanel(
     guardando: Boolean,
     errorGuardado: Boolean,
     finalizadoPorTiempo: Boolean,
+    tipoIntento: String,
     onPreguntaRevisionChange: (Int) -> Unit,
     onReintentarGuardado: () -> Unit,
     onReintentarPractica: () -> Unit,
     onSalir: () -> Unit
 ) {
     val porcentaje = if (total == 0) 0 else (puntuacion * 100) / total
-    val recompensa = ProveedorRecompensas.obtenerRecompensa(porcentaje)
-
+    val recompensa = ProveedorRecompensas.obtenerRecompensa(
+        porcentaje = porcentaje,
+        tipoIntento = tipoIntento
+    )
     val sinResponder = preguntas.count { pregunta ->
         historialEstados[pregunta.id]?.opcionSeleccionadaIndex == null
     }
