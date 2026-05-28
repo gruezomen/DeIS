@@ -26,6 +26,7 @@ import com.conference.deis.network.UserSession
 import com.conference.deis.network.model.ComparacionRendimientoResponse
 import com.conference.deis.network.model.IntentoSimulacro
 import kotlin.math.roundToInt
+import com.conference.deis.network.model.RendimientoCategoriaResponse
 
 private data class ProgresoMetricas(
     val practicasCompletadas: Int,
@@ -48,6 +49,9 @@ fun MiProgresoScreen(navController: NavHostController) {
     var comparacion by remember { mutableStateOf<ComparacionRendimientoResponse?>(null) }
     var intentos by remember { mutableStateOf<List<IntentoSimulacro>>(emptyList()) }
     var tabSeleccionado by remember { mutableStateOf(0) }
+    var rendimientoCategorias by remember {
+    mutableStateOf<List<RendimientoCategoriaResponse>>(emptyList())
+}
 
     LaunchedEffect(Unit) {
         if (usuarioId == null) {
@@ -65,6 +69,12 @@ fun MiProgresoScreen(navController: NavHostController) {
 
             val responseIntentos =
                 RetrofitInstance.api.obtenerIntentosPorUsuario(usuarioId)
+            val responseRendimientoCategorias =
+                RetrofitInstance.api.obtenerRendimientoPorCategoria(usuarioId)
+
+            if (responseRendimientoCategorias.isSuccessful) {
+                rendimientoCategorias = responseRendimientoCategorias.body().orEmpty()
+            }
 
             if (responseComparacion.isSuccessful) {
                 comparacion = responseComparacion.body()
@@ -178,8 +188,8 @@ fun MiProgresoScreen(navController: NavHostController) {
                 }
             } else {
                 when (tabSeleccionado) {
-                    0 -> item { ResumenProgreso(comparacion, intentos) }
-                    1 -> item { EstadisticasProgreso(comparacion, intentos) }
+                    0 -> item { ResumenProgreso(comparacion, intentos, rendimientoCategorias) }
+                    1 -> item { EstadisticasProgreso(comparacion, intentos, rendimientoCategorias) }
                     2 -> item { HistorialProgreso(intentos) }
                 }
             }
@@ -219,7 +229,8 @@ private fun calcularMetricas(intentos: List<IntentoSimulacro>): ProgresoMetricas
 @Composable
 private fun ResumenProgreso(
     comparacion: ComparacionRendimientoResponse?,
-    intentos: List<IntentoSimulacro>
+    intentos: List<IntentoSimulacro>,
+    rendimientoCategorias: List<RendimientoCategoriaResponse>
 ) {
     val metricas = calcularMetricas(intentos)
     val ultimo = comparacion?.ultimoResultado ?: metricas.ultimoResultado
@@ -301,10 +312,21 @@ private fun ResumenProgreso(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            CategoriaProgress(nombre = "Matemáticas", porcentaje = estimarCategoria(metricas.rendimientoGeneral, 6), color = Color(0xFF7C3AED))
-            CategoriaProgress(nombre = "Física", porcentaje = estimarCategoria(metricas.rendimientoGeneral, -4), color = Color(0xFF2196F3))
-            CategoriaProgress(nombre = "Química", porcentaje = estimarCategoria(metricas.rendimientoGeneral, -10), color = Color(0xFF34A853))
-            CategoriaProgress(nombre = "Biología", porcentaje = estimarCategoria(metricas.rendimientoGeneral, -18), color = Color(0xFFFF6D00))
+            if (rendimientoCategorias.isEmpty()) {
+                Text(
+                    text = "Aún no tienes rendimiento por categoría.",
+                    color = Color.Gray,
+                    fontSize = 13.sp
+                )
+            } else {
+                rendimientoCategorias.forEach { categoria ->
+                    CategoriaProgress(
+                        nombre = categoria.categoria,
+                        porcentaje = categoria.porcentaje.roundToInt(),
+                        color = colorCategoria(categoria.estado)
+                    )
+                }
+            }
         }
     }
 }
@@ -312,7 +334,8 @@ private fun ResumenProgreso(
 @Composable
 private fun EstadisticasProgreso(
     comparacion: ComparacionRendimientoResponse?,
-    intentos: List<IntentoSimulacro>
+    intentos: List<IntentoSimulacro>,
+    rendimientoCategorias: List<RendimientoCategoriaResponse>
 ) {
     if (intentos.isEmpty()) {
         ProgressCard {
@@ -335,6 +358,14 @@ private fun EstadisticasProgreso(
     }
 
     val metricas = calcularMetricas(intentos)
+
+    val categoriaFuerte = rendimientoCategorias
+        .filter { it.estado == "AREA_FUERTE" }
+        .maxByOrNull { it.porcentaje }
+
+    val categoriaDebil = rendimientoCategorias
+        .filter { it.estado == "AREA_DEBIL" }
+        .minByOrNull { it.porcentaje }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text(
@@ -373,7 +404,6 @@ private fun EstadisticasProgreso(
                         textAlign = TextAlign.Center,
                         lineHeight = 14.sp
                     )
-
                 }
             }
         }
@@ -413,13 +443,19 @@ private fun EstadisticasProgreso(
 
                 Column {
                     Text("● Correctas", color = Color(0xFF34A853), fontSize = 13.sp)
-                    Text("${metricas.totalCorrectas} (${metricas.rendimientoGeneral.roundToInt()}%)", fontSize = 12.sp)
+                    Text(
+                        text = "${metricas.totalCorrectas} (${metricas.rendimientoGeneral.roundToInt()}%)",
+                        fontSize = 12.sp
+                    )
 
                     Spacer(modifier = Modifier.height(10.dp))
 
                     val porcentajeIncorrectas = 100 - metricas.rendimientoGeneral.roundToInt()
                     Text("● Incorrectas", color = Color(0xFFEA4335), fontSize = 13.sp)
-                    Text("${metricas.totalIncorrectas} ($porcentajeIncorrectas%)", fontSize = 12.sp)
+                    Text(
+                        text = "${metricas.totalIncorrectas} ($porcentajeIncorrectas%)",
+                        fontSize = 12.sp
+                    )
                 }
             }
 
@@ -438,32 +474,67 @@ private fun EstadisticasProgreso(
             ProgressCard(
                 modifier = Modifier.weight(1f)
             ) {
-                Text("Fortalezas y áreas de mejora", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(
+                    text = "Fortalezas y áreas de mejora",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text("Fortaleza", color = Color(0xFF16A34A), fontSize = 12.sp)
-                Text("Matemáticas", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("Tu mejor desempeño", color = Color.Gray, fontSize = 11.sp)
+                Text(
+                    text = categoriaFuerte?.categoria ?: "Sin datos",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = if (categoriaFuerte != null) "Tu mejor desempeño" else "Aún no hay categoría fuerte",
+                    color = Color.Gray,
+                    fontSize = 11.sp
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text("Área de mejora", color = Color(0xFFFF6D00), fontSize = 12.sp)
-                Text("Biología", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("Enfoca tu práctica aquí", color = Color.Gray, fontSize = 11.sp)
+                Text(
+                    text = categoriaDebil?.categoria ?: "Sin datos",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = if (categoriaDebil != null) "Enfoca tu práctica aquí" else "Aún no hay área débil",
+                    color = Color.Gray,
+                    fontSize = 11.sp
+                )
             }
 
             ProgressCard(
                 modifier = Modifier.weight(1f)
             ) {
-                Text("Promedio por categoría", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(
+                    text = "Promedio por categoría",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                CategoriaProgress("Matemáticas", estimarCategoria(metricas.rendimientoGeneral, 6), Color(0xFF7C3AED))
-                CategoriaProgress("Física", estimarCategoria(metricas.rendimientoGeneral, -4), Color(0xFF2196F3))
-                CategoriaProgress("Química", estimarCategoria(metricas.rendimientoGeneral, -10), Color(0xFF34A853))
-                CategoriaProgress("Biología", estimarCategoria(metricas.rendimientoGeneral, -18), Color(0xFFFF6D00))
+                if (rendimientoCategorias.isEmpty()) {
+                    Text(
+                        text = "Sin datos por categoría.",
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                } else {
+                    rendimientoCategorias.forEach { categoria ->
+                        CategoriaProgress(
+                            nombre = categoria.categoria,
+                            porcentaje = categoria.porcentaje.roundToInt(),
+                            color = colorCategoria(categoria.estado)
+                        )
+                    }
+                }
             }
         }
 
@@ -1084,4 +1155,11 @@ private fun calcularPorcentaje(intento: IntentoSimulacro): Double {
 
 private fun estimarCategoria(base: Double, ajuste: Int): Int {
     return (base.roundToInt() + ajuste).coerceIn(0, 100)
+}
+private fun colorCategoria(estado: String): Color {
+    return when (estado) {
+        "AREA_FUERTE" -> Color(0xFF16A34A)
+        "AREA_DEBIL" -> Color(0xFFFF6D00)
+        else -> Color(0xFF007AFF)
+    }
 }

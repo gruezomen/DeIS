@@ -10,6 +10,8 @@ import java.time.LocalDateTime
 import kotlin.math.round
 import com.deis.backend.service.LogroService
 import com.deis.backend.service.RecompensaService
+import com.deis.backend.dto.RespuestaCategoriaRequest
+import com.deis.backend.service.RendimientoCategoriaService
 
 data class CrearSimulacroRequest(
     val bancoId: String? = null,
@@ -24,7 +26,8 @@ data class CrearIntentoSimulacroRequest(
     val puntaje: Int,
     val totalPreguntas: Int,
     val respuestasCorrectas: Int,
-    val respuestasIncorrectas: Int
+    val respuestasIncorrectas: Int,
+    val respuestasPorCategoria: List<RespuestaCategoriaRequest> = emptyList()
 )
 
 data class ResultadoHistoricoResponse(
@@ -66,7 +69,8 @@ class SimulacroController(
     private val intentoSimulacroRepository: IntentoSimulacroRepository,
     private val simulacroRepository: SimulacroRepository,
     private val logroService: LogroService,
-    private val recompensaService: RecompensaService
+    private val recompensaService: RecompensaService,
+    private val rendimientoCategoriaService: RendimientoCategoriaService
 ) {
 
     @PostMapping
@@ -156,6 +160,13 @@ class SimulacroController(
         )
 
         val guardado = intentoSimulacroRepository.save(intento)
+        val respuestasCategoriaGuardadas = rendimientoCategoriaService.registrarRespuestasDeIntento(
+            usuarioId = guardado.usuarioId,
+            intentoId = guardado.id,
+            bancoId = guardado.bancoId,
+            tipo = guardado.tipo,
+            respuestas = request.respuestasPorCategoria
+        )
 
         val intentosUsuario = intentoSimulacroRepository
             .findByUsuarioIdOrderByFechaDesc(guardado.usuarioId)
@@ -235,7 +246,8 @@ class SimulacroController(
             mapOf(
                 "intento" to guardado,
                 "nuevosLogros" to todosLosNuevosLogros,
-                "nuevasRecompensas" to nuevasRecompensas
+                "nuevasRecompensas" to nuevasRecompensas,
+                "respuestasPorCategoriaRegistradas" to respuestasCategoriaGuardadas.size
             )
         )
     }

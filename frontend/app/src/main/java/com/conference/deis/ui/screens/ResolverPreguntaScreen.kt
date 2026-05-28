@@ -70,6 +70,8 @@ import kotlinx.coroutines.launch
 import com.conference.deis.network.model.MensajeRecompensa
 import com.conference.deis.network.model.TipoRecompensa
 import com.conference.deis.ui.utils.ProveedorRecompensas
+import com.conference.deis.network.model.RespuestaCategoriaRequest
+
 
 private data class EstadoPregunta(
     val preguntaId: String,
@@ -220,6 +222,24 @@ fun ResolverPreguntaScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    fun construirRespuestasPorCategoria(): List<RespuestaCategoriaRequest> {
+        return preguntas.map { pregunta ->
+            val estado = historialEstados[pregunta.id]
+            val seleccion = estado?.opcionSeleccionadaIndex
+
+            val esCorrecta = if (seleccion != null && seleccion in pregunta.opciones.indices) {
+                pregunta.opciones[seleccion].esCorrecta
+            } else {
+                false
+            }
+
+            RespuestaCategoriaRequest(
+                preguntaId = pregunta.id,
+                categoria = pregunta.categoria.nombre,
+                esCorrecta = esCorrecta
+            )
+        }
+    }
     fun guardarEstadoActual(opcionSeleccionada: Int? = opcionSeleccionadaIndex) {
         val preguntaId = preguntas.getOrNull(preguntaActualIndex)?.id ?: return
         val estadoPrevio = historialEstados[preguntaId]
@@ -270,7 +290,8 @@ fun ResolverPreguntaScreen(
                         puntaje = respuestasCorrectas,
                         totalPreguntas = preguntas.size,
                         respuestasCorrectas = respuestasCorrectas,
-                        respuestasIncorrectas = respuestasIncorrectas
+                        respuestasIncorrectas = respuestasIncorrectas,
+                        respuestasPorCategoria = construirRespuestasPorCategoria()
                     )
                 )
 
