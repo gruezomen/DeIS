@@ -21,3 +21,18 @@ data class DetalleRespuestaIntentoResponse(
     val esCorrecta: Boolean = false,
     val orden: Int = 0
 )
+data class ErrorPreguntaCategoriaResponse(
+    val intentoId: String = "",
+    val preguntaId: String = "",
+    val enunciado: String = "",
+    val categoria: String = "",
+    val respuestaSeleccionada: String = "",
+    val respuestaCorrecta: String = "",
+    val orden: Int = 0
+)
+
+data class ErroresPorCategoriaResponse(
+    val categoria: String = "",
+    val totalErrores: Int = 0,
+    val errores: List<ErrorPreguntaCategoriaResponse> = emptyList()
+)

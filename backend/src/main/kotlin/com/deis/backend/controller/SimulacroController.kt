@@ -14,6 +14,7 @@ import com.deis.backend.dto.RespuestaCategoriaRequest
 import com.deis.backend.service.RendimientoCategoriaService
 import com.deis.backend.dto.RespuestaIntentoDetalleRequest
 import com.deis.backend.service.HistorialIntentoDetalleService
+import com.deis.backend.dto.ErroresPorCategoriaResponse
 
 data class CrearSimulacroRequest(
     val bancoId: String? = null,
@@ -348,6 +349,18 @@ class SimulacroController(
         return ResponseEntity.ok(historial)
     }
 
+    @GetMapping("/intentos/usuario/{usuarioId}/errores-por-categoria")
+    fun obtenerErroresPorCategoria(
+        @PathVariable usuarioId: String
+    ): ResponseEntity<List<ErroresPorCategoriaResponse>> {
+        val intentoIds = intentoSimulacroRepository
+            .findByUsuarioIdOrderByFechaDesc(usuarioId)
+            .mapNotNull { it.id }
+
+        val errores = historialIntentoDetalleService.obtenerErroresPorCategoria(intentoIds)
+
+        return ResponseEntity.ok(errores)
+    }
     @GetMapping("/intentos/usuario/{usuarioId}/promedio-general")
     fun calcularPromedioGeneral(
         @PathVariable usuarioId: String
