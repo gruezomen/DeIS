@@ -39,6 +39,16 @@ fun DeISApp() {
                 composable("mi_progreso") {
                     MiProgresoScreen(navController)
                 }
+                composable("historial_completo") {
+                    HistorialCompletoScreen(navController)
+                }
+                composable("detalle_intento/{intentoId}") { backStackEntry ->
+                    val intentoId = backStackEntry.arguments?.getString("intentoId").orEmpty()
+                    DetalleIntentoScreen(
+                        navController = navController,
+                        intentoId = intentoId
+                    )
+                }
 
                 composable("mis_logros") {
                     MisLogrosScreen(navController)

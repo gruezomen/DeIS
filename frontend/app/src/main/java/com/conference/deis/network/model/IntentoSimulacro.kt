@@ -11,4 +11,5 @@ data class IntentoSimulacro(
     val respuestasIncorrectas: Int = (totalPreguntas - puntaje).coerceAtLeast(0),
     val fecha: String? = null,
     val respuestasPorCategoria: List<RespuestaCategoriaRequest> = emptyList(),
+    val detalleRespuestas: List<RespuestaIntentoDetalleRequest> = emptyList()
 )

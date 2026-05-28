@@ -27,6 +27,7 @@ import com.conference.deis.network.model.ComparacionRendimientoResponse
 import com.conference.deis.network.model.IntentoSimulacro
 import kotlin.math.roundToInt
 import com.conference.deis.network.model.RendimientoCategoriaResponse
+import com.conference.deis.network.model.HistorialIntentoResponse
 
 private data class ProgresoMetricas(
     val practicasCompletadas: Int,
@@ -48,6 +49,9 @@ fun MiProgresoScreen(navController: NavHostController) {
     var error by remember { mutableStateOf<String?>(null) }
     var comparacion by remember { mutableStateOf<ComparacionRendimientoResponse?>(null) }
     var intentos by remember { mutableStateOf<List<IntentoSimulacro>>(emptyList()) }
+    var historialDetallado by remember {
+    mutableStateOf<List<HistorialIntentoResponse>>(emptyList())
+    }
     var tabSeleccionado by remember { mutableStateOf(0) }
     var rendimientoCategorias by remember {
     mutableStateOf<List<RendimientoCategoriaResponse>>(emptyList())
@@ -69,6 +73,8 @@ fun MiProgresoScreen(navController: NavHostController) {
 
             val responseIntentos =
                 RetrofitInstance.api.obtenerIntentosPorUsuario(usuarioId)
+            val responseHistorial =
+            RetrofitInstance.api.obtenerHistorialDetallado(usuarioId)
             val responseRendimientoCategorias =
                 RetrofitInstance.api.obtenerRendimientoPorCategoria(usuarioId)
 
@@ -83,6 +89,9 @@ fun MiProgresoScreen(navController: NavHostController) {
             if (responseIntentos.isSuccessful) {
                 intentos = responseIntentos.body().orEmpty()
             }
+            if (responseHistorial.isSuccessful) {
+                 historialDetallado = responseHistorial.body().orEmpty()
+            }   
         } catch (e: Exception) {
             error = "No se pudo cargar el progreso."
         } finally {
@@ -190,7 +199,7 @@ fun MiProgresoScreen(navController: NavHostController) {
                 when (tabSeleccionado) {
                     0 -> item { ResumenProgreso(comparacion, intentos, rendimientoCategorias) }
                     1 -> item { EstadisticasProgreso(comparacion, intentos, rendimientoCategorias) }
-                    2 -> item { HistorialProgreso(intentos) }
+                    2 -> item { HistorialProgreso(navController, historialDetallado) }
                 }
             }
         }
@@ -614,16 +623,25 @@ private fun IndicadorRendimiento(comparacion: ComparacionRendimientoResponse?) {
 }
 
 @Composable
-private fun HistorialProgreso(intentos: List<IntentoSimulacro>) {
+private fun HistorialProgreso(
+    navController: NavHostController,
+    intentos: List<HistorialIntentoResponse>
+) {
     var filtroSeleccionado by remember { mutableStateOf("Todos") }
 
-    val intentosOrdenados = intentos.reversed()
-    val ultimosIntentos = intentosOrdenados.takeLast(5)
+    val intentosFiltrados = when (filtroSeleccionado) {
+        "Simulacros" -> intentos.filter { it.tipo.uppercase() == "SIMULACRO" }
+        "Prácticas" -> intentos.filter { it.tipo.uppercase() == "PRACTICA" }
+        else -> intentos
+    }
 
-    val mejorResultado = ultimosIntentos.maxOfOrNull { calcularPorcentaje(it) } ?: 0.0
-    val ultimoResultado = ultimosIntentos.lastOrNull()?.let { calcularPorcentaje(it) } ?: 0.0
-    val promedioHistorico = if (ultimosIntentos.isNotEmpty()) {
-        ultimosIntentos.map { calcularPorcentaje(it) }.average()
+    val ultimosIntentos = intentosFiltrados.take(5)
+    val intentosGrafico = ultimosIntentos.reversed()
+
+    val mejorResultado = intentosFiltrados.maxOfOrNull { it.nota } ?: 0.0
+    val ultimoResultado = intentosFiltrados.firstOrNull()?.nota ?: 0.0
+    val promedioHistorico = if (intentosFiltrados.isNotEmpty()) {
+        intentosFiltrados.map { it.nota }.average()
     } else {
         0.0
     }
@@ -640,7 +658,7 @@ private fun HistorialProgreso(intentos: List<IntentoSimulacro>) {
             HistorialResumenCard(
                 titulo = "Promedio histórico",
                 valor = "${promedioHistorico.roundToInt()}%",
-                detalle = "Últimos 5 intentos",
+                detalle = "Intentos registrados",
                 modifier = Modifier.weight(1f)
             )
 
@@ -692,7 +710,7 @@ private fun HistorialProgreso(intentos: List<IntentoSimulacro>) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            GraficoHistorial(ultimosIntentos)
+            GraficoHistorial(intentosGrafico)
         }
 
         ProgressCard {
@@ -704,19 +722,41 @@ private fun HistorialProgreso(intentos: List<IntentoSimulacro>) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (ultimosIntentos.isEmpty()) {
-                Text(
-                    text = "Aún no tienes intentos registrados.",
-                    color = Color.Gray
-                )
-            } else {
-                ultimosIntentos.reversed().forEachIndexed { index, intento ->
-                    HistorialIntentoRow(
-                        intento = intento,
-                        intentoAnterior = ultimosIntentos.getOrNull(ultimosIntentos.size - index - 2)
+            if (intentosFiltrados.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Aún no tienes historial registrado.",
+                        color = Color(0xFF101828),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
                     )
 
-                    if (index != ultimosIntentos.lastIndex) {
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "Completa una práctica o simulacro para ver tus intentos aquí.",
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center,
+                        fontSize = 13.sp
+                    )
+                }
+            } else {
+                intentosFiltrados.take(5).forEachIndexed { index, intento ->
+                    HistorialIntentoRow(
+                        intento = intento,
+                        onClick = {
+                            intento.id?.let { id ->
+                                navController.navigate("detalle_intento/$id")
+                            }
+                        }
+                    )
+
+                    if (index != intentosFiltrados.take(5).lastIndex) {
                         Divider(modifier = Modifier.padding(vertical = 8.dp))
                     }
                 }
@@ -724,14 +764,16 @@ private fun HistorialProgreso(intentos: List<IntentoSimulacro>) {
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Button(
-                    onClick = { },
+                    onClick = {
+                        navController.navigate("historial_completo")
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6F50B5))
                 ) {
-                    Text("Ver detalle")
+                    Text("Ver historial completo")
                 }
             }
         }
@@ -846,8 +888,8 @@ private fun FiltroHistorialChip(
 }
 
 @Composable
-private fun GraficoHistorial(intentos: List<IntentoSimulacro>) {
-    val valores = intentos.map { calcularPorcentaje(it).toFloat() }
+private fun GraficoHistorial(intentos: List<HistorialIntentoResponse>) {
+    val valores = intentos.map { it.nota.toFloat() }
 
     if (valores.isEmpty()) {
         Box(
@@ -922,9 +964,9 @@ private fun GraficoHistorial(intentos: List<IntentoSimulacro>) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            valores.forEachIndexed { index, _ ->
+            valores.forEachIndexed { index, valor ->
                 Text(
-                    text = "S${index + 1}",
+                    text = "S${index + 1} · ${valor.roundToInt()}%",
                     fontSize = 10.sp,
                     color = Color.Gray
                 )
@@ -935,62 +977,69 @@ private fun GraficoHistorial(intentos: List<IntentoSimulacro>) {
 
 @Composable
 private fun HistorialIntentoRow(
-    intento: IntentoSimulacro,
-    intentoAnterior: IntentoSimulacro?
+    intento: HistorialIntentoResponse,
+    onClick: () -> Unit
 ) {
-    val resultado = calcularPorcentaje(intento)
-    val anterior = intentoAnterior?.let { calcularPorcentaje(it) }
-
-    val estado = when {
-        anterior == null -> "Sin cambio"
-        resultado > anterior -> "Mejoró"
-        resultado < anterior -> "Disminuyó"
-        else -> "Sin cambio"
+    val colorEstado = when (intento.estado) {
+        "ALTO" -> Color(0xFF16A34A)
+        "MEDIO" -> Color(0xFF2563EB)
+        else -> Color(0xFFFF6D00)
     }
 
-    val colorEstado = when (estado) {
-        "Mejoró" -> Color(0xFF16A34A)
-        "Disminuyó" -> Color(0xFFDC2626)
-        else -> Color(0xFF2563EB)
+    val textoEstado = when (intento.estado) {
+        "ALTO" -> "Buen resultado"
+        "MEDIO" -> "En proceso"
+        else -> "Debe mejorar"
     }
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1.1f)) {
+        Column(modifier = Modifier.weight(1.5f)) {
             Text(
-                text = intento.fecha ?: "Sin fecha",
+                text = formatoFechaIntento(intento.fecha),
+                fontSize = 12.sp,
+                color = Color.Gray
+            )
+
+            Text(
+                text = intento.tipo.lowercase().replaceFirstChar { it.uppercase() },
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF101828)
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "${intento.nota.roundToInt()}%",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF101828)
+            )
+
+            Text(
+                text = "${intento.respuestasCorrectas}/${intento.totalPreguntas}",
                 fontSize = 11.sp,
                 color = Color.Gray
             )
         }
 
-        Column(modifier = Modifier.weight(1.3f)) {
-            Text(
-                text = intento.tipo.ifBlank { "Simulacro" },
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-
-        Text(
-            text = "${resultado.roundToInt()}%",
-            modifier = Modifier.weight(0.8f),
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF101828)
-        )
-
         Box(
             modifier = Modifier
-                .weight(1f)
                 .background(colorEstado.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .padding(horizontal = 10.dp, vertical = 7.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = estado,
+                text = textoEstado,
                 color = colorEstado,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
@@ -1436,4 +1485,17 @@ private fun colorCategoriaVisual(categoria: RendimientoCategoriaResponse): Color
     }
 
     return colorCategoria(categoria.estado)
+}
+private fun formatoFechaIntento(fecha: String?): String {
+    if (fecha.isNullOrBlank()) return "Sin fecha"
+
+    val partes = fecha.split("T")
+    if (partes.size < 2) return fecha
+
+    val fechaPartes = partes[0].split("-")
+    val hora = partes[1].take(5)
+
+    if (fechaPartes.size < 3) return fecha
+
+    return "${fechaPartes[2]}/${fechaPartes[1]}/${fechaPartes[0]} · $hora"
 }
