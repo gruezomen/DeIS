@@ -320,14 +320,60 @@ private fun ResumenProgreso(
                 )
             } else {
                 rendimientoCategorias.forEach { categoria ->
-                    CategoriaProgress(
-                        nombre = categoria.categoria,
-                        porcentaje = categoria.porcentaje.roundToInt(),
-                        color = colorCategoria(categoria.estado)
-                    )
+                    CategoriaMiniDetalleRow(categoria)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CategoriaMiniDetalleRow(
+    categoria: RendimientoCategoriaResponse
+) {
+    val porcentaje = categoria.porcentaje.roundToInt()
+    val color = colorCategoriaVisual(categoria)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = categoria.categoria,
+                fontSize = 12.sp,
+                color = Color(0xFF101828)
+            )
+
+            Text(
+                text = "$porcentaje%",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF101828)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        LinearProgressIndicator(
+            progress = { (porcentaje / 100f).coerceIn(0f, 1f) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(5.dp)
+                .clip(RoundedCornerShape(20.dp)),
+            color = color,
+            trackColor = Color(0xFFE5E7EB)
+        )
+
+        Text(
+            text = "${categoria.correctas}/${categoria.totalPreguntas} correctas",
+            fontSize = 10.sp,
+            color = Color.Gray
+        )
     }
 }
 
@@ -360,12 +406,10 @@ private fun EstadisticasProgreso(
     val metricas = calcularMetricas(intentos)
 
     val categoriaFuerte = rendimientoCategorias
-        .filter { it.estado == "AREA_FUERTE" }
-        .maxByOrNull { it.porcentaje }
+    .maxByOrNull { it.porcentaje }
 
-    val categoriaDebil = rendimientoCategorias
-        .filter { it.estado == "AREA_DEBIL" }
-        .minByOrNull { it.porcentaje }
+    val categoriaRefuerzo = rendimientoCategorias
+    .minByOrNull { it.porcentaje }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text(
@@ -470,72 +514,57 @@ private fun EstadisticasProgreso(
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ProgressCard(
-                modifier = Modifier.weight(1f)
-            ) {
+                ProgressCard {
+            Text(
+                text = "Fortalezas y áreas de mejora",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = Color(0xFF101828)
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            CategoriaInsightRow(
+                titulo = "Fortaleza principal",
+                categoria = categoriaFuerte,
+                color = Color(0xFF16A34A),
+                mensajeVacio = "Aún no hay datos suficientes."
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            CategoriaInsightRow(
+                titulo = "Área a reforzar",
+                categoria = categoriaRefuerzo,
+                color = Color(0xFFFF6D00),
+                mensajeVacio = "Aún no hay datos suficientes."
+            )
+        }
+
+        ProgressCard {
+            Text(
+                text = "Detalle por categoría",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = Color(0xFF101828)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (rendimientoCategorias.isEmpty()) {
                 Text(
-                    text = "Fortalezas y áreas de mejora",
-                    fontWeight = FontWeight.Bold,
+                    text = "Aún no existen categorías practicadas.",
+                    color = Color.Gray,
                     fontSize = 13.sp
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text("Fortaleza", color = Color(0xFF16A34A), fontSize = 12.sp)
-                Text(
-                    text = categoriaFuerte?.categoria ?: "Sin datos",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-                Text(
-                    text = if (categoriaFuerte != null) "Tu mejor desempeño" else "Aún no hay categoría fuerte",
-                    color = Color.Gray,
-                    fontSize = 11.sp
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text("Área de mejora", color = Color(0xFFFF6D00), fontSize = 12.sp)
-                Text(
-                    text = categoriaDebil?.categoria ?: "Sin datos",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-                Text(
-                    text = if (categoriaDebil != null) "Enfoca tu práctica aquí" else "Aún no hay área débil",
-                    color = Color.Gray,
-                    fontSize = 11.sp
-                )
-            }
-
-            ProgressCard(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "Promedio por categoría",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                if (rendimientoCategorias.isEmpty()) {
-                    Text(
-                        text = "Sin datos por categoría.",
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
-                } else {
-                    rendimientoCategorias.forEach { categoria ->
-                        CategoriaProgress(
-                            nombre = categoria.categoria,
-                            porcentaje = categoria.porcentaje.roundToInt(),
-                            color = colorCategoria(categoria.estado)
-                        )
+            } else {
+                rendimientoCategorias
+                    .sortedBy { it.porcentaje }
+                    .forEach { categoria ->
+                        CategoriaCompactaRow(categoria)
                     }
-                }
             }
+        }
         }
 
         Button(
@@ -547,9 +576,9 @@ private fun EstadisticasProgreso(
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF))
         ) {
             Text("Ver detalle")
-        }
     }
 }
+
 
 @Composable
 private fun IndicadorRendimiento(comparacion: ComparacionRendimientoResponse?) {
@@ -1057,6 +1086,203 @@ private fun CategoriaProgress(
 }
 
 @Composable
+private fun CategoriaDetalleRow(
+    categoria: RendimientoCategoriaResponse
+) {
+    val porcentaje = categoria.porcentaje.roundToInt()
+    val color = colorCategoriaVisual(categoria)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = categoria.categoria,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF101828)
+                )
+
+                Text(
+                    text = textoEstadoCategoriaVisual(categoria),
+                    fontSize = 12.sp,
+                    color = color,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Text(
+                text = "$porcentaje%",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF101828)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LinearProgressIndicator(
+            progress = { (porcentaje / 100f).coerceIn(0f, 1f) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(20.dp)),
+            color = color,
+            trackColor = Color(0xFFE5E7EB)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "${categoria.totalPreguntas} respondidas · ${categoria.correctas} correctas · ${categoria.incorrectas} incorrectas",
+            fontSize = 12.sp,
+            color = Color.Gray
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = mensajeCategoria(categoria),
+            fontSize = 12.sp,
+            color = Color(0xFF475467),
+            lineHeight = 15.sp
+        )
+    }
+}
+
+@Composable
+private fun CategoriaInsightRow(
+    titulo: String,
+    categoria: RendimientoCategoriaResponse?,
+    color: Color,
+    mensajeVacio: String
+) {
+    Column {
+        Text(
+            text = titulo,
+            color = color,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        if (categoria == null) {
+            Text(
+                text = mensajeVacio,
+                color = Color.Gray,
+                fontSize = 13.sp
+            )
+            return
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = nombreCategoriaVisible(categoria.categoria),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color(0xFF101828)
+                )
+
+                Text(
+                    text = "${categoria.correctas}/${categoria.totalPreguntas} correctas",
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+            }
+
+            Text(
+                text = "${categoria.porcentaje.roundToInt()}%",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = color
+            )
+        }
+    }
+}
+@Composable
+private fun CategoriaCompactaRow(
+    categoria: RendimientoCategoriaResponse
+) {
+    val porcentaje = categoria.porcentaje.roundToInt()
+    val color = colorCategoriaVisual(categoria)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 9.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = nombreCategoriaVisible(categoria.categoria),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF101828)
+                )
+
+                Text(
+                    text = textoEstadoCategoria(categoria.estado),
+                    fontSize = 12.sp,
+                    color = color
+                )
+            }
+
+            Text(
+                text = "$porcentaje%",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF101828)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        LinearProgressIndicator(
+            progress = { (porcentaje / 100f).coerceIn(0f, 1f) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(7.dp)
+                .clip(RoundedCornerShape(20.dp)),
+            color = color,
+            trackColor = Color(0xFFE5E7EB)
+        )
+
+        Spacer(modifier = Modifier.height(5.dp))
+
+        Text(
+            text = "${categoria.totalPreguntas} respondidas · ${categoria.correctas} correctas · ${categoria.incorrectas} incorrectas",
+            fontSize = 12.sp,
+            color = Color.Gray
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = mensajeCategoria(categoria),
+            fontSize = 12.sp,
+            color = Color(0xFF475467),
+            lineHeight = 15.sp
+        )
+    }
+}
+
+@Composable
 private fun DonutCorrectasIncorrectas(
     correctas: Int,
     incorrectas: Int
@@ -1162,4 +1388,52 @@ private fun colorCategoria(estado: String): Color {
         "AREA_DEBIL" -> Color(0xFFFF6D00)
         else -> Color(0xFF007AFF)
     }
+}
+
+private fun nombreCategoriaVisible(nombre: String): String {
+    return when (nombre.trim().lowercase()) {
+        "matematicas", "matemáticas" -> "Matemáticas"
+        "fisica", "física" -> "Física"
+        "quimica", "química" -> "Química"
+        "biologia", "biología" -> "Biología"
+        else -> nombre
+    }
+}
+
+private fun textoEstadoCategoria(estado: String): String {
+    return when (estado) {
+        "AREA_FUERTE" -> "Fortaleza"
+        "AREA_DEBIL" -> "Área débil"
+        else -> "En proceso"
+    }
+}
+
+private fun mensajeCategoria(categoria: RendimientoCategoriaResponse): String {
+    if (categoria.totalPreguntas < 3) {
+        return "Buen resultado inicial. Responde más preguntas para tener una evaluación más precisa."
+    }
+
+    return when (categoria.estado) {
+        "AREA_FUERTE" -> "Excelente desempeño. Mantén tu nivel con práctica constante."
+        "AREA_DEBIL" -> "Necesitas reforzar esta categoría. Practica más preguntas para mejorar tu resultado."
+        else -> "Vas avanzando bien. Sigue practicando para convertir esta categoría en una fortaleza."
+    }
+}
+private fun textoEstadoCategoriaVisual(categoria: RendimientoCategoriaResponse): String {
+    if (categoria.totalPreguntas < 3) {
+        return "Datos iniciales"
+    }
+
+    return when (categoria.estado) {
+        "AREA_FUERTE" -> "Fortaleza"
+        "AREA_DEBIL" -> "Área débil"
+        else -> "En proceso"
+    }
+}
+private fun colorCategoriaVisual(categoria: RendimientoCategoriaResponse): Color {
+    if (categoria.totalPreguntas < 3) {
+        return Color(0xFF6F50B5)
+    }
+
+    return colorCategoria(categoria.estado)
 }
