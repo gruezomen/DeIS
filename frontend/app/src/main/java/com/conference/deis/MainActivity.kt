@@ -83,6 +83,21 @@ fun DeISApp() {
                     AdminHomeScreen(navController)
                 }
 
+                composable("lista_simulacros") {
+                    ListaSimulacrosScreen(navController)
+                }
+
+                composable("crear_simulacro") {
+                    if (esAdministrador()) {
+                        CrearSimulacroScreen(navController)
+                    } else {
+                        AccesoDenegadoScreen(
+                            navController = navController,
+                            mensaje = "Solo el administrador puede crear simulacros."
+                        )
+                    }
+                }
+
                 composable("perfil") {
                     PerfilScreen(navController)
                 }

@@ -1,17 +1,30 @@
+
 package com.conference.deis.network.model
 
 data class Simulacro(
     val id: String? = null,
+    val nombre: String = "Simulacro",
     val bancoId: String? = null,
-    val tiempo: Int,
+    val tiempo: Int = 0,
     val horaInicio: String? = null,
     val horaFin: String? = null,
+    val estado: String = "PENDIENTE",
     val puntaje: Double = 0.0,
-    val preguntaIds: List<String> = emptyList()
+    val preguntaIds: List<String> = emptyList(),
+    val totalPreguntas: Int = preguntaIds.size,
+    val creadoPor: String? = null,
+    val zonaHorariaCreador: String = "America/La_Paz",
+    val segundosRestantes: Long = 0L,
+    val programado: Boolean = false,
+    val eliminado: Boolean = false
 )
 
 data class CrearSimulacroRequest(
-    val bancoId: String,
-    val tiempo: Int,
-    val preguntaIds: List<String> = emptyList()
+    val nombre: String,
+    val fechaInicio: String,
+    val fechaFin: String,
+    val bancoId: String? = null,
+    val preguntaIds: List<String> = emptyList(),
+    val creadoPor: String? = null,
+    val zonaHorariaCreador: String? = "America/La_Paz"
 )

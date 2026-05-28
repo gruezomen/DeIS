@@ -85,6 +85,10 @@ interface ApiService {
         @Body request: IntentoSimulacro
     ): Response<GuardarIntentoResponse>
 
+
+    @GET("api/simulacros")
+    suspend fun obtenerSimulacros(): Response<List<Simulacro>>
+
     @POST("api/simulacros")
     suspend fun crearSimulacro(
         @Body request: CrearSimulacroRequest
@@ -94,6 +98,11 @@ interface ApiService {
     suspend fun obtenerSimulacroPorId(
         @Path("id") id: String
     ): Response<Simulacro>
+
+    @DELETE("api/simulacros/{id}")
+    suspend fun eliminarSimulacro(
+        @Path("id") id: String
+    ): Response<Map<String, String>>
 
     @GET("api/racha/{usuarioId}")
     suspend fun obtenerRacha(
