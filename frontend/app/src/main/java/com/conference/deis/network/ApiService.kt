@@ -4,6 +4,7 @@ import com.conference.deis.network.model.*
 import retrofit2.Response
 import retrofit2.http.*
 import com.conference.deis.network.model.DetalleRespuestaIntentoResponse
+import com.conference.deis.network.model.ErroresPorCategoriaResponse
 
 interface ApiService {
 
@@ -94,50 +95,54 @@ interface ApiService {
         @Path("id") id: String
     ): Response<Simulacro>
 
-@GET("api/racha/{usuarioId}")
-suspend fun obtenerRacha(
-    @Path("usuarioId") usuarioId: String
-): Response<RachaResponse>
-
-@POST("api/racha/{usuarioId}/practica")
-suspend fun registrarPracticaDiaria(
-    @Path("usuarioId") usuarioId: String
-): Response<RachaResponse>
-
-@GET("api/simulacros/intentos/usuario/{usuarioId}/comparacion-rendimiento")
-suspend fun obtenerComparacionRendimiento(
-    @Path("usuarioId") usuarioId: String
-): Response<ComparacionRendimientoResponse>
-
-@GET("api/simulacros/intentos/usuario/{usuarioId}")
-suspend fun obtenerIntentosPorUsuario(
-    @Path("usuarioId") usuarioId: String
-): Response<List<IntentoSimulacro>>
-
-@GET("api/logros/usuario/{usuarioId}")
-suspend fun obtenerLogrosUsuario(
-    @Path("usuarioId") usuarioId: String
-): Response<LogrosUsuarioResponse> 
-
-@GET("api/recompensas/usuario/{usuarioId}")
-suspend fun obtenerRecompensasUsuario(
-    @Path("usuarioId") usuarioId: String
-): Response<RecompensasUsuarioResponse>
-    @GET("api/rendimiento-categorias/usuario/{usuarioId}")
-    suspend fun obtenerRendimientoPorCategoria(
+    @GET("api/racha/{usuarioId}")
+    suspend fun obtenerRacha(
         @Path("usuarioId") usuarioId: String
-    ): Response<List<RendimientoCategoriaResponse>>
-@GET("api/simulacros/intentos/usuario/{usuarioId}/historial-detallado")
-suspend fun obtenerHistorialDetallado(
-    @Path("usuarioId") usuarioId: String
-): Response<List<HistorialIntentoResponse>>
+    ): Response<RachaResponse>
 
-@GET("api/simulacros/intentos/{id}/detalle")
-    suspend fun obtenerDetalleIntento(
-        @Path("id") id: String
-    ): Response<HistorialIntentoResponse>
-@GET("api/simulacros/intentos/{id}/respuestas")
-    suspend fun obtenerRespuestasDeIntento(
-        @Path("id") id: String
-    ): Response<List<DetalleRespuestaIntentoResponse>>
+    @POST("api/racha/{usuarioId}/practica")
+    suspend fun registrarPracticaDiaria(
+        @Path("usuarioId") usuarioId: String
+    ): Response<RachaResponse>
+
+    @GET("api/simulacros/intentos/usuario/{usuarioId}/comparacion-rendimiento")
+    suspend fun obtenerComparacionRendimiento(
+        @Path("usuarioId") usuarioId: String
+    ): Response<ComparacionRendimientoResponse>
+
+    @GET("api/simulacros/intentos/usuario/{usuarioId}")
+    suspend fun obtenerIntentosPorUsuario(
+        @Path("usuarioId") usuarioId: String
+    ): Response<List<IntentoSimulacro>>
+
+    @GET("api/logros/usuario/{usuarioId}")
+    suspend fun obtenerLogrosUsuario(
+        @Path("usuarioId") usuarioId: String
+    ): Response<LogrosUsuarioResponse> 
+
+    @GET("api/recompensas/usuario/{usuarioId}")
+    suspend fun obtenerRecompensasUsuario(
+        @Path("usuarioId") usuarioId: String
+    ): Response<RecompensasUsuarioResponse>
+        @GET("api/rendimiento-categorias/usuario/{usuarioId}")
+        suspend fun obtenerRendimientoPorCategoria(
+            @Path("usuarioId") usuarioId: String
+        ): Response<List<RendimientoCategoriaResponse>>
+    @GET("api/simulacros/intentos/usuario/{usuarioId}/historial-detallado")
+    suspend fun obtenerHistorialDetallado(
+        @Path("usuarioId") usuarioId: String
+    ): Response<List<HistorialIntentoResponse>>
+
+    @GET("api/simulacros/intentos/{id}/detalle")
+        suspend fun obtenerDetalleIntento(
+            @Path("id") id: String
+        ): Response<HistorialIntentoResponse>
+    @GET("api/simulacros/intentos/{id}/respuestas")
+        suspend fun obtenerRespuestasDeIntento(
+            @Path("id") id: String
+        ): Response<List<DetalleRespuestaIntentoResponse>>
+    @GET("api/simulacros/intentos/usuario/{usuarioId}/errores-por-categoria")
+    suspend fun obtenerErroresPorCategoria(
+        @Path("usuarioId") usuarioId: String
+    ): Response<List<ErroresPorCategoriaResponse>>
 }

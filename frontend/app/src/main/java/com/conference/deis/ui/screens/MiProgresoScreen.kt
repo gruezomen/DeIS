@@ -198,7 +198,14 @@ fun MiProgresoScreen(navController: NavHostController) {
             } else {
                 when (tabSeleccionado) {
                     0 -> item { ResumenProgreso(comparacion, intentos, rendimientoCategorias) }
-                    1 -> item { EstadisticasProgreso(comparacion, intentos, rendimientoCategorias) }
+                    1 -> item {
+                        EstadisticasProgreso(
+                            navController = navController,
+                            comparacion = comparacion,
+                            intentos = intentos,
+                            rendimientoCategorias = rendimientoCategorias
+                        )
+                    }
                     2 -> item { HistorialProgreso(navController, historialDetallado) }
                 }
             }
@@ -388,6 +395,7 @@ private fun CategoriaMiniDetalleRow(
 
 @Composable
 private fun EstadisticasProgreso(
+    navController: NavHostController,
     comparacion: ComparacionRendimientoResponse?,
     intentos: List<IntentoSimulacro>,
     rendimientoCategorias: List<RendimientoCategoriaResponse>
@@ -577,15 +585,17 @@ private fun EstadisticasProgreso(
         }
 
         Button(
-            onClick = { },
+            onClick = {
+                navController.navigate("detalle_estadisticas")
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(46.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF))
         ) {
-            Text("Ver detalle")
-    }
+            Text("Ver detalle por área")
+        }
 }
 
 

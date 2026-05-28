@@ -12,6 +12,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.conference.deis.ui.screens.*
+import com.conference.deis.ui.screens.HistorialCompletoScreen
+import com.conference.deis.ui.screens.DetalleEstadisticasScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,6 +40,9 @@ fun DeISApp() {
                 
                 composable("mi_progreso") {
                     MiProgresoScreen(navController)
+                }
+                composable("detalle_estadisticas") {
+                    DetalleEstadisticasScreen(navController)
                 }
                 composable("historial_completo") {
                     HistorialCompletoScreen(navController)

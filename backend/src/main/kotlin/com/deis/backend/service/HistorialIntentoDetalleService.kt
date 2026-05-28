@@ -5,6 +5,8 @@ import com.deis.backend.dto.RespuestaIntentoDetalleRequest
 import com.deis.backend.model.DetalleRespuestaIntento
 import com.deis.backend.repository.DetalleRespuestaIntentoRepository
 import org.springframework.stereotype.Service
+import com.deis.backend.dto.ErrorPreguntaCategoriaResponse
+import com.deis.backend.dto.ErroresPorCategoriaResponse
 
 @Service
 class HistorialIntentoDetalleService(
@@ -55,5 +57,37 @@ class HistorialIntentoDetalleService(
             esCorrecta = esCorrecta,
             orden = orden
         )
+    }
+    fun obtenerErroresPorCategoria(
+        intentoIds: List<String>
+    ): List<ErroresPorCategoriaResponse> {
+        if (intentoIds.isEmpty()) return emptyList()
+
+        val errores = detalleRespuestaIntentoRepository
+            .findByIntentoIdIn(intentoIds)
+            .filter { !it.esCorrecta }
+
+        return errores
+            .groupBy { it.categoria }
+            .map { (categoria, erroresCategoria) ->
+                ErroresPorCategoriaResponse(
+                    categoria = categoria,
+                    totalErrores = erroresCategoria.size,
+                    errores = erroresCategoria
+                        .sortedBy { it.orden }
+                        .map { error ->
+                            ErrorPreguntaCategoriaResponse(
+                                intentoId = error.intentoId,
+                                preguntaId = error.preguntaId,
+                                enunciado = error.enunciado,
+                                categoria = error.categoria,
+                                respuestaSeleccionada = error.respuestaSeleccionada,
+                                respuestaCorrecta = error.respuestaCorrecta,
+                                orden = error.orden
+                            )
+                        }
+                )
+            }
+            .sortedByDescending { it.totalErrores }
     }
 }

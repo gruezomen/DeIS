@@ -6,4 +6,6 @@ import org.springframework.data.mongodb.repository.MongoRepository
 interface DetalleRespuestaIntentoRepository : MongoRepository<DetalleRespuestaIntento, String> {
 
     fun findByIntentoIdOrderByOrdenAsc(intentoId: String): List<DetalleRespuestaIntento>
+
+    fun findByIntentoIdIn(intentoIds: List<String>): List<DetalleRespuestaIntento>
 }
