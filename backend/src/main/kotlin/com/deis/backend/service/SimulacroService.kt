@@ -5,6 +5,7 @@ import com.deis.backend.dto.EstadoSimulacro
 import com.deis.backend.dto.SimulacroResponse
 import com.deis.backend.model.Simulacro
 import com.deis.backend.repository.SimulacroRepository
+import com.deis.backend.repository.UsuarioRepository
 import org.springframework.stereotype.Service
 import java.time.DateTimeException
 import java.time.Duration
@@ -16,7 +17,8 @@ import java.time.format.DateTimeParseException
 
 @Service
 class SimulacroService(
-    private val simulacroRepository: SimulacroRepository
+    private val simulacroRepository: SimulacroRepository,
+    private val usuarioRepository: UsuarioRepository
 ) {
     private val zonaHorariaPorDefecto = "America/La_Paz"
 
@@ -30,8 +32,24 @@ class SimulacroService(
             throw IllegalArgumentException("Debe seleccionar al menos una pregunta")
         }
 
-        val fechaInicio = parsearFecha(request.fechaInicio, "La fecha y hora de inicio no tiene un formato válido")
-        val fechaFin = parsearFecha(request.fechaFin, "La fecha y hora de finalización no tiene un formato válido")
+        val facultadId = request.facultadId?.trim().orEmpty()
+        if (facultadId.isBlank()) {
+            throw IllegalArgumentException("Debe seleccionar la facultad del simulacro")
+        }
+
+        val facultadNombre = request.facultadNombre
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: facultadId
+
+        val fechaInicio = parsearFecha(
+            valor = request.fechaInicio,
+            mensajeError = "La fecha y hora de inicio no tiene un formato válido"
+        )
+        val fechaFin = parsearFecha(
+            valor = request.fechaFin,
+            mensajeError = "La fecha y hora de finalización no tiene un formato válido"
+        )
         val zonaHoraria = normalizarZonaHoraria(request.zonaHorariaCreador)
 
         if (!fechaFin.isAfter(fechaInicio)) {
@@ -50,6 +68,8 @@ class SimulacroService(
             horaInicio = fechaInicio.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
             horaFin = fechaFin.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
             preguntaIds = request.preguntaIds.distinct(),
+            facultadId = facultadId,
+            facultadNombre = facultadNombre,
             creadoPor = request.creadoPor?.takeIf { it.isNotBlank() },
             zonaHorariaCreador = zonaHoraria,
             programado = true,
@@ -62,6 +82,34 @@ class SimulacroService(
     fun listarSimulacros(): List<SimulacroResponse> {
         return simulacroRepository.findAll()
             .filter { it.programado && !it.eliminado && it.bancoId == null }
+            .sortedByDescending { parsearFechaONull(it.horaInicio) ?: LocalDateTime.MIN }
+            .map { mapearAResponse(it) }
+    }
+
+    fun listarSimulacrosPorUsuario(usuarioId: String): List<SimulacroResponse> {
+        if (usuarioId.isBlank()) {
+            throw IllegalArgumentException("El usuario es obligatorio")
+        }
+
+        val usuario = usuarioRepository.findById(usuarioId).orElseThrow {
+            NoSuchElementException("Usuario no encontrado")
+        }
+
+        val facultadesUsuario = usuario.facultadesIds
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+
+        if (facultadesUsuario.isEmpty()) {
+            return emptyList()
+        }
+
+        return simulacroRepository.findAll()
+            .filter { simulacro ->
+                simulacro.programado &&
+                    !simulacro.eliminado &&
+                    simulacro.bancoId == null &&
+                    coincideConFacultadesUsuario(simulacro, facultadesUsuario)
+            }
             .sortedByDescending { parsearFechaONull(it.horaInicio) ?: LocalDateTime.MIN }
             .map { mapearAResponse(it) }
     }
@@ -123,12 +171,43 @@ class SimulacroService(
             puntaje = simulacro.puntaje,
             preguntaIds = simulacro.preguntaIds,
             totalPreguntas = simulacro.preguntaIds.size,
+            facultadId = simulacro.facultadId,
+            facultadNombre = simulacro.facultadNombre,
             creadoPor = simulacro.creadoPor,
             zonaHorariaCreador = zonaHoraria,
             segundosRestantes = calcularSegundosRestantes(simulacro),
             programado = simulacro.programado,
             eliminado = simulacro.eliminado
         )
+    }
+
+    private fun coincideConFacultadesUsuario(
+        simulacro: Simulacro,
+        facultadesUsuario: List<String>
+    ): Boolean {
+        val facultadIdSimulacro = simulacro.facultadId.orEmpty().trim()
+        val facultadNombreSimulacro = simulacro.facultadNombre.orEmpty().trim()
+
+        return facultadesUsuario.any { facultadUsuario ->
+            val valor = facultadUsuario.trim()
+
+            valor.equals(facultadIdSimulacro, ignoreCase = true) ||
+                valor.equals(facultadNombreSimulacro, ignoreCase = true) ||
+                normalizarFacultad(valor) == normalizarFacultad(facultadNombreSimulacro) ||
+                normalizarFacultad(valor) == normalizarFacultad(facultadIdSimulacro)
+        }
+    }
+
+    private fun normalizarFacultad(valor: String): String {
+        return valor
+            .trim()
+            .lowercase()
+            .replace("facultad de ", "")
+            .replace("á", "a")
+            .replace("é", "e")
+            .replace("í", "i")
+            .replace("ó", "o")
+            .replace("ú", "u")
     }
 
     private fun calcularEstado(simulacro: Simulacro): EstadoSimulacro {

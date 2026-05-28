@@ -1,4 +1,3 @@
-
 package com.conference.deis.network.model
 
 data class Simulacro(
@@ -12,6 +11,8 @@ data class Simulacro(
     val puntaje: Double = 0.0,
     val preguntaIds: List<String> = emptyList(),
     val totalPreguntas: Int = preguntaIds.size,
+    val facultadId: String? = null,
+    val facultadNombre: String? = null,
     val creadoPor: String? = null,
     val zonaHorariaCreador: String = "America/La_Paz",
     val segundosRestantes: Long = 0L,
@@ -25,6 +26,8 @@ data class CrearSimulacroRequest(
     val fechaFin: String,
     val bancoId: String? = null,
     val preguntaIds: List<String> = emptyList(),
+    val facultadId: String? = null,
+    val facultadNombre: String? = null,
     val creadoPor: String? = null,
     val zonaHorariaCreador: String? = "America/La_Paz"
 )
