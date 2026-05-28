@@ -2,6 +2,7 @@ package com.conference.deis.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,7 +22,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -49,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -291,7 +296,10 @@ fun ListaBancosScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(tituloPersonalizado ?: "Lista de Banco de Preguntas")
+                    Text(
+                        text = if (tituloPersonalizado == "Examen Simulacro") "Exámenes Simulacro" else (tituloPersonalizado ?: "Lista de Banco de Preguntas"),
+                        fontWeight = FontWeight.Bold
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -307,14 +315,15 @@ fun ListaBancosScreen(
                     titleContentColor = Color.White
                 )
             )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(Color.White)
-        ) {
+        }) { paddingValues ->
+            val esSimulacro = tituloPersonalizado == "Examen Simulacro"
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(if (esSimulacro) FieldBackground else Color.White)
+            ) {
             when {
                 cargando -> {
                     Column(
@@ -376,32 +385,165 @@ fun ListaBancosScreen(
                 }
 
                 else -> {
+                    val esSimulacro = tituloPersonalizado == "Examen Simulacro"
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(bancos) { banco ->
-                            CardBanco(
-                                banco = banco,
-                                mostrarPracticar = tituloPersonalizado == "Examen Simulacro",
-                                esAdministrador = esAdmin,
-                                onDetallesClick = {
-                                    navController.navigate("detalles_banco/${banco.id}")
-                                },
-                                onPracticarClick = {
-                                    abrirDialogoTiempo(banco)
-                                },
-                                onEliminarClick = {
-                                    if (esAdmin) {
-                                        bancoSeleccionadoId = banco.id
-                                        mostrarDialogoEliminar = true
+                            if (esSimulacro) {
+                                SimulacroCard(
+                                    banco = banco,
+                                    onDetallesClick = {
+                                        navController.navigate("detalles_banco/${banco.id}")
+                                    },
+                                    onComenzarClick = {
+                                        abrirDialogoTiempo(banco)
                                     }
-                                }
-                            )
+                                )
+                            } else {
+                                CardBanco(
+                                    banco = banco,
+                                    mostrarPracticar = tituloPersonalizado == "Examen Simulacro",
+                                    esAdministrador = esAdmin,
+                                    onDetallesClick = {
+                                        navController.navigate("detalles_banco/${banco.id}")
+                                    },
+                                    onPracticarClick = {
+                                        abrirDialogoTiempo(banco)
+                                    },
+                                    onEliminarClick = {
+                                        if (esAdmin) {
+                                            bancoSeleccionadoId = banco.id
+                                            mostrarDialogoEliminar = true
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun SimulacroCard(
+    banco: BancoPregunta,
+    onDetallesClick: () -> Unit,
+    onComenzarClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onDetallesClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(20.dp)
+                .fillMaxWidth()
+        ) {
+            Text(
+                text = "Banco de Preguntas",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.List,
+                    contentDescription = null,
+                    tint = Color.Gray,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "${banco.preguntaIds.size} preguntas",
+                    fontSize = 15.sp,
+                    color = Color.Gray
+                )
+
+                Spacer(modifier = Modifier.width(20.dp))
+
+                Icon(
+                    imageVector = Icons.Default.Timer,
+                    contentDescription = null,
+                    tint = Color.Gray,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "-- min",
+                    fontSize = 15.sp,
+                    color = Color.Gray
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "COMIENZO",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = "--:--",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Black
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "FINALIZACIÓN",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = "--:--",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Black
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = onComenzarClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = BlueBackground
+                ),
+                contentPadding = PaddingValues(vertical = 12.dp)
+            ) {
+                Text(
+                    text = "COMENZAR",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
+                )
             }
         }
     }

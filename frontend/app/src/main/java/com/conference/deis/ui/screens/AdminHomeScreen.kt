@@ -187,7 +187,7 @@ fun AdminHomeScreen(navController: NavHostController) {
 
                 NavigationBarItem(
                     selected = false,
-                    onClick = { navController.navigate("lista_bancos/Examen Simulacro") },
+                    onClick = { navController.navigate("lista_simulacros") },
                     icon = { },
                     label = { Text("Simulacro") }
                 )
@@ -270,6 +270,20 @@ fun AdminHomeScreen(navController: NavHostController) {
                     texto = "Ver lista de banco de preguntas",
                     onClick = { navController.navigate("lista_bancos") }
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                ActionBox(
+                    texto = "Crear simulacro",
+                    onClick = { navController.navigate("crear_simulacro") }
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                ActionBox(
+                    texto = "Ver simulacros",
+                    onClick = { navController.navigate("lista_simulacros") }
+                )
             } else {
                 ActionBox(
                     texto = "Ver bancos de preguntas",
@@ -280,7 +294,7 @@ fun AdminHomeScreen(navController: NavHostController) {
 
                 ActionBox(
                     texto = "Iniciar simulacro",
-                    onClick = { navController.navigate("lista_bancos/Examen Simulacro") }
+                    onClick = { navController.navigate("lista_simulacros") }
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -293,9 +307,3 @@ fun AdminHomeScreen(navController: NavHostController) {
         }
     }
 }
-
-
-
-
-
-

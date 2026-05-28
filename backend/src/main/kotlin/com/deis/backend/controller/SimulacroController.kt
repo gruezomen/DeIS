@@ -3,10 +3,8 @@ package com.deis.backend.controller
 import com.deis.backend.model.IntentoSimulacro
 import com.deis.backend.model.Simulacro
 import com.deis.backend.repository.IntentoSimulacroRepository
-import com.deis.backend.repository.SimulacroRepository
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import java.time.LocalDateTime
 import kotlin.math.round
 import com.deis.backend.service.LogroService
 import com.deis.backend.service.RecompensaService
@@ -15,12 +13,9 @@ import com.deis.backend.service.RendimientoCategoriaService
 import com.deis.backend.dto.RespuestaIntentoDetalleRequest
 import com.deis.backend.service.HistorialIntentoDetalleService
 import com.deis.backend.dto.ErroresPorCategoriaResponse
-
-data class CrearSimulacroRequest(
-    val bancoId: String? = null,
-    val tiempo: Int,
-    val preguntaIds: List<String> = emptyList()
-)
+import com.deis.backend.dto.CrearSimulacroRequest
+import com.deis.backend.dto.EstadoSimulacro
+import com.deis.backend.service.SimulacroService
 
 data class CrearIntentoSimulacroRequest(
     val usuarioId: String,
@@ -86,45 +81,58 @@ data class ComparacionRendimientoResponse(
 @RequestMapping("/api/simulacros")
 class SimulacroController(
     private val intentoSimulacroRepository: IntentoSimulacroRepository,
-    private val simulacroRepository: SimulacroRepository,
     private val logroService: LogroService,
     private val recompensaService: RecompensaService,
     private val rendimientoCategoriaService: RendimientoCategoriaService,
-    private val historialIntentoDetalleService: HistorialIntentoDetalleService
+    private val historialIntentoDetalleService: HistorialIntentoDetalleService,
+    private val simulacroService: SimulacroService
 ) {
+
+    @GetMapping
+    fun listarSimulacros(): ResponseEntity<Any> {
+        return ResponseEntity.ok(simulacroService.listarSimulacros())
+    }
 
     @PostMapping
     fun crearSimulacro(@RequestBody request: CrearSimulacroRequest): ResponseEntity<Any> {
-        if (request.tiempo <= 0) {
-            return ResponseEntity.badRequest().body(
-                mapOf("mensaje" to "El tiempo del simulacro debe ser mayor a cero")
+        return try {
+            ResponseEntity.ok(simulacroService.crearSimulacro(request))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(
+                mapOf("mensaje" to (e.message ?: "Solicitud inválida"))
+            )
+        } catch (e: Exception) {
+            ResponseEntity.status(500).body(
+                mapOf("mensaje" to "No se pudo crear el simulacro")
             )
         }
-
-        val horaInicio = LocalDateTime.now()
-        val horaFin = horaInicio.plusMinutes(request.tiempo.toLong())
-
-        val simulacro = Simulacro(
-            bancoId = request.bancoId,
-            tiempo = request.tiempo,
-            horaInicio = horaInicio.toString(),
-            horaFin = horaFin.toString(),
-            preguntaIds = request.preguntaIds
-        )
-
-        val guardado = simulacroRepository.save(simulacro)
-        return ResponseEntity.ok(guardado)
     }
 
     @GetMapping("/{id}")
     fun obtenerSimulacroPorId(@PathVariable id: String): ResponseEntity<Any> {
-        val simulacro = simulacroRepository.findById(id)
-
-        return if (simulacro.isPresent) {
-            ResponseEntity.ok(simulacro.get())
-        } else {
+        return try {
+            ResponseEntity.ok(simulacroService.obtenerSimulacroPorId(id))
+        } catch (e: NoSuchElementException) {
             ResponseEntity.status(404).body(
                 mapOf("mensaje" to "Simulacro no encontrado")
+            )
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    fun eliminarSimulacro(@PathVariable id: String): ResponseEntity<Any> {
+        return try {
+            simulacroService.eliminarSimulacro(id)
+            ResponseEntity.ok(
+                mapOf("mensaje" to "Simulacro eliminado. Los intentos y estadísticas de los estudiantes se conservan.")
+            )
+        } catch (e: NoSuchElementException) {
+            ResponseEntity.status(404).body(
+                mapOf("mensaje" to "Simulacro no encontrado")
+            )
+        } catch (e: Exception) {
+            ResponseEntity.status(500).body(
+                mapOf("mensaje" to "No se pudo eliminar el simulacro")
             )
         }
     }
@@ -167,6 +175,45 @@ class SimulacroController(
             return ResponseEntity.badRequest().body(
                 mapOf("mensaje" to "La suma de respuestas correctas e incorrectas debe coincidir con el total de preguntas")
             )
+        }
+
+        if (request.tipo.uppercase() == "SIMULACRO") {
+            val simulacro = try {
+                simulacroService.obtenerSimulacroPorId(request.bancoId)
+            } catch (e: NoSuchElementException) {
+                return ResponseEntity.badRequest().body(
+                    mapOf("mensaje" to "El simulacro no está disponible")
+                )
+            }
+
+            val yaRespondio = intentoSimulacroRepository
+                .findByUsuarioIdOrderByFechaDesc(request.usuarioId)
+                .any { intento ->
+                    intento.tipo.uppercase() == "SIMULACRO" && intento.bancoId == request.bancoId
+                }
+
+            if (yaRespondio) {
+                return ResponseEntity.status(409).body(
+                    mapOf("mensaje" to "El estudiante ya respondió este simulacro. Solo se permite un intento.")
+                )
+            }
+
+            when (simulacro.estado) {
+                EstadoSimulacro.PENDIENTE -> {
+                    return ResponseEntity.badRequest().body(
+                        mapOf("mensaje" to "El simulacro todavía no está activo")
+                    )
+                }
+
+                EstadoSimulacro.ACTIVO -> Unit
+
+                /*
+                 * Se permite guardar si el backend ya lo considera finalizado para no perjudicar
+                 * al estudiante cuando el contador llega a 00:00 y el frontend envía el intento
+                 * justo al cierre. La app no permite iniciar un simulacro que ya está finalizado.
+                 */
+                EstadoSimulacro.FINALIZADO -> Unit
+            }
         }
 
         val intento = IntentoSimulacro(
@@ -305,7 +352,13 @@ class SimulacroController(
         val intento = intentoSimulacroRepository.findById(id)
 
         return if (intento.isPresent) {
-            ResponseEntity.ok(mapearIntentoAHistorial(intento.get()))
+            if (resultadoSimulacroAunBloqueado(intento.get())) {
+                ResponseEntity.status(403).body(
+                    mapOf("mensaje" to "Los resultados estarán disponibles cuando finalice el simulacro")
+                )
+            } else {
+                ResponseEntity.ok(mapearIntentoAHistorial(intento.get()))
+            }
         } else {
             ResponseEntity.status(404).body(
                 mapOf("mensaje" to "Intento no encontrado")
@@ -322,6 +375,12 @@ class SimulacroController(
         if (intento.isEmpty) {
             return ResponseEntity.status(404).body(
                 mapOf("mensaje" to "Intento no encontrado")
+            )
+        }
+
+        if (resultadoSimulacroAunBloqueado(intento.get())) {
+            return ResponseEntity.status(403).body(
+                mapOf("mensaje" to "Las respuestas correctas estarán disponibles cuando finalice el simulacro")
             )
         }
 
@@ -446,6 +505,11 @@ class SimulacroController(
                 totalIntentos = intentos.size
             )
         )
+    }
+
+    private fun resultadoSimulacroAunBloqueado(intento: IntentoSimulacro): Boolean {
+        if (intento.tipo.uppercase() != "SIMULACRO") return false
+        return !simulacroService.estaFinalizadoIncluyendoEliminados(intento.bancoId)
     }
 
     private fun mapearIntentoAHistorial(intento: IntentoSimulacro): HistorialIntentoResponse {

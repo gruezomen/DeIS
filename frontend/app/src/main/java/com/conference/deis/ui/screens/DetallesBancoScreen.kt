@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.conference.deis.network.RetrofitInstance
-import com.conference.deis.network.model.CrearSimulacroRequest
 import com.conference.deis.network.model.Question
 import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
@@ -76,11 +75,11 @@ fun DetallesBancoScreen(navController: NavHostController, bancoId: String) {
                     mostrarDialogoTiempo = false
                 }
             },
-            title = { Text("Configurar simulacro") },
+            title = { Text("Configurar práctica con tiempo") },
             text = {
                 Column {
                     Text(
-                        text = "Ingrese el tiempo del simulacro en minutos.",
+                        text = "Ingrese el tiempo de la práctica en minutos.",
                         fontSize = 14.sp,
                         color = Color.Gray
                     )
@@ -110,28 +109,9 @@ fun DetallesBancoScreen(navController: NavHostController, bancoId: String) {
                             scope.launch {
                                 creandoSimulacro = true
                                 try {
-                                    val response = RetrofitInstance.api.crearSimulacro(
-                                        CrearSimulacroRequest(
-                                            bancoId = bancoId,
-                                            tiempo = tiempoMinutos,
-                                            preguntaIds = preguntas.map { it.id }
-                                        )
-                                    )
-
-                                    if (response.isSuccessful) {
-                                        val simulacroId = response.body()?.id
-                                        mostrarDialogoTiempo = false
-                                        tiempoMinutosTexto = ""
-
-                                        if (simulacroId != null) {
-                                            navController.navigate("resolver_simulacro/$simulacroId")
-                                        } else {
-                                            // Respaldo por si el backend no devuelve id.
-                                            navController.navigate("resolver_pregunta/$bancoId/$tiempoMinutos")
-                                        }
-                                    } else {
-                                        Toast.makeText(context, "No se pudo crear el simulacro", Toast.LENGTH_SHORT).show()
-                                    }
+                                    mostrarDialogoTiempo = false
+                                    tiempoMinutosTexto = ""
+                                    navController.navigate("resolver_pregunta/$bancoId/$tiempoMinutos")
                                 } catch (e: Exception) {
                                     Toast.makeText(context, "Error de conexión al crear simulacro", Toast.LENGTH_SHORT).show()
                                 } finally {
