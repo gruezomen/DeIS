@@ -122,4 +122,8 @@ suspend fun obtenerLogrosUsuario(
 suspend fun obtenerRecompensasUsuario(
     @Path("usuarioId") usuarioId: String
 ): Response<RecompensasUsuarioResponse>
+    @GET("api/rendimiento-categorias/usuario/{usuarioId}")
+    suspend fun obtenerRendimientoPorCategoria(
+        @Path("usuarioId") usuarioId: String
+    ): Response<List<RendimientoCategoriaResponse>>
 }
