@@ -1,4 +1,3 @@
-
 package com.deis.backend.controller
 
 import com.deis.backend.model.IntentoSimulacro
@@ -205,12 +204,15 @@ class SimulacroController(
                         mapOf("mensaje" to "El simulacro todavía no está activo")
                     )
                 }
-                EstadoSimulacro.FINALIZADO -> {
-                    return ResponseEntity.badRequest().body(
-                        mapOf("mensaje" to "El simulacro ya finalizó")
-                    )
-                }
+
                 EstadoSimulacro.ACTIVO -> Unit
+
+                /*
+                 * Se permite guardar si el backend ya lo considera finalizado para no perjudicar
+                 * al estudiante cuando el contador llega a 00:00 y el frontend envía el intento
+                 * justo al cierre. La app no permite iniciar un simulacro que ya está finalizado.
+                 */
+                EstadoSimulacro.FINALIZADO -> Unit
             }
         }
 

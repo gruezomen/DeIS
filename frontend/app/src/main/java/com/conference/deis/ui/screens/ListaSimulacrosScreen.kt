@@ -78,7 +78,7 @@ fun ListaSimulacrosScreen(navController: NavHostController) {
                 if (responseSimulacros.isSuccessful) {
                     simulacros = responseSimulacros.body()
                         .orEmpty()
-                        .filter { it.programado && !it.eliminado }
+                        .filter { it.programado && !it.eliminado && it.bancoId == null }
                 } else {
                     error = "No se pudieron cargar los simulacros."
                 }

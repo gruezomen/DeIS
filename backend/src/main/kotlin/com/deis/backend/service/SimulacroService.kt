@@ -1,4 +1,3 @@
-
 package com.deis.backend.service
 
 import com.deis.backend.dto.CrearSimulacroRequest
@@ -62,7 +61,7 @@ class SimulacroService(
 
     fun listarSimulacros(): List<SimulacroResponse> {
         return simulacroRepository.findAll()
-            .filter { it.programado && !it.eliminado }
+            .filter { it.programado && !it.eliminado && it.bancoId == null }
             .sortedByDescending { parsearFechaONull(it.horaInicio) ?: LocalDateTime.MIN }
             .map { mapearAResponse(it) }
     }
@@ -72,7 +71,7 @@ class SimulacroService(
             NoSuchElementException("Simulacro no encontrado")
         }
 
-        if (!simulacro.programado || simulacro.eliminado) {
+        if (!simulacro.programado || simulacro.eliminado || simulacro.bancoId != null) {
             throw NoSuchElementException("Simulacro no encontrado")
         }
 
@@ -84,7 +83,7 @@ class SimulacroService(
             NoSuchElementException("Simulacro no encontrado")
         }
 
-        if (!simulacro.programado || simulacro.eliminado) {
+        if (!simulacro.programado || simulacro.eliminado || simulacro.bancoId != null) {
             throw NoSuchElementException("Simulacro no encontrado")
         }
 
@@ -93,19 +92,19 @@ class SimulacroService(
 
     fun estaActivo(id: String): Boolean {
         val simulacro = simulacroRepository.findById(id).orElse(null) ?: return false
-        if (!simulacro.programado || simulacro.eliminado) return false
+        if (!simulacro.programado || simulacro.eliminado || simulacro.bancoId != null) return false
         return calcularEstado(simulacro) == EstadoSimulacro.ACTIVO
     }
 
     fun estaFinalizado(id: String): Boolean {
         val simulacro = simulacroRepository.findById(id).orElse(null) ?: return false
-        if (!simulacro.programado || simulacro.eliminado) return false
+        if (!simulacro.programado || simulacro.eliminado || simulacro.bancoId != null) return false
         return calcularEstado(simulacro) == EstadoSimulacro.FINALIZADO
     }
 
     fun estaFinalizadoIncluyendoEliminados(id: String): Boolean {
         val simulacro = simulacroRepository.findById(id).orElse(null) ?: return true
-        if (!simulacro.programado) return true
+        if (!simulacro.programado || simulacro.bancoId != null) return true
         return calcularEstado(simulacro) == EstadoSimulacro.FINALIZADO
     }
 

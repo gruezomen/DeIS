@@ -1,4 +1,3 @@
-
 package com.conference.deis.ui.screens
 
 import android.content.Context
@@ -618,27 +617,15 @@ fun ResolverPreguntaScreen(
                     return@LaunchedEffect
                 }
 
-                val duracion = segundosHastaCierre
-                val duracionMinutos = ((duracion + 59) / 60).coerceAtLeast(1)
-
-                duracionSimulacroSegundos = duracion
-
-                val clave = construirClaveTemporizador(
-                    simulacroId = simulacroId,
-                    bancoId = simulacro.id,
-                    tiempoMinutosInicial = duracionMinutos
-                )
-
-                claveTemporizador = clave
-
-                val estadoTemporizador = recuperarEstadoTemporizador(
-                    context = context,
-                    clave = clave,
-                    duracionTotalSegundos = duracion
-                )
-
-                tiempoRestanteSegundos = estadoTemporizador.segundosRestantes
-                errorSincronizacionTemporizador = estadoTemporizador.mensajeError
+                /*
+                 * En simulacros programados NO se usa la hora local del celular del estudiante.
+                 * El backend calcula el estado y los segundos restantes usando la zona horaria
+                 * del celular del admin que creó el simulacro.
+                 */
+                duracionSimulacroSegundos = segundosHastaCierre
+                tiempoRestanteSegundos = segundosHastaCierre
+                claveTemporizador = null
+                errorSincronizacionTemporizador = null
 
                 preguntas = if (simulacro.preguntaIds.isNotEmpty()) {
                     todasLasPreguntas.filter { pregunta ->
@@ -733,14 +720,28 @@ fun ResolverPreguntaScreen(
     }
 }
 
-    LaunchedEffect(practicaFinalizada, horaFinSimulacroProgramado) {
-        if (practicaFinalizada && simulacroId != null && !horaFinSimulacroProgramado.isNullOrBlank()) {
-            while (!simulacroProgramadoYaCerro(horaFinSimulacroProgramado)) {
-                resultadosSimulacroDisponibles = false
-                delay(1000)
-            }
+    LaunchedEffect(practicaFinalizada, simulacroId) {
+        val idActual = simulacroId
+        if (practicaFinalizada && idActual != null) {
+            resultadosSimulacroDisponibles = false
 
-            resultadosSimulacroDisponibles = true
+            while (true) {
+                try {
+                    val response = RetrofitInstance.api.obtenerSimulacroPorId(idActual)
+                    if (response.isSuccessful) {
+                        val estado = response.body()?.estado?.uppercase()
+                        if (estado == "FINALIZADO") {
+                            resultadosSimulacroDisponibles = true
+                            break
+                        }
+                    }
+                } catch (_: Exception) {
+                    // No usamos la hora local del celular del estudiante.
+                    // Si falla la conexión, esperamos y volvemos a consultar al backend.
+                }
+
+                delay(5000)
+            }
         }
     }
 
@@ -828,7 +829,35 @@ fun ResolverPreguntaScreen(
                             guardando = guardandoResultado,
                             errorGuardado = errorGuardado,
                             onActualizar = {
-                                resultadosSimulacroDisponibles = simulacroProgramadoYaCerro(horaFinSimulacroProgramado)
+                                scope.launch {
+                                    val idActual = simulacroId ?: return@launch
+                                    try {
+                                        val response = RetrofitInstance.api.obtenerSimulacroPorId(idActual)
+                                        if (response.isSuccessful) {
+                                            val estado = response.body()?.estado?.uppercase()
+                                            resultadosSimulacroDisponibles = estado == "FINALIZADO"
+                                            if (!resultadosSimulacroDisponibles) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Los resultados todavía no están disponibles.",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                "No se pudo consultar el estado del simulacro.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(
+                                            context,
+                                            "Error de conexión: ${e.message}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
                             },
                             onSalir = { navController.popBackStack() }
                         )
@@ -848,6 +877,7 @@ fun ResolverPreguntaScreen(
                             } else {
                                 "PRACTICA"
                             },
+                            permitirReintento = simulacroId == null,
                             onPreguntaRevisionChange = { nuevoIndex ->
                                 preguntaRevisionIndex = nuevoIndex.coerceIn(0, preguntas.lastIndex)
                             },
@@ -1338,6 +1368,7 @@ private fun ResultadosPanel(
     errorGuardado: Boolean,
     finalizadoPorTiempo: Boolean,
     tipoIntento: String,
+    permitirReintento: Boolean,
     onPreguntaRevisionChange: (Int) -> Unit,
     onReintentarGuardado: () -> Unit,
     onReintentarPractica: () -> Unit,
@@ -1468,18 +1499,20 @@ private fun ResultadosPanel(
         }
 
         item {
-            Button(
-                onClick = onReintentarPractica,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BlueBackground,
-                    contentColor = Color.White
-                )
-            ) {
-                Text("Reintentar")
-            }
+            if (permitirReintento) {
+                Button(
+                    onClick = onReintentarPractica,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BlueBackground,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Reintentar")
+                }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
             OutlinedButton(
                 onClick = onSalir,
@@ -1972,3 +2005,4 @@ private fun hayConexionInternet(context: Context): Boolean {
 
     return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
 }
+
