@@ -30,9 +30,6 @@ import kotlinx.coroutines.launch
 fun DetallesBancoScreen(navController: NavHostController, bancoId: String) {
     var preguntas by remember { mutableStateOf<List<Question>>(emptyList()) }
     var cargando by remember { mutableStateOf(true) }
-    var mostrarDialogoTiempo by remember { mutableStateOf(false) }
-    var tiempoMinutosTexto by remember { mutableStateOf("") }
-    var creandoSimulacro by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -66,75 +63,6 @@ fun DetallesBancoScreen(navController: NavHostController, bancoId: String) {
                 cargando = false
             }
         }
-    }
-
-    if (mostrarDialogoTiempo) {
-        AlertDialog(
-            onDismissRequest = {
-                if (!creandoSimulacro) {
-                    mostrarDialogoTiempo = false
-                }
-            },
-            title = { Text("Configurar práctica con tiempo") },
-            text = {
-                Column {
-                    Text(
-                        text = "Ingrese el tiempo de la práctica en minutos.",
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = tiempoMinutosTexto,
-                        onValueChange = { nuevoValor ->
-                            if (nuevoValor.all { it.isDigit() }) {
-                                tiempoMinutosTexto = nuevoValor
-                            }
-                        },
-                        enabled = !creandoSimulacro,
-                        label = { Text("Tiempo en minutos") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val tiempoMinutos = tiempoMinutosTexto.toIntOrNull()
-                        if (tiempoMinutos == null || tiempoMinutos <= 0) {
-                            Toast.makeText(context, "Ingrese un tiempo válido", Toast.LENGTH_SHORT).show()
-                        } else {
-                            scope.launch {
-                                creandoSimulacro = true
-                                try {
-                                    mostrarDialogoTiempo = false
-                                    tiempoMinutosTexto = ""
-                                    navController.navigate("resolver_pregunta/$bancoId/$tiempoMinutos")
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Error de conexión al crear simulacro", Toast.LENGTH_SHORT).show()
-                                } finally {
-                                    creandoSimulacro = false
-                                }
-                            }
-                        }
-                    },
-                    enabled = !creandoSimulacro,
-                    colors = ButtonDefaults.buttonColors(containerColor = BlueBackground)
-                ) {
-                    Text(if (creandoSimulacro) "Creando..." else "Iniciar")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { mostrarDialogoTiempo = false },
-                    enabled = !creandoSimulacro
-                ) {
-                    Text("Cancelar")
-                }
-            }
-        )
     }
 
     Scaffold(
@@ -177,20 +105,6 @@ fun DetallesBancoScreen(navController: NavHostController, bancoId: String) {
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    item {
-                        Button(
-                            onClick = { mostrarDialogoTiempo = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = BlueBackground,
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Text("Iniciar simulacro")
-                        }
-                    }
-
                     item {
                         Text(
                             text = "Preguntas asociadas",
