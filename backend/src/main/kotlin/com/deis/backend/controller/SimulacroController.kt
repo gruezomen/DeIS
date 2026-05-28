@@ -12,6 +12,8 @@ import com.deis.backend.service.LogroService
 import com.deis.backend.service.RecompensaService
 import com.deis.backend.dto.RespuestaCategoriaRequest
 import com.deis.backend.service.RendimientoCategoriaService
+import com.deis.backend.dto.RespuestaIntentoDetalleRequest
+import com.deis.backend.service.HistorialIntentoDetalleService
 
 data class CrearSimulacroRequest(
     val bancoId: String? = null,
@@ -27,7 +29,8 @@ data class CrearIntentoSimulacroRequest(
     val totalPreguntas: Int,
     val respuestasCorrectas: Int,
     val respuestasIncorrectas: Int,
-    val respuestasPorCategoria: List<RespuestaCategoriaRequest> = emptyList()
+    val respuestasPorCategoria: List<RespuestaCategoriaRequest> = emptyList(),
+    val detalleRespuestas: List<RespuestaIntentoDetalleRequest> = emptyList()
 )
 
 data class ResultadoHistoricoResponse(
@@ -37,6 +40,21 @@ data class ResultadoHistoricoResponse(
     val totalPreguntas: Int,
     val nota: Double,
     val fecha: String
+)
+
+data class HistorialIntentoResponse(
+    val id: String?,
+    val usuarioId: String,
+    val bancoId: String,
+    val tipo: String,
+    val puntaje: Int,
+    val totalPreguntas: Int,
+    val respuestasCorrectas: Int,
+    val respuestasIncorrectas: Int,
+    val nota: Double,
+    val fecha: String,
+    val estado: String,
+    val mensaje: String
 )
 
 data class PromedioGeneralResponse(
@@ -70,7 +88,8 @@ class SimulacroController(
     private val simulacroRepository: SimulacroRepository,
     private val logroService: LogroService,
     private val recompensaService: RecompensaService,
-    private val rendimientoCategoriaService: RendimientoCategoriaService
+    private val rendimientoCategoriaService: RendimientoCategoriaService,
+    private val historialIntentoDetalleService: HistorialIntentoDetalleService
 ) {
 
     @PostMapping
@@ -160,6 +179,10 @@ class SimulacroController(
         )
 
         val guardado = intentoSimulacroRepository.save(intento)
+        val detalleRespuestasGuardadas = historialIntentoDetalleService.registrarDetalles(
+            intentoId = guardado.id,
+            detalles = request.detalleRespuestas
+        )
         val respuestasCategoriaGuardadas = rendimientoCategoriaService.registrarRespuestasDeIntento(
             usuarioId = guardado.usuarioId,
             intentoId = guardado.id,
@@ -247,7 +270,8 @@ class SimulacroController(
                 "intento" to guardado,
                 "nuevosLogros" to todosLosNuevosLogros,
                 "nuevasRecompensas" to nuevasRecompensas,
-                "respuestasPorCategoriaRegistradas" to respuestasCategoriaGuardadas.size
+                "respuestasPorCategoriaRegistradas" to respuestasCategoriaGuardadas.size,
+                "detalleRespuestasRegistradas" to detalleRespuestasGuardadas.size
             )
         )
     }
@@ -258,6 +282,50 @@ class SimulacroController(
     ): ResponseEntity<List<IntentoSimulacro>> {
         val intentos = intentoSimulacroRepository.findByUsuarioIdOrderByFechaDesc(usuarioId)
         return ResponseEntity.ok(intentos)
+    }
+
+    @GetMapping("/intentos/usuario/{usuarioId}/historial-detallado")
+        fun obtenerHistorialDetalladoPorUsuario(
+            @PathVariable usuarioId: String
+        ): ResponseEntity<List<HistorialIntentoResponse>> {
+            val historial: List<HistorialIntentoResponse> = intentoSimulacroRepository
+                .findByUsuarioIdOrderByFechaDesc(usuarioId)
+                .map { intento: IntentoSimulacro ->
+                    mapearIntentoAHistorial(intento)
+                }
+
+            return ResponseEntity.ok(historial)
+        }
+
+    @GetMapping("/intentos/{id}/detalle")
+    fun obtenerDetalleIntento(
+        @PathVariable id: String
+    ): ResponseEntity<Any> {
+        val intento = intentoSimulacroRepository.findById(id)
+
+        return if (intento.isPresent) {
+            ResponseEntity.ok(mapearIntentoAHistorial(intento.get()))
+        } else {
+            ResponseEntity.status(404).body(
+                mapOf("mensaje" to "Intento no encontrado")
+            )
+        }
+    }
+
+        @GetMapping("/intentos/{id}/respuestas")
+    fun obtenerRespuestasDeIntento(
+        @PathVariable id: String
+    ): ResponseEntity<Any> {
+        val intento = intentoSimulacroRepository.findById(id)
+
+        if (intento.isEmpty) {
+            return ResponseEntity.status(404).body(
+                mapOf("mensaje" to "Intento no encontrado")
+            )
+        }
+
+        val respuestas = historialIntentoDetalleService.obtenerDetallesPorIntento(id)
+        return ResponseEntity.ok(respuestas)
     }
 
     @GetMapping("/intentos/usuario/{usuarioId}/historial")
@@ -366,6 +434,43 @@ class SimulacroController(
             )
         )
     }
+
+    private fun mapearIntentoAHistorial(intento: IntentoSimulacro): HistorialIntentoResponse {
+    val nota = calcularNota(intento)
+    val estado = calcularEstadoHistorial(nota)
+
+    return HistorialIntentoResponse(
+        id = intento.id,
+        usuarioId = intento.usuarioId,
+        bancoId = intento.bancoId,
+        tipo = intento.tipo,
+        puntaje = intento.puntaje,
+        totalPreguntas = intento.totalPreguntas,
+        respuestasCorrectas = intento.respuestasCorrectas,
+        respuestasIncorrectas = intento.respuestasIncorrectas,
+        nota = nota,
+        fecha = intento.fecha.toString(),
+        estado = estado,
+        mensaje = mensajeEstadoHistorial(estado)
+    )
+}
+
+    private fun calcularEstadoHistorial(nota: Double): String {
+        return when {
+            nota >= 80.0 -> "ALTO"
+            nota >= 51.0 -> "MEDIO"
+            else -> "BAJO"
+        }
+    }
+
+    private fun mensajeEstadoHistorial(estado: String): String {
+        return when (estado) {
+            "ALTO" -> "Excelente resultado. Mantén tu ritmo de práctica."
+            "MEDIO" -> "Buen avance. Sigue practicando para mejorar tu precisión."
+            else -> "Necesitas reforzar tus respuestas con más práctica."
+        }
+    }
+
 
     private fun calcularNota(intento: IntentoSimulacro): Double {
         if (intento.totalPreguntas <= 0) return 0.0

@@ -71,6 +71,7 @@ import com.conference.deis.network.model.MensajeRecompensa
 import com.conference.deis.network.model.TipoRecompensa
 import com.conference.deis.ui.utils.ProveedorRecompensas
 import com.conference.deis.network.model.RespuestaCategoriaRequest
+import com.conference.deis.network.model.RespuestaIntentoDetalleRequest
 
 
 private data class EstadoPregunta(
@@ -222,6 +223,31 @@ fun ResolverPreguntaScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    fun construirDetalleRespuestasIntento(): List<RespuestaIntentoDetalleRequest> {
+    return preguntas.mapIndexed { index, pregunta ->
+        val estado = historialEstados[pregunta.id]
+        val seleccion = estado?.opcionSeleccionadaIndex
+
+        val opcionSeleccionada = if (seleccion != null) {
+            pregunta.opciones.getOrNull(seleccion)
+        } else {
+            null
+        }
+
+        val opcionCorrecta = pregunta.opciones.firstOrNull { it.esCorrecta }
+
+        RespuestaIntentoDetalleRequest(
+            preguntaId = pregunta.id,
+            enunciado = pregunta.enunciado,
+            categoria = pregunta.categoria.nombre,
+            respuestaSeleccionada = opcionSeleccionada?.texto ?: "Sin responder",
+            respuestaCorrecta = opcionCorrecta?.texto ?: "Sin respuesta registrada",
+            esCorrecta = opcionSeleccionada?.esCorrecta == true,
+            orden = index + 1
+        )
+    }
+}
+
     fun construirRespuestasPorCategoria(): List<RespuestaCategoriaRequest> {
         return preguntas.map { pregunta ->
             val estado = historialEstados[pregunta.id]
@@ -291,7 +317,8 @@ fun ResolverPreguntaScreen(
                         totalPreguntas = preguntas.size,
                         respuestasCorrectas = respuestasCorrectas,
                         respuestasIncorrectas = respuestasIncorrectas,
-                        respuestasPorCategoria = construirRespuestasPorCategoria()
+                        respuestasPorCategoria = construirRespuestasPorCategoria(),
+                        detalleRespuestas = construirDetalleRespuestasIntento()
                     )
                 )
 

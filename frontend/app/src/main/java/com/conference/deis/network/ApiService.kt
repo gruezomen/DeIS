@@ -3,6 +3,7 @@ package com.conference.deis.network
 import com.conference.deis.network.model.*
 import retrofit2.Response
 import retrofit2.http.*
+import com.conference.deis.network.model.DetalleRespuestaIntentoResponse
 
 interface ApiService {
 
@@ -126,4 +127,17 @@ suspend fun obtenerRecompensasUsuario(
     suspend fun obtenerRendimientoPorCategoria(
         @Path("usuarioId") usuarioId: String
     ): Response<List<RendimientoCategoriaResponse>>
+@GET("api/simulacros/intentos/usuario/{usuarioId}/historial-detallado")
+suspend fun obtenerHistorialDetallado(
+    @Path("usuarioId") usuarioId: String
+): Response<List<HistorialIntentoResponse>>
+
+@GET("api/simulacros/intentos/{id}/detalle")
+    suspend fun obtenerDetalleIntento(
+        @Path("id") id: String
+    ): Response<HistorialIntentoResponse>
+@GET("api/simulacros/intentos/{id}/respuestas")
+    suspend fun obtenerRespuestasDeIntento(
+        @Path("id") id: String
+    ): Response<List<DetalleRespuestaIntentoResponse>>
 }
