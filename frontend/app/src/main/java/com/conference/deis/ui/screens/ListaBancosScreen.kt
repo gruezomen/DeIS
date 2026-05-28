@@ -406,10 +406,12 @@ fun ListaBancosScreen(
                             } else {
                                 CardBanco(
                                     banco = banco,
-                                    mostrarPracticar = tituloPersonalizado == "Examen Simulacro",
                                     esAdministrador = esAdmin,
                                     onDetallesClick = {
                                         navController.navigate("detalles_banco/${banco.id}")
+                                    },
+                                    onResolverClick = {
+                                        navController.navigate("resolver_pregunta/${banco.id}")
                                     },
                                     onPracticarClick = {
                                         abrirDialogoTiempo(banco)
@@ -552,9 +554,9 @@ fun SimulacroCard(
 @Composable
 fun CardBanco(
     banco: BancoPregunta,
-    mostrarPracticar: Boolean,
     esAdministrador: Boolean,
     onDetallesClick: () -> Unit,
+    onResolverClick: () -> Unit,
     onPracticarClick: () -> Unit,
     onEliminarClick: () -> Unit
 ) {
@@ -617,25 +619,38 @@ fun CardBanco(
                     onClick = onDetallesClick,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = BlueBackground
                     )
                 ) {
-                    Text("Detalles", fontSize = 14.sp)
+                    Text("Detalles", fontSize = 12.sp)
                 }
 
-                if (mostrarPracticar) {
-                    Button(
-                        onClick = onPracticarClick,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = BlueBackground,
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Text("Practicar", fontSize = 14.sp)
-                    }
+                Button(
+                    onClick = onResolverClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BlueBackground,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Resolver", fontSize = 12.sp)
+                }
+
+                Button(
+                    onClick = onPracticarClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BlueBackground,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Practicar", fontSize = 12.sp)
                 }
             }
         }
