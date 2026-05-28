@@ -157,13 +157,6 @@ fun AdminHomeScreen(navController: NavHostController) {
                 navController.navigate("mi_progreso")
             }
         )
-
-        DropdownMenuItem(
-            text = { Text("Historial") },
-            onClick = {
-                menuExpandido = false
-            }
-        )
     }
 
     DropdownMenuItem(
