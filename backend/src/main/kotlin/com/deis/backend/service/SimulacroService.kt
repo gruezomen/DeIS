@@ -14,11 +14,13 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
+import com.deis.backend.service.NotificacionService
 
 @Service
 class SimulacroService(
     private val simulacroRepository: SimulacroRepository,
-    private val usuarioRepository: UsuarioRepository
+    private val usuarioRepository: UsuarioRepository,
+    private val notificacionService: NotificacionService
 ) {
     private val zonaHorariaPorDefecto = "America/La_Paz"
 
@@ -76,7 +78,19 @@ class SimulacroService(
             eliminado = false
         )
 
-        return mapearAResponse(simulacroRepository.save(simulacro))
+        val guardado = simulacroRepository.save(simulacro)
+
+        notificacionService.crearNotificacionesPorFacultad(
+            simulacroId = guardado.id,
+            nombreSimulacro = guardado.nombre,
+            facultadId = guardado.facultadId,
+            facultadNombre = guardado.facultadNombre,
+            fechaInicio = guardado.horaInicio,
+            fechaFin = guardado.horaFin,
+            creadoPor = guardado.creadoPor
+        )
+
+        return mapearAResponse(guardado)
     }
 
     fun listarSimulacros(): List<SimulacroResponse> {
