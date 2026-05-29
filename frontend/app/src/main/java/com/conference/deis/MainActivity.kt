@@ -63,6 +63,10 @@ fun DeISApp() {
                     MisRecompensasScreen(navController)
                 }
 
+                composable("mis_notificaciones") {
+                    MisNotificacionesScreen(navController)
+                }
+
                 composable("splash") {
                     SplashScreen(navController)
                 }

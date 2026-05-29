@@ -159,4 +159,14 @@ interface ApiService {
     suspend fun obtenerErroresPorCategoria(
         @Path("usuarioId") usuarioId: String
     ): Response<List<ErroresPorCategoriaResponse>>
+    
+    @GET("api/notificaciones/usuario/{usuarioId}")
+    suspend fun obtenerNotificaciones(
+        @Path("usuarioId") usuarioId: String
+    ): Response<List<Notificacion>>
+
+    @PATCH("api/notificaciones/{id}/leer")
+    suspend fun marcarNotificacionLeida(
+        @Path("id") id: String
+    ): Response<Notificacion>
 }

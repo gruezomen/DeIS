@@ -46,6 +46,11 @@ import com.conference.deis.network.UserSession
 import com.conference.deis.ui.components.ActionBox
 import com.conference.deis.ui.components.InfoCard
 import com.conference.deis.ui.theme.BlueBackground
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.foundation.layout.offset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +59,7 @@ fun AdminHomeScreen(navController: NavHostController) {
     var totalBancos by remember { mutableStateOf(0) }
     var cargandoResumen by remember { mutableStateOf(true) }
     var menuExpandido by remember { mutableStateOf(false) }
+    var cantidadNotificacionesNoLeidas by remember { mutableStateOf(0) }
 
     
     val esAdmin = UserSession.user?.rol == "ADMINISTRADOR"
@@ -72,13 +78,34 @@ fun AdminHomeScreen(navController: NavHostController) {
             if (responseBancos.isSuccessful) {
                 totalBancos = responseBancos.body().orEmpty().size
             }
+
+            if (!esAdmin) {
+                val usuarioId = UserSession.user?.id?.toString()
+
+                if (!usuarioId.isNullOrBlank()) {
+                    val responseNotificaciones =
+                        RetrofitInstance.api.obtenerNotificaciones(usuarioId)
+
+                    if (responseNotificaciones.isSuccessful) {
+                        cantidadNotificacionesNoLeidas =
+                            responseNotificaciones.body().orEmpty().count { !it.leida }
+                    } else {
+                        cantidadNotificacionesNoLeidas = 0
+                    }
+                } else {
+                    cantidadNotificacionesNoLeidas = 0
+                }
+            } else {
+                cantidadNotificacionesNoLeidas = 0
+            }
+
         } catch (e: Exception) {
             totalPreguntas = 0
             totalBancos = 0
+            cantidadNotificacionesNoLeidas = 0
         } finally {
             cargandoResumen = false
         }
-
     }
 
     Scaffold(
@@ -95,6 +122,42 @@ fun AdminHomeScreen(navController: NavHostController) {
                     )
                 },
                 actions = {
+                    if (!esAdmin) {
+                        IconButton(
+                            onClick = { navController.navigate("mis_notificaciones") }
+                        ) {
+                            Box(contentAlignment = Alignment.TopEnd) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = "Notificaciones",
+                                    tint = Color.White
+                                )
+
+                                if (cantidadNotificacionesNoLeidas > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .offset(x = 6.dp, y = (-4).dp)
+                                            .size(18.dp)
+                                            .background(Color.Red, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = if (cantidadNotificacionesNoLeidas > 9) {
+                                                "9+"
+                                            } else {
+                                                cantidadNotificacionesNoLeidas.toString()
+                                            },
+                                            color = Color.White,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            lineHeight = 9.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Box(
                         modifier = Modifier
                             .padding(end = 12.dp)
