@@ -127,6 +127,12 @@ fun MiRachaScreen(navController: NavHostController) {
 
 @Composable
 private fun RachaDetalleCard(racha: RachaResponse) {
+    
+    val imagenDelfin = when (racha.estadoDelfin) {
+    "FELIZ" -> R.drawable.delfin_sonriente
+    "DESPIERTO" -> R.drawable.delfin_despierto
+    else -> R.drawable.delfin_dormido
+   }
     val estadoVisual = when (racha.estadoDelfin) {
         "FELIZ" -> "Feliz"
         "DESPIERTO" -> "Despierto"
@@ -154,7 +160,7 @@ private fun RachaDetalleCard(racha: RachaResponse) {
             verticalArrangement = Arrangement.Center
         ) {
             Image(
-                painter = painterResource(id = R.drawable.delfin),
+                painter = painterResource(id = imagenDelfin),
                 contentDescription = "Delfín de racha",
                 modifier = Modifier.size(150.dp)
             )
