@@ -93,6 +93,21 @@ class SimulacroController(
         return ResponseEntity.ok(simulacroService.listarSimulacros())
     }
 
+    @GetMapping("/usuario/{usuarioId}")
+    fun listarSimulacrosPorUsuario(@PathVariable usuarioId: String): ResponseEntity<Any> {
+        return try {
+            ResponseEntity.ok(simulacroService.listarSimulacrosPorUsuario(usuarioId))
+        } catch (e: NoSuchElementException) {
+            ResponseEntity.status(404).body(
+                mapOf("mensaje" to "Usuario no encontrado")
+            )
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(
+                mapOf("mensaje" to (e.message ?: "Solicitud inválida"))
+            )
+        }
+    }
+
     @PostMapping
     fun crearSimulacro(@RequestBody request: CrearSimulacroRequest): ResponseEntity<Any> {
         return try {

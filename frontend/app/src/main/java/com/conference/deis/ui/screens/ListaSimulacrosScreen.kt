@@ -74,8 +74,17 @@ fun ListaSimulacrosScreen(navController: NavHostController) {
                 cargando = true
                 error = null
 
-                val responseSimulacros = RetrofitInstance.api.obtenerSimulacros()
-                if (responseSimulacros.isSuccessful) {
+                val responseSimulacros = if (esAdmin) {
+                    RetrofitInstance.api.obtenerSimulacros()
+                } else if (!usuarioId.isNullOrBlank()) {
+                    RetrofitInstance.api.obtenerSimulacrosPorUsuario(usuarioId)
+                } else {
+                    null
+                }
+
+                if (responseSimulacros == null) {
+                    simulacros = emptyList()
+                } else if (responseSimulacros.isSuccessful) {
                     simulacros = responseSimulacros.body()
                         .orEmpty()
                         .filter { it.programado && !it.eliminado && it.bancoId == null }
@@ -345,6 +354,14 @@ private fun SimulacroCard(
             Text("Hora final: ${formatearHoraSimulacro(simulacro.horaFin)}", fontSize = 14.sp)
             Spacer(modifier = Modifier.height(6.dp))
             Text("Preguntas: ${simulacro.totalPreguntas}", fontSize = 14.sp, color = Color.Gray)
+            if (!simulacro.facultadNombre.isNullOrBlank() || !simulacro.facultadId.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Facultad: ${simulacro.facultadNombre ?: simulacro.facultadId}",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            }
 
             if (intento != null && !esAdmin) {
                 Spacer(modifier = Modifier.height(6.dp))

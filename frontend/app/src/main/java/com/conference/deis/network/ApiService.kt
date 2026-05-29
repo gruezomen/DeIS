@@ -89,6 +89,11 @@ interface ApiService {
     @GET("api/simulacros")
     suspend fun obtenerSimulacros(): Response<List<Simulacro>>
 
+    @GET("api/simulacros/usuario/{usuarioId}")
+    suspend fun obtenerSimulacrosPorUsuario(
+        @Path("usuarioId") usuarioId: String
+    ): Response<List<Simulacro>>
+
     @POST("api/simulacros")
     suspend fun crearSimulacro(
         @Body request: CrearSimulacroRequest

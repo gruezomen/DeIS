@@ -6,6 +6,8 @@ data class CrearSimulacroRequest(
     val fechaFin: String,
     val bancoId: String? = null,
     val preguntaIds: List<String> = emptyList(),
+    val facultadId: String? = null,
+    val facultadNombre: String? = null,
     val creadoPor: String? = null,
     val zonaHorariaCreador: String? = "America/La_Paz"
 )
@@ -21,6 +23,8 @@ data class SimulacroResponse(
     val puntaje: Double,
     val preguntaIds: List<String>,
     val totalPreguntas: Int,
+    val facultadId: String?,
+    val facultadNombre: String?,
     val creadoPor: String?,
     val zonaHorariaCreador: String,
     val segundosRestantes: Long,

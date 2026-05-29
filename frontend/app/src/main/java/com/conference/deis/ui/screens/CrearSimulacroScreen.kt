@@ -23,10 +23,14 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -49,6 +53,7 @@ import androidx.navigation.NavHostController
 import com.conference.deis.network.RetrofitInstance
 import com.conference.deis.network.UserSession
 import com.conference.deis.network.model.CrearSimulacroRequest
+import com.conference.deis.network.model.Facultad
 import com.conference.deis.network.model.Question
 import com.conference.deis.ui.theme.BlueBackground
 import kotlinx.coroutines.launch
@@ -57,6 +62,14 @@ import java.util.TimeZone
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrearSimulacroScreen(navController: NavHostController) {
+    if (!esAdministrador()) {
+        AccesoDenegadoScreen(
+            navController = navController,
+            mensaje = "Solo el administrador puede crear simulacros."
+        )
+        return
+    }
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -64,24 +77,50 @@ fun CrearSimulacroScreen(navController: NavHostController) {
     var fecha by remember { mutableStateOf("") }
     var horaInicio by remember { mutableStateOf("") }
     var horaFin by remember { mutableStateOf("") }
+
+    var facultades by remember { mutableStateOf<List<Facultad>>(emptyList()) }
+    var facultadSeleccionada by remember { mutableStateOf<Facultad?>(null) }
+    var facultadExpandida by remember { mutableStateOf(false) }
+
     var preguntas by remember { mutableStateOf<List<Question>>(emptyList()) }
     val preguntasSeleccionadas = remember { mutableStateListOf<String>() }
-    var cargandoPreguntas by remember { mutableStateOf(true) }
+
+    var cargandoDatos by remember { mutableStateOf(true) }
     var guardando by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         try {
-            cargandoPreguntas = true
-            val response = RetrofitInstance.api.obtenerPreguntas()
-            if (response.isSuccessful) {
-                preguntas = response.body().orEmpty()
+            cargandoDatos = true
+
+            val responsePreguntas = RetrofitInstance.api.obtenerPreguntas()
+            if (responsePreguntas.isSuccessful) {
+                preguntas = responsePreguntas.body().orEmpty()
             } else {
-                Toast.makeText(context, "No se pudieron cargar las preguntas", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    "No se pudieron cargar las preguntas",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+
+            val responseFacultades = RetrofitInstance.api.obtenerFacultades()
+            if (responseFacultades.isSuccessful) {
+                facultades = responseFacultades.body().orEmpty()
+            } else {
+                Toast.makeText(
+                    context,
+                    "No se pudieron cargar las facultades",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         } catch (e: Exception) {
-            Toast.makeText(context, "Error de conexión: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                "Error de conexión: ${e.message}",
+                Toast.LENGTH_SHORT
+            ).show()
         } finally {
-            cargandoPreguntas = false
+            cargandoDatos = false
         }
     }
 
@@ -135,6 +174,55 @@ fun CrearSimulacroScreen(navController: NavHostController) {
             }
 
             item {
+                ExposedDropdownMenuBox(
+                    expanded = facultadExpandida,
+                    onExpandedChange = {
+                        if (!guardando && !cargandoDatos) {
+                            facultadExpandida = !facultadExpandida
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = facultadSeleccionada?.nombre.orEmpty(),
+                        onValueChange = {},
+                        readOnly = true,
+                        enabled = !guardando && !cargandoDatos,
+                        label = { Text("Facultad") },
+                        placeholder = { Text("Selecciona la facultad") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(
+                                expanded = facultadExpandida
+                            )
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = facultadExpandida,
+                        onDismissRequest = { facultadExpandida = false },
+                        modifier = Modifier.background(Color.White)
+                    ) {
+                        facultades.forEach { facultad ->
+                            DropdownMenuItem(
+                                text = { Text(facultad.nombre) },
+                                onClick = {
+                                    facultadSeleccionada = facultad
+                                    facultadExpandida = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
                 OutlinedTextField(
                     value = fecha,
                     onValueChange = { fecha = it },
@@ -147,7 +235,10 @@ fun CrearSimulacroScreen(navController: NavHostController) {
             }
 
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     OutlinedTextField(
                         value = horaInicio,
                         onValueChange = { horaInicio = it },
@@ -171,7 +262,6 @@ fun CrearSimulacroScreen(navController: NavHostController) {
             }
 
             item {
-                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "Selecciona preguntas (${preguntasSeleccionadas.size})",
                     fontSize = 18.sp,
@@ -180,16 +270,24 @@ fun CrearSimulacroScreen(navController: NavHostController) {
                 )
             }
 
-            if (cargandoPreguntas) {
+            if (cargandoDatos) {
                 item {
                     Column(
-                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Cargando preguntas...")
+                        Text("Cargando datos...")
                     }
+                }
+            } else if (facultades.isEmpty()) {
+                item {
+                    Text(
+                        text = "No hay facultades registradas. Primero registra facultades en el sistema.",
+                        color = Color.Gray,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             } else if (preguntas.isEmpty()) {
                 item {
@@ -218,41 +316,93 @@ fun CrearSimulacroScreen(navController: NavHostController) {
 
             item {
                 Spacer(modifier = Modifier.height(10.dp))
+
                 Button(
                     onClick = {
                         val nombreLimpio = nombre.trim()
                         val fechaLimpia = fecha.trim()
                         val inicioLimpio = horaInicio.trim()
                         val finLimpio = horaFin.trim()
+                        val facultad = facultadSeleccionada
+                        val facultadId = facultad?.id?.trim().orEmpty()
+                        val facultadNombre = facultad?.nombre?.trim().orEmpty()
 
                         when {
-                            nombreLimpio.isBlank() -> Toast.makeText(context, "Ingrese un nombre", Toast.LENGTH_SHORT).show()
-                            !fechaLimpia.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) -> Toast.makeText(context, "Use fecha con formato YYYY-MM-DD", Toast.LENGTH_SHORT).show()
-                            !inicioLimpio.matches(Regex("\\d{2}:\\d{2}")) -> Toast.makeText(context, "Use hora de inicio HH:mm", Toast.LENGTH_SHORT).show()
-                            !finLimpio.matches(Regex("\\d{2}:\\d{2}")) -> Toast.makeText(context, "Use hora final HH:mm", Toast.LENGTH_SHORT).show()
-                            preguntasSeleccionadas.isEmpty() -> Toast.makeText(context, "Seleccione al menos una pregunta", Toast.LENGTH_SHORT).show()
+                            nombreLimpio.isBlank() -> Toast.makeText(
+                                context,
+                                "Ingrese un nombre",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            facultad == null || facultadId.isBlank() -> Toast.makeText(
+                                context,
+                                "Seleccione una facultad válida",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            !fechaLimpia.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) -> Toast.makeText(
+                                context,
+                                "Use fecha con formato YYYY-MM-DD",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            !inicioLimpio.matches(Regex("\\d{2}:\\d{2}")) -> Toast.makeText(
+                                context,
+                                "Use hora de inicio HH:mm",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            !finLimpio.matches(Regex("\\d{2}:\\d{2}")) -> Toast.makeText(
+                                context,
+                                "Use hora final HH:mm",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            preguntasSeleccionadas.isEmpty() -> Toast.makeText(
+                                context,
+                                "Seleccione al menos una pregunta",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
                             else -> {
                                 scope.launch {
                                     guardando = true
+
                                     try {
                                         val request = CrearSimulacroRequest(
                                             nombre = nombreLimpio,
                                             fechaInicio = "${fechaLimpia}T${inicioLimpio}:00",
                                             fechaFin = "${fechaLimpia}T${finLimpio}:00",
                                             preguntaIds = preguntasSeleccionadas.toList(),
+                                            facultadId = facultadId,
+                                            facultadNombre = facultadNombre,
                                             creadoPor = UserSession.user?.id?.toString(),
                                             zonaHorariaCreador = TimeZone.getDefault().id
                                         )
 
                                         val response = RetrofitInstance.api.crearSimulacro(request)
+
                                         if (response.isSuccessful) {
-                                            Toast.makeText(context, "Simulacro creado", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(
+                                                context,
+                                                "Simulacro creado",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+
                                             navController.popBackStack()
                                         } else {
-                                            Toast.makeText(context, "No se pudo crear el simulacro", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(
+                                                context,
+                                                "No se pudo crear el simulacro",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         }
                                     } catch (e: Exception) {
-                                        Toast.makeText(context, "Error de conexión: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(
+                                            context,
+                                            "Error de conexión: ${e.message}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     } finally {
                                         guardando = false
                                     }
@@ -260,12 +410,16 @@ fun CrearSimulacroScreen(navController: NavHostController) {
                             }
                         }
                     },
-                    enabled = !guardando,
+                    enabled = !guardando && !cargandoDatos,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = BlueBackground)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BlueBackground
+                    )
                 ) {
-                    Text(if (guardando) "Guardando..." else "Guardar simulacro")
+                    Text(
+                        text = if (guardando) "Guardando..." else "Guardar simulacro"
+                    )
                 }
             }
         }
@@ -284,7 +438,9 @@ private fun PreguntaSeleccionableCard(
             .fillMaxWidth()
             .clickable(enabled = enabled) { onToggle() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF7F7F7))
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFF7F7F7)
+        )
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -296,7 +452,9 @@ private fun PreguntaSeleccionableCard(
                 enabled = enabled
             )
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(
                     text = pregunta.enunciado,
                     fontSize = 14.sp,
