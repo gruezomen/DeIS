@@ -69,9 +69,12 @@ fun LoginScreen(navController: NavHostController) {
                         try {
                             val response = RetrofitInstance.api.iniciarSesionGoogle(GoogleLoginRequest(idToken))
                             if (response.isSuccessful && response.body() != null) {
-                                com.conference.deis.network.UserSession.user = response.body()
-                                Toast.makeText(context, "Bienvenido ${response.body()!!.nombre}", Toast.LENGTH_SHORT).show()
-                                navController.navigate("success") {
+                                val user = response.body()!!
+                                com.conference.deis.network.UserSession.user = user
+                                Toast.makeText(context, "Bienvenido ${user.nombre}", Toast.LENGTH_SHORT).show()
+                                
+                                val destination = if (user.facultadesIds.isEmpty()) "seleccionar_facultad" else "success"
+                                navController.navigate(destination) {
                                     popUpTo("login") { inclusive = true }
                                 }
                             } else {
@@ -160,13 +163,18 @@ fun LoginScreen(navController: NavHostController) {
                             )
 
                             if (response.isSuccessful && response.body() != null) {
-                                com.conference.deis.network.UserSession.user = response.body()
+                                val userResponse = response.body()!!
+                                com.conference.deis.network.UserSession.user = userResponse
                                 Toast.makeText(
                                     context,
-                                    response.body()!!.mensaje,
+                                    userResponse.mensaje,
                                     Toast.LENGTH_SHORT
                                 ).show()
-                                navController.navigate("success")
+                                
+                                val destination = if (userResponse.facultadesIds.isEmpty()) "seleccionar_facultad" else "success"
+                                navController.navigate(destination) {
+                                    popUpTo("login") { inclusive = true }
+                                }
                             } else {
                                 Toast.makeText(
                                     context,
@@ -210,7 +218,9 @@ fun LoginScreen(navController: NavHostController) {
 
             BotonGoogle(
                 onClick = {
-                    launcher.launch(googleSignInClient.signInIntent)
+                    googleSignInClient.signOut().addOnCompleteListener {
+                        launcher.launch(googleSignInClient.signInIntent)
+                    }
                 }
             )
 

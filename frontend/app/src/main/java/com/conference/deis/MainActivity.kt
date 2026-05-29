@@ -75,6 +75,10 @@ fun DeISApp() {
                     RegisterScreen(navController)
                 }
 
+                composable("seleccionar_facultad") {
+                    SeleccionarFacultadScreen(navController)
+                }
+
                 composable("success") {
                     SuccessLoadingScreen(navController)
                 }

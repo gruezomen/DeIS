@@ -46,7 +46,6 @@ fun RegisterScreen(navController: NavHostController) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Configuración de Google Sign-In
     val gso = remember {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(BuildConfig.GOOGLE_WEB_CLIENT_ID)
@@ -68,9 +67,14 @@ fun RegisterScreen(navController: NavHostController) {
                     try {
                         val response = RetrofitInstance.api.iniciarSesionGoogle(GoogleLoginRequest(idToken))
                         if (response.isSuccessful && response.body() != null) {
-                            com.conference.deis.network.UserSession.user = response.body()
+                            val user = response.body()!!
+                            com.conference.deis.network.UserSession.user = user
                             Toast.makeText(context, "Registro con Google exitoso", Toast.LENGTH_SHORT).show()
-                            navController.navigate("success")
+                            
+                            val destination = if (user.facultadesIds.isEmpty()) "seleccionar_facultad" else "success"
+                            navController.navigate(destination) {
+                                popUpTo("register") { inclusive = true }
+                            }
                         } else {
                             Toast.makeText(context, "Error al registrar con Google", Toast.LENGTH_SHORT).show()
                         }
@@ -93,7 +97,6 @@ fun RegisterScreen(navController: NavHostController) {
                 facultades = response.body() ?: emptyList()
             }
         } catch (e: Exception) {
-            // Manejar error silenciosamente
         }
     }
 
@@ -166,7 +169,6 @@ fun RegisterScreen(navController: NavHostController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Selector de Facultades (Múltiple)
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = !expanded },
@@ -301,7 +303,9 @@ fun RegisterScreen(navController: NavHostController) {
 
             BotonGoogle(
                 onClick = {
-                    launcher.launch(googleSignInClient.signInIntent)
+                    googleSignInClient.signOut().addOnCompleteListener {
+                        launcher.launch(googleSignInClient.signInIntent)
+                    }
                 }
             )
         }
