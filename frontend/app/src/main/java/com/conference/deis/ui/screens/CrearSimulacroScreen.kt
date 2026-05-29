@@ -77,6 +77,7 @@ fun CrearSimulacroScreen(navController: NavHostController) {
     var fecha by remember { mutableStateOf("") }
     var horaInicio by remember { mutableStateOf("") }
     var horaFin by remember { mutableStateOf("") }
+    var tiempoLimiteMinutos by remember { mutableStateOf("") }
 
     var facultades by remember { mutableStateOf<List<Facultad>>(emptyList()) }
     var facultadSeleccionada by remember { mutableStateOf<Facultad?>(null) }
@@ -262,6 +263,18 @@ fun CrearSimulacroScreen(navController: NavHostController) {
             }
 
             item {
+                OutlinedTextField(
+                    value = tiempoLimiteMinutos,
+                    onValueChange = { tiempoLimiteMinutos = it.filter { caracter -> caracter.isDigit() } },
+                    label = { Text("Tiempo límite de la prueba (min)") },
+                    placeholder = { Text("Ej: 10") },
+                    enabled = !guardando,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            item {
                 Text(
                     text = "Selecciona preguntas (${preguntasSeleccionadas.size})",
                     fontSize = 18.sp,
@@ -323,6 +336,7 @@ fun CrearSimulacroScreen(navController: NavHostController) {
                         val fechaLimpia = fecha.trim()
                         val inicioLimpio = horaInicio.trim()
                         val finLimpio = horaFin.trim()
+                        val tiempoLimite = tiempoLimiteMinutos.trim().toIntOrNull()
                         val facultad = facultadSeleccionada
                         val facultadId = facultad?.id?.trim().orEmpty()
                         val facultadNombre = facultad?.nombre?.trim().orEmpty()
@@ -358,6 +372,12 @@ fun CrearSimulacroScreen(navController: NavHostController) {
                                 Toast.LENGTH_SHORT
                             ).show()
 
+                            tiempoLimite == null || tiempoLimite <= 0 -> Toast.makeText(
+                                context,
+                                "Ingrese un tiempo límite mayor a 0 minutos",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
                             preguntasSeleccionadas.isEmpty() -> Toast.makeText(
                                 context,
                                 "Seleccione al menos una pregunta",
@@ -373,6 +393,7 @@ fun CrearSimulacroScreen(navController: NavHostController) {
                                             nombre = nombreLimpio,
                                             fechaInicio = "${fechaLimpia}T${inicioLimpio}:00",
                                             fechaFin = "${fechaLimpia}T${finLimpio}:00",
+                                            tiempoLimiteMinutos = tiempoLimite ?: 0,
                                             preguntaIds = preguntasSeleccionadas.toList(),
                                             facultadId = facultadId,
                                             facultadNombre = facultadNombre,

@@ -354,6 +354,8 @@ private fun SimulacroCard(
             Text("Hora final: ${formatearHoraSimulacro(simulacro.horaFin)}", fontSize = 14.sp)
             Spacer(modifier = Modifier.height(6.dp))
             Text("Preguntas: ${simulacro.totalPreguntas}", fontSize = 14.sp, color = Color.Gray)
+            Spacer(modifier = Modifier.height(6.dp))
+            Text("Tiempo límite: ${simulacro.tiempoLimiteMinutos.coerceAtLeast(simulacro.tiempo)} min", fontSize = 14.sp, color = Color.Gray)
             if (!simulacro.facultadNombre.isNullOrBlank() || !simulacro.facultadId.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(

@@ -10,6 +10,7 @@ data class Simulacro(
     val nombre: String = "Simulacro",
     val bancoId: String? = null,
     val tiempo: Int = 0,
+    val tiempoLimiteMinutos: Int = 0,
     val horaInicio: String,
     val horaFin: String,
     val puntaje: Double = 0.0,

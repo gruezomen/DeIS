@@ -14,13 +14,11 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
-import com.deis.backend.service.NotificacionService
 
 @Service
 class SimulacroService(
     private val simulacroRepository: SimulacroRepository,
-    private val usuarioRepository: UsuarioRepository,
-    private val notificacionService: NotificacionService
+    private val usuarioRepository: UsuarioRepository
 ) {
     private val zonaHorariaPorDefecto = "America/La_Paz"
 
@@ -58,15 +56,22 @@ class SimulacroService(
             throw IllegalArgumentException("La fecha de finalización debe ser posterior a la fecha de inicio")
         }
 
-        val tiempo = Duration.between(fechaInicio, fechaFin).toMinutes().toInt()
-        if (tiempo <= 0) {
-            throw IllegalArgumentException("La duración del simulacro debe ser mayor a cero minutos")
+        val tiempoAperturaMinutos = Duration.between(fechaInicio, fechaFin).toMinutes().toInt()
+        if (tiempoAperturaMinutos <= 0) {
+            throw IllegalArgumentException("La duración del horario abierto debe ser mayor a cero minutos")
+        }
+
+        val tiempoLimiteMinutos = request.tiempoLimiteMinutos
+        if (tiempoLimiteMinutos <= 0) {
+            throw IllegalArgumentException("El tiempo límite de la prueba debe ser mayor a cero minutos")
         }
 
         val simulacro = Simulacro(
             nombre = nombre,
             bancoId = null,
-            tiempo = tiempo,
+            // Se mantiene tiempo con el mismo valor por compatibilidad con pantallas antiguas.
+            tiempo = tiempoLimiteMinutos,
+            tiempoLimiteMinutos = tiempoLimiteMinutos,
             horaInicio = fechaInicio.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
             horaFin = fechaFin.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
             preguntaIds = request.preguntaIds.distinct(),
@@ -78,19 +83,7 @@ class SimulacroService(
             eliminado = false
         )
 
-        val guardado = simulacroRepository.save(simulacro)
-
-        notificacionService.crearNotificacionesPorFacultad(
-            simulacroId = guardado.id,
-            nombreSimulacro = guardado.nombre,
-            facultadId = guardado.facultadId,
-            facultadNombre = guardado.facultadNombre,
-            fechaInicio = guardado.horaInicio,
-            fechaFin = guardado.horaFin,
-            creadoPor = guardado.creadoPor
-        )
-
-        return mapearAResponse(guardado)
+        return mapearAResponse(simulacroRepository.save(simulacro))
     }
 
     fun listarSimulacros(): List<SimulacroResponse> {
@@ -178,7 +171,8 @@ class SimulacroService(
             id = simulacro.id,
             nombre = simulacro.nombre.ifBlank { "Simulacro" },
             bancoId = simulacro.bancoId,
-            tiempo = simulacro.tiempo,
+            tiempo = obtenerTiempoLimiteMinutos(simulacro),
+            tiempoLimiteMinutos = obtenerTiempoLimiteMinutos(simulacro),
             horaInicio = simulacro.horaInicio,
             horaFin = simulacro.horaFin,
             estado = estado,
@@ -237,10 +231,26 @@ class SimulacroService(
     }
 
     private fun calcularSegundosRestantes(simulacro: Simulacro): Long {
+        if (calcularEstado(simulacro) != EstadoSimulacro.ACTIVO) {
+            return 0L
+        }
+
         val fin = parsearFechaONull(simulacro.horaFin) ?: return 0L
         val ahora = ahoraSegunZona(simulacro.zonaHorariaCreador)
+        val segundosHastaCierre = Duration.between(ahora, fin).seconds.coerceAtLeast(0L)
+        val segundosPorLimitePrueba = obtenerTiempoLimiteMinutos(simulacro)
+            .coerceAtLeast(1)
+            .toLong() * 60L
 
-        return Duration.between(ahora, fin).seconds.coerceAtLeast(0L)
+        return minOf(segundosHastaCierre, segundosPorLimitePrueba)
+    }
+
+    private fun obtenerTiempoLimiteMinutos(simulacro: Simulacro): Int {
+        return when {
+            simulacro.tiempoLimiteMinutos > 0 -> simulacro.tiempoLimiteMinutos
+            simulacro.tiempo > 0 -> simulacro.tiempo
+            else -> 1
+        }
     }
 
     private fun ahoraSegunZona(zonaHoraria: String?): LocalDateTime {
