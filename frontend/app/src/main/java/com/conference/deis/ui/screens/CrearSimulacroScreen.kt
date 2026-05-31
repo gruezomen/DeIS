@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,11 +12,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -23,6 +26,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -32,8 +37,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
@@ -57,6 +66,14 @@ import com.conference.deis.network.model.Facultad
 import com.conference.deis.network.model.Question
 import com.conference.deis.ui.theme.BlueBackground
 import kotlinx.coroutines.launch
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -79,6 +96,10 @@ fun CrearSimulacroScreen(navController: NavHostController) {
     var horaFin by remember { mutableStateOf("") }
     var tiempoLimiteMinutos by remember { mutableStateOf("") }
 
+    var mostrarCalendario by remember { mutableStateOf(false) }
+    var mostrarSelectorInicio by remember { mutableStateOf(false) }
+    var mostrarSelectorFin by remember { mutableStateOf(false) }
+
     var facultades by remember { mutableStateOf<List<Facultad>>(emptyList()) }
     var facultadSeleccionada by remember { mutableStateOf<Facultad?>(null) }
     var facultadExpandida by remember { mutableStateOf(false) }
@@ -88,6 +109,106 @@ fun CrearSimulacroScreen(navController: NavHostController) {
 
     var cargandoDatos by remember { mutableStateOf(true) }
     var guardando by remember { mutableStateOf(false) }
+
+    val inicioDiaActualMillis = remember { obtenerInicioDiaActualMillis() }
+
+    if (mostrarCalendario) {
+        val estadoCalendario = rememberDatePickerState(
+            initialSelectedDateMillis = convertirFechaIsoAMillis(fecha)
+                ?.takeIf { it >= inicioDiaActualMillis }
+                ?: inicioDiaActualMillis,
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    return utcTimeMillis >= inicioDiaActualMillis
+                }
+            }
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { mostrarCalendario = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val fechaSeleccionada = estadoCalendario.selectedDateMillis
+
+                        if (fechaSeleccionada != null && fechaSeleccionada >= inicioDiaActualMillis) {
+                            fecha = convertirMillisAFechaIso(fechaSeleccionada)
+                            val minimaInicio = calcularHoraMinimaInicio(fecha)
+
+                            if (minimaInicio != null && esHoraMenorQue(horaInicio, minimaInicio)) {
+                                horaInicio = minimaInicio
+                            }
+
+                            val limite = tiempoLimiteMinutos.trim().toIntOrNull()
+                            val minimaFin = calcularHoraMinimaFin(fecha, horaInicio, limite)
+                            if (minimaFin != null && esHoraMenorQue(horaFin, minimaFin)) {
+                                horaFin = minimaFin
+                            }
+
+                            mostrarCalendario = false
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "No puede seleccionar una fecha anterior",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                ) {
+                    Text("Aceptar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarCalendario = false }) {
+                    Text("Cancelar")
+                }
+            }
+        ) {
+            DatePicker(state = estadoCalendario)
+        }
+    }
+
+    if (mostrarSelectorInicio) {
+        SelectorHoraDialog(
+            titulo = "Hora de inicio",
+            horaActual = horaInicio,
+            horaMinima = calcularHoraMinimaInicio(fecha),
+            mensajeAyuda = "No se permiten horas anteriores a la actual cuando la fecha es hoy.",
+            onCancelar = { mostrarSelectorInicio = false },
+            onAceptar = { horaElegida ->
+                horaInicio = horaElegida
+
+                val limite = tiempoLimiteMinutos.trim().toIntOrNull()
+                val minimaFin = calcularHoraMinimaFin(fecha, horaInicio, limite)
+                if (minimaFin != null && esHoraMenorQue(horaFin, minimaFin)) {
+                    horaFin = minimaFin
+                }
+
+                mostrarSelectorInicio = false
+            }
+        )
+    }
+
+    if (mostrarSelectorFin) {
+        val limite = tiempoLimiteMinutos.trim().toIntOrNull()
+        val horaMinimaFin = calcularHoraMinimaFin(fecha, horaInicio, limite)
+
+        SelectorHoraDialog(
+            titulo = "Hora final",
+            horaActual = horaFin,
+            horaMinima = horaMinimaFin,
+            mensajeAyuda = if (horaMinimaFin != null) {
+                "La hora final debe permitir al menos el tiempo límite configurado."
+            } else {
+                "Seleccione primero la fecha, hora de inicio y tiempo límite."
+            },
+            onCancelar = { mostrarSelectorFin = false },
+            onAceptar = { horaElegida ->
+                horaFin = horaElegida
+                mostrarSelectorFin = false
+            }
+        )
+    }
 
     LaunchedEffect(Unit) {
         try {
@@ -226,12 +347,25 @@ fun CrearSimulacroScreen(navController: NavHostController) {
             item {
                 OutlinedTextField(
                     value = fecha,
-                    onValueChange = { fecha = it },
+                    onValueChange = {},
                     label = { Text("Fecha") },
-                    placeholder = { Text("YYYY-MM-DD") },
+                    placeholder = { Text("Selecciona una fecha") },
+                    readOnly = true,
                     enabled = !guardando,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    trailingIcon = {
+                        TextButton(
+                            onClick = { mostrarCalendario = true },
+                            enabled = !guardando
+                        ) {
+                            Text("Elegir")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !guardando) {
+                            mostrarCalendario = true
+                        }
                 )
             }
 
@@ -242,22 +376,48 @@ fun CrearSimulacroScreen(navController: NavHostController) {
                 ) {
                     OutlinedTextField(
                         value = horaInicio,
-                        onValueChange = { horaInicio = it },
+                        onValueChange = {},
                         label = { Text("Inicio") },
                         placeholder = { Text("14:00") },
+                        readOnly = true,
                         enabled = !guardando,
                         singleLine = true,
-                        modifier = Modifier.weight(1f)
+                        trailingIcon = {
+                            TextButton(
+                                onClick = { mostrarSelectorInicio = true },
+                                enabled = !guardando
+                            ) {
+                                Text("Elegir")
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(enabled = !guardando) {
+                                mostrarSelectorInicio = true
+                            }
                     )
 
                     OutlinedTextField(
                         value = horaFin,
-                        onValueChange = { horaFin = it },
+                        onValueChange = {},
                         label = { Text("Fin") },
                         placeholder = { Text("14:30") },
+                        readOnly = true,
                         enabled = !guardando,
                         singleLine = true,
-                        modifier = Modifier.weight(1f)
+                        trailingIcon = {
+                            TextButton(
+                                onClick = { mostrarSelectorFin = true },
+                                enabled = !guardando
+                            ) {
+                                Text("Elegir")
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(enabled = !guardando) {
+                                mostrarSelectorFin = true
+                            }
                     )
                 }
             }
@@ -265,9 +425,20 @@ fun CrearSimulacroScreen(navController: NavHostController) {
             item {
                 OutlinedTextField(
                     value = tiempoLimiteMinutos,
-                    onValueChange = { tiempoLimiteMinutos = it.filter { caracter -> caracter.isDigit() } },
-                    label = { Text("Tiempo límite de la prueba (min)") },
-                    placeholder = { Text("Ej: 10") },
+                    onValueChange = { nuevoValor ->
+                        tiempoLimiteMinutos = nuevoValor.filter { it.isDigit() }
+
+                        val limite = nuevoValor.filter { it.isDigit() }.toIntOrNull()
+                        val minimaFin = calcularHoraMinimaFin(fecha, horaInicio, limite)
+                        if (minimaFin != null && esHoraMenorQue(horaFin, minimaFin)) {
+                            horaFin = minimaFin
+                        }
+                    },
+                    label = { Text("Tiempo límite de la prueba") },
+                    placeholder = { Text("Ej: 20") },
+                    supportingText = {
+                        Text("Tiempo máximo para responder, en minutos.")
+                    },
                     enabled = !guardando,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -336,7 +507,10 @@ fun CrearSimulacroScreen(navController: NavHostController) {
                         val fechaLimpia = fecha.trim()
                         val inicioLimpio = horaInicio.trim()
                         val finLimpio = horaFin.trim()
-                        val tiempoLimite = tiempoLimiteMinutos.trim().toIntOrNull()
+                        val fechaSeleccionadaGuardado = parsearFechaIso(fechaLimpia)
+                        val inicioFechaHora = parsearFechaHora(fechaLimpia, inicioLimpio)
+                        val finFechaHora = parsearFechaHora(fechaLimpia, finLimpio)
+                        val limiteMinutos = tiempoLimiteMinutos.trim().toIntOrNull()
                         val facultad = facultadSeleccionada
                         val facultadId = facultad?.id?.trim().orEmpty()
                         val facultadNombre = facultad?.nombre?.trim().orEmpty()
@@ -354,27 +528,69 @@ fun CrearSimulacroScreen(navController: NavHostController) {
                                 Toast.LENGTH_SHORT
                             ).show()
 
-                            !fechaLimpia.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) -> Toast.makeText(
+                            fechaLimpia.isBlank() -> Toast.makeText(
                                 context,
-                                "Use fecha con formato YYYY-MM-DD",
+                                "Seleccione una fecha",
                                 Toast.LENGTH_SHORT
                             ).show()
 
-                            !inicioLimpio.matches(Regex("\\d{2}:\\d{2}")) -> Toast.makeText(
+                            fechaSeleccionadaGuardado == null -> Toast.makeText(
                                 context,
-                                "Use hora de inicio HH:mm",
+                                "Seleccione una fecha válida",
                                 Toast.LENGTH_SHORT
                             ).show()
 
-                            !finLimpio.matches(Regex("\\d{2}:\\d{2}")) -> Toast.makeText(
+                            fechaSeleccionadaGuardado.isBefore(LocalDate.now()) -> Toast.makeText(
                                 context,
-                                "Use hora final HH:mm",
+                                "No puede seleccionar una fecha anterior",
                                 Toast.LENGTH_SHORT
                             ).show()
 
-                            tiempoLimite == null || tiempoLimite <= 0 -> Toast.makeText(
+                            inicioLimpio.isBlank() -> Toast.makeText(
                                 context,
-                                "Ingrese un tiempo límite mayor a 0 minutos",
+                                "Seleccione hora de inicio",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            finLimpio.isBlank() -> Toast.makeText(
+                                context,
+                                "Seleccione hora final",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            inicioFechaHora == null -> Toast.makeText(
+                                context,
+                                "Seleccione una hora de inicio válida",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            finFechaHora == null -> Toast.makeText(
+                                context,
+                                "Seleccione una hora final válida",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            inicioFechaHora.isBefore(LocalDateTime.now()) -> Toast.makeText(
+                                context,
+                                "La hora de inicio no puede ser anterior a la hora actual",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            limiteMinutos == null || limiteMinutos <= 0 -> Toast.makeText(
+                                context,
+                                "Ingrese un tiempo límite mayor a cero",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            !finFechaHora.isAfter(inicioFechaHora) -> Toast.makeText(
+                                context,
+                                "La hora final debe ser posterior a la hora de inicio",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            Duration.between(inicioFechaHora, finFechaHora).toMinutes() < limiteMinutos -> Toast.makeText(
+                                context,
+                                "La hora final debe permitir al menos $limiteMinutos minutos de prueba",
                                 Toast.LENGTH_SHORT
                             ).show()
 
@@ -393,7 +609,7 @@ fun CrearSimulacroScreen(navController: NavHostController) {
                                             nombre = nombreLimpio,
                                             fechaInicio = "${fechaLimpia}T${inicioLimpio}:00",
                                             fechaFin = "${fechaLimpia}T${finLimpio}:00",
-                                            tiempoLimiteMinutos = tiempoLimite ?: 0,
+                                            tiempoLimiteMinutos = limiteMinutos,
                                             preguntaIds = preguntasSeleccionadas.toList(),
                                             facultadId = facultadId,
                                             facultadNombre = facultadNombre,
@@ -493,4 +709,299 @@ private fun PreguntaSeleccionableCard(
             }
         }
     }
+}
+
+@Composable
+private fun SelectorHoraDialog(
+    titulo: String,
+    horaActual: String,
+    horaMinima: String?,
+    mensajeAyuda: String,
+    onCancelar: () -> Unit,
+    onAceptar: (String) -> Unit
+) {
+    val horaInicial = obtenerHoraMinutoConMinimo(horaActual, horaMinima)
+    val horaMinimaPar = obtenerHoraMinutoONull(horaMinima)
+
+    var horaSeleccionada by remember(titulo, horaActual, horaMinima) {
+        mutableStateOf(horaInicial.first)
+    }
+    var minutoSeleccionado by remember(titulo, horaActual, horaMinima) {
+        mutableStateOf(horaInicial.second)
+    }
+
+    val horasDisponibles = remember(horaMinima) {
+        val inicio = horaMinimaPar?.first ?: 0
+        (inicio..23).toList()
+    }
+
+    val minutosDisponibles = remember(horaSeleccionada, horaMinima) {
+        val minutoInicio = if (horaMinimaPar != null && horaSeleccionada == horaMinimaPar.first) {
+            horaMinimaPar.second
+        } else {
+            0
+        }
+
+        (minutoInicio..59).toList()
+    }
+
+    if (minutoSeleccionado !in minutosDisponibles) {
+        minutoSeleccionado = minutosDisponibles.firstOrNull() ?: 0
+    }
+
+    AlertDialog(
+        onDismissRequest = onCancelar,
+        title = { Text(titulo) },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = mensajeAyuda,
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = String.format(Locale.US, "%02d : %02d", horaSeleccionada, minutoSeleccionado),
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    ColumnaSelectorNumero(
+                        titulo = "Hora",
+                        valores = horasDisponibles,
+                        valorSeleccionado = horaSeleccionada,
+                        onSeleccionar = { nuevaHora ->
+                            horaSeleccionada = nuevaHora
+
+                            if (minutoSeleccionado !in minutosDisponibles) {
+                                minutoSeleccionado = minutosDisponibles.firstOrNull() ?: 0
+                            }
+                        }
+                    )
+
+                    Text(
+                        text = ":",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+
+                    ColumnaSelectorNumero(
+                        titulo = "Min",
+                        valores = minutosDisponibles,
+                        valorSeleccionado = minutoSeleccionado,
+                        onSeleccionar = { minutoSeleccionado = it }
+                    )
+
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onAceptar(formatearHora(horaSeleccionada, minutoSeleccionado))
+                }
+            ) {
+                Text("Aceptar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancelar) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+private fun ColumnaSelectorNumero(
+    titulo: String,
+    valores: List<Int>,
+    valorSeleccionado: Int,
+    onSeleccionar: (Int) -> Unit
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = titulo,
+            fontSize = 12.sp,
+            color = Color.Gray
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Card(
+            modifier = Modifier
+                .width(82.dp)
+                .height(168.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.Black)
+        ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                items(valores) { valor ->
+                    val seleccionado = valor == valorSeleccionado
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .clickable { onSeleccionar(valor) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = String.format(Locale.US, "%02d", valor),
+                            fontSize = if (seleccionado) 26.sp else 20.sp,
+                            fontWeight = if (seleccionado) FontWeight.Bold else FontWeight.Normal,
+                            color = if (seleccionado) Color.White else Color.DarkGray
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun obtenerInicioDiaActualMillis(): Long {
+    return LocalDate
+        .now()
+        .atStartOfDay()
+        .toInstant(ZoneOffset.UTC)
+        .toEpochMilli()
+}
+
+private fun parsearFechaIso(fecha: String): LocalDate? {
+    return try {
+        LocalDate.parse(fecha, DateTimeFormatter.ISO_LOCAL_DATE)
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun parsearHora(hora: String?): LocalTime? {
+    if (hora.isNullOrBlank()) return null
+
+    return try {
+        LocalTime.parse(hora, DateTimeFormatter.ofPattern("HH:mm"))
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun parsearFechaHora(fecha: String, hora: String): LocalDateTime? {
+    val fechaParseada = parsearFechaIso(fecha)
+    val horaParseada = parsearHora(hora)
+
+    if (fechaParseada == null || horaParseada == null) return null
+
+    return LocalDateTime.of(fechaParseada, horaParseada)
+}
+
+private fun convertirMillisAFechaIso(millis: Long): String {
+    val fecha = Instant
+        .ofEpochMilli(millis)
+        .atZone(ZoneOffset.UTC)
+        .toLocalDate()
+
+    return fecha.format(DateTimeFormatter.ISO_LOCAL_DATE)
+}
+
+private fun convertirFechaIsoAMillis(fecha: String): Long? {
+    return try {
+        LocalDate
+            .parse(fecha, DateTimeFormatter.ISO_LOCAL_DATE)
+            .atStartOfDay()
+            .toInstant(ZoneOffset.UTC)
+            .toEpochMilli()
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun obtenerHoraMinutoONull(hora: String?): Pair<Int, Int>? {
+    val horaParseada = parsearHora(hora) ?: return null
+    return horaParseada.hour to horaParseada.minute
+}
+
+private fun obtenerHoraMinutoConMinimo(hora: String, horaMinima: String?): Pair<Int, Int> {
+    val horaBase = parsearHora(hora)
+    val minima = parsearHora(horaMinima)
+
+    val resultado = when {
+        horaBase == null && minima == null -> LocalTime.of(14, 0)
+        horaBase == null -> minima!!
+        minima == null -> horaBase
+        horaBase.isBefore(minima) -> minima
+        else -> horaBase
+    }
+
+    return resultado.hour to resultado.minute
+}
+
+private fun calcularHoraMinimaInicio(fecha: String): String? {
+    val fechaParseada = parsearFechaIso(fecha) ?: return null
+
+    if (!fechaParseada.isEqual(LocalDate.now())) {
+        return null
+    }
+
+    val ahora = LocalTime.now()
+    return formatearHora(ahora.hour, ahora.minute)
+}
+
+private fun calcularHoraMinimaFin(
+    fecha: String,
+    horaInicio: String,
+    limiteMinutos: Int?
+): String? {
+    val inicioFechaHora = parsearFechaHora(fecha, horaInicio)
+    val fechaParseada = parsearFechaIso(fecha)
+
+    val minimaPorLimite = if (inicioFechaHora != null && limiteMinutos != null && limiteMinutos > 0) {
+        inicioFechaHora.plusMinutes(limiteMinutos.toLong())
+    } else {
+        null
+    }
+
+    val minimaPorAhora = if (fechaParseada != null && fechaParseada.isEqual(LocalDate.now())) {
+        LocalDateTime.now()
+    } else {
+        null
+    }
+
+    val minimaFinal = listOfNotNull(minimaPorLimite, minimaPorAhora).maxOrNull() ?: return null
+
+    if (fechaParseada != null && minimaFinal.toLocalDate().isAfter(fechaParseada)) {
+        return "23:59"
+    }
+
+    return formatearHora(minimaFinal.hour, minimaFinal.minute)
+}
+
+private fun esHoraMenorQue(hora: String, horaMinima: String?): Boolean {
+    val horaParseada = parsearHora(hora) ?: return true
+    val minimaParseada = parsearHora(horaMinima) ?: return false
+    return horaParseada.isBefore(minimaParseada)
+}
+
+private fun formatearHora(hora: Int, minuto: Int): String {
+    return String.format(
+        Locale.US,
+        "%02d:%02d",
+        hora.coerceIn(0, 23),
+        minuto.coerceIn(0, 59)
+    )
 }
