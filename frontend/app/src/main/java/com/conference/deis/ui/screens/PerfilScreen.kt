@@ -1,5 +1,18 @@
 package com.conference.deis.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import coil.compose.AsyncImage
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,7 +49,68 @@ fun PerfilScreen(navController: NavHostController) {
     var facultadesDisponibles by remember { mutableStateOf<List<Facultad>>(emptyList()) }
     var expanded by remember { mutableStateOf(false) }
     var cargando by remember { mutableStateOf(false) }
+    var fotoPerfilUrl by remember { mutableStateOf(user?.fotoPerfilUrl) }
+    var fotoGoogleUrl by remember { mutableStateOf(user?.fotoGoogleUrl) }
 
+val fotoMostrada = fotoPerfilUrl ?: fotoGoogleUrl
+val inicialUsuario = user?.nombre?.firstOrNull()?.uppercaseChar()?.toString() ?: "U"
+
+val selectorImagen = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.GetContent()
+) { uri: Uri? ->
+    uri ?: return@rememberLauncherForActivityResult
+
+    scope.launch {
+        cargando = true
+
+        try {
+            val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
+                input.readBytes()
+            }
+
+            if (bytes == null) {
+                Toast.makeText(context, "No se pudo leer la imagen", Toast.LENGTH_SHORT).show()
+                cargando = false
+                return@launch
+            }
+
+            val requestBody = bytes.toRequestBody("image/*".toMediaTypeOrNull())
+
+            val parteFoto = MultipartBody.Part.createFormData(
+                name = "foto",
+                filename = "perfil_${user?.id}.jpg",
+                body = requestBody
+            )
+
+            val idUsuario = user?.id ?: ""
+
+            val response = RetrofitInstance.api.actualizarFotoPerfil(
+                id = idUsuario,
+                foto = parteFoto
+            )
+
+            if (response.isSuccessful) {
+                val usuarioActualizado = response.body()
+
+                fotoPerfilUrl = usuarioActualizado?.fotoPerfilUrl
+                fotoGoogleUrl = usuarioActualizado?.fotoGoogleUrl
+                UserSession.user = usuarioActualizado ?: UserSession.user
+
+                Toast.makeText(
+                context,
+                "Foto: ${usuarioActualizado?.fotoPerfilUrl ?: "sin url"}",
+                 Toast.LENGTH_LONG
+                 ).show()
+            } else {
+                Toast.makeText(context, "No se pudo actualizar la foto", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
+        } finally {
+            cargando = false
+        }
+    }
+}
     LaunchedEffect(Unit) {
         try {
             val responseFacultades = RetrofitInstance.api.obtenerFacultades()
@@ -71,10 +145,90 @@ fun PerfilScreen(navController: NavHostController) {
                 .padding(paddingValues)
                 .background(Color.White)
                 .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+          horizontalAlignment = Alignment.CenterHorizontally
+) {
+    Box(
+        modifier = Modifier
+            .size(110.dp)
+            .clip(CircleShape)
+            .background(FieldBackground),
+        contentAlignment = Alignment.Center
+    ) {
+        if (!fotoMostrada.isNullOrBlank()) {
+            AsyncImage(
+                model = fotoMostrada,
+                contentDescription = "Foto de perfil",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Text(
+                text = inicialUsuario,
+                fontSize = 42.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.DarkGray
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Button(
+            onClick = { selectorImagen.launch("image/*") },
+            enabled = !cargando,
+            colors = ButtonDefaults.buttonColors(containerColor = BlueBackground)
         ) {
-            OutlinedTextField(
-                value = nombre,
+            Icon(Icons.Default.PhotoCamera, contentDescription = null)
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Cambiar")
+        }
+
+        OutlinedButton(
+            onClick = {
+                scope.launch {
+                    cargando = true
+
+                    try {
+                        val idUsuario = user?.id ?: ""
+
+                        val response = RetrofitInstance.api.eliminarFotoPerfil(idUsuario)
+
+                        if (response.isSuccessful) {
+                            val usuarioActualizado = response.body()
+
+                            fotoPerfilUrl = usuarioActualizado?.fotoPerfilUrl
+                            fotoGoogleUrl = usuarioActualizado?.fotoGoogleUrl
+                            UserSession.user = usuarioActualizado ?: UserSession.user
+
+                            Toast.makeText(context, "Foto eliminada", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "No se pudo eliminar la foto", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
+                    } finally {
+                        cargando = false
+                    }
+                }
+            },
+            enabled = !cargando && fotoPerfilUrl != null
+        ) {
+            Icon(Icons.Default.Delete, contentDescription = null)
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Borrar")
+        }
+    }
+
+    Spacer(modifier = Modifier.height(24.dp))
+
+    OutlinedTextField(
+        value = nombre,
                 onValueChange = { nombre = it },
                 label = { Text("Nombre") },
                 modifier = Modifier.fillMaxWidth(),

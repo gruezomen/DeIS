@@ -12,5 +12,7 @@ data class Usuario(
     val gmail: String,
     val contrasena: String,
     val rol: String,
-    val facultadesIds: List<String> = emptyList()
+    val facultadesIds: List<String> = emptyList(),
+    var fotoPerfilUrl: String? = null,
+    var fotoGoogleUrl: String? = null
 )

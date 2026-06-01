@@ -1,5 +1,9 @@
 package com.conference.deis.ui.screens
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -157,6 +160,10 @@ fun AdminHomeScreen(navController: NavHostController) {
                             }
                         }
                     }
+                    
+                    val usuarioActual = UserSession.user
+                    val fotoUsuario = usuarioActual?.fotoPerfilUrl ?: usuarioActual?.fotoGoogleUrl
+                    val inicialUsuario = usuarioActual?.nombre?.firstOrNull()?.uppercaseChar()?.toString() ?: "U"
 
                     Box(
                         modifier = Modifier
@@ -166,19 +173,36 @@ fun AdminHomeScreen(navController: NavHostController) {
                             .clickable { menuExpandido = true },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("U")
+                         if (!fotoUsuario.isNullOrBlank()) {
+        AsyncImage(
+            model = fotoUsuario,
+            contentDescription = "Foto de perfil",
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(CircleShape),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        Text(
+            text = inicialUsuario,
+            color = Color.Black,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
 
+                        
                        DropdownMenu(
-    expanded = menuExpandido,
-    onDismissRequest = { menuExpandido = false }
-) {
-    DropdownMenuItem(
-        text = { Text("Perfil") },
-        onClick = {
-            menuExpandido = false
-            navController.navigate("perfil")
-        }
-    )
+                       expanded = menuExpandido,
+                       onDismissRequest = { menuExpandido = false }
+                       ) {
+                         DropdownMenuItem(
+                         text = { Text("Perfil") },
+                          onClick = {
+                             menuExpandido = false
+                               navController.navigate("perfil")
+                             }
+                              )
 
     if (!esAdmin) {
         DropdownMenuItem(

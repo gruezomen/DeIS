@@ -1,5 +1,6 @@
 package com.conference.deis.network
 
+import okhttp3.MultipartBody
 import com.conference.deis.network.model.*
 import retrofit2.Response
 import retrofit2.http.*
@@ -169,4 +170,16 @@ interface ApiService {
     suspend fun marcarNotificacionLeida(
         @Path("id") id: String
     ): Response<Notificacion>
+
+    @Multipart
+    @PATCH("api/usuarios/{id}/foto")
+    suspend fun actualizarFotoPerfil(
+      @Path("id") id: String,
+      @Part foto: MultipartBody.Part
+    ): Response<LoginResponse>
+
+    @DELETE("api/usuarios/{id}/foto")
+      suspend fun eliminarFotoPerfil(
+        @Path("id") id: String
+    ): Response<LoginResponse>
 }

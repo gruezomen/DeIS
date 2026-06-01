@@ -1,23 +1,28 @@
 package com.deis.backend.controller
 
-import com.deis.backend.dto.RegistroUsuarioRequest
-import com.deis.backend.dto.RegistroUsuarioResponse
-import com.deis.backend.dto.LoginUsuarioRequest
-import com.deis.backend.dto.LoginUsuarioResponse
+import jakarta.servlet.http.HttpServletRequest
 import com.deis.backend.dto.ActualizarUsuarioRequest
 import com.deis.backend.dto.GoogleLoginRequest
+import com.deis.backend.dto.LoginUsuarioRequest
+import com.deis.backend.dto.LoginUsuarioResponse
+import com.deis.backend.dto.RegistroUsuarioRequest
+import com.deis.backend.dto.RegistroUsuarioResponse
 import com.deis.backend.service.UsuarioService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -56,6 +61,25 @@ class UsuarioController(
     ): ResponseEntity<RegistroUsuarioResponse> {
         val response = usuarioService.actualizarPerfil(id, request)
         return ResponseEntity.ok(response)
+    }
+
+   @PatchMapping("/{id}/foto")
+fun actualizarFotoPerfil(
+    @PathVariable id: String,
+    @RequestParam("foto") foto: MultipartFile,
+    request: HttpServletRequest
+): ResponseEntity<LoginUsuarioResponse> {
+    val baseUrl = "${request.scheme}://${request.serverName}:${request.serverPort}"
+    val usuarioActualizado = usuarioService.actualizarFotoPerfil(id, foto, baseUrl)
+    return ResponseEntity.ok(usuarioActualizado)
+}
+
+    @DeleteMapping("/{id}/foto")
+    fun eliminarFotoPerfil(
+        @PathVariable id: String
+    ): ResponseEntity<LoginUsuarioResponse> {
+        val usuarioActualizado = usuarioService.eliminarFotoPerfil(id)
+        return ResponseEntity.ok(usuarioActualizado)
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)

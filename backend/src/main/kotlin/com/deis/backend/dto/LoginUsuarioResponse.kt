@@ -7,5 +7,7 @@ data class LoginUsuarioResponse(
     val gmail: String,
     val rol: String,
     val facultadesIds: List<String>,
-    val mensaje: String
+    val mensaje: String,
+    val fotoPerfilUrl: String? = null,
+    val fotoGoogleUrl: String? = null
 )

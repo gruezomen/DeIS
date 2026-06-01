@@ -12,6 +12,11 @@ import java.util.Collections
 import com.deis.backend.model.Facultad
 import com.deis.backend.model.Preuniversitario
 import com.deis.backend.repository.PreuniversitarioRepository
+import org.springframework.web.multipart.MultipartFile
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
+import java.util.UUID
 
 @Service
 class UsuarioService(
@@ -30,42 +35,54 @@ class UsuarioService(
     }
 
     fun autenticarConGoogle(request: GoogleLoginRequest): LoginUsuarioResponse {
-        val idToken = verifier.verify(request.idToken)
-            ?: throw IllegalArgumentException("Token de Google inválido")
-        val payload = idToken.payload
-        val email = payload.email
-        val nombre = payload["name"] as String? ?: "Usuario Google"
+    val idToken = verifier.verify(request.idToken)
+        ?: throw IllegalArgumentException("Token de Google inválido")
 
-        var usuario = usuarioRepository.findByGmail(email)
+    val payload = idToken.payload
+    val email = payload.email
+    val nombre = payload["name"] as String? ?: "Usuario Google"
+    val fotoGoogleUrl = payload["picture"] as String?
 
-        if (usuario == null) {
-            // Registro automático si no existe
-            usuario = usuarioRepository.save(
-                Usuario(
-                    nombre = nombre,
-                    apellido = "",
-                    gmail = email,
-                    contrasena = "", // No necesaria para usuarios de Google
-                    rol = "PREUNIVERSITARIO",
-                    facultadesIds = emptyList() // El usuario deberá completarlas después en su perfil
-                )
+    val usuarioExistente = usuarioRepository.findByGmail(email)
+
+    var usuario = if (usuarioExistente == null) {
+        usuarioRepository.save(
+            Usuario(
+                nombre = nombre,
+                apellido = "",
+                gmail = email,
+                contrasena = "",
+                rol = "PREUNIVERSITARIO",
+                facultadesIds = emptyList(),
+                fotoGoogleUrl = fotoGoogleUrl
             )
-        }
-        
-        // Asegurar que tenga perfil preuniversitario
-        crearPerfilPreuniversitarioSiNoExiste(usuario.id)
+        )
+    } else {
+        usuarioExistente
+    }
 
-        return LoginUsuarioResponse(
-            id = usuario.id,
-            nombre = usuario.nombre,
-            apellido = usuario.apellido,
-            gmail = usuario.gmail,
-            rol = usuario.rol,
-            facultadesIds = usuario.facultadesIds,
-            mensaje = "Autenticación con Google exitosa"
+    if (usuario.fotoGoogleUrl.isNullOrBlank() && !fotoGoogleUrl.isNullOrBlank()) {
+        usuario = usuarioRepository.save(
+            usuario.copy(
+                fotoGoogleUrl = fotoGoogleUrl
+            )
         )
     }
 
+    crearPerfilPreuniversitarioSiNoExiste(usuario.id)
+
+    return LoginUsuarioResponse(
+        id = usuario.id,
+        nombre = usuario.nombre,
+        apellido = usuario.apellido,
+        gmail = usuario.gmail,
+        rol = usuario.rol,
+        facultadesIds = usuario.facultadesIds,
+        mensaje = "Autenticación con Google exitosa",
+        fotoPerfilUrl = usuario.fotoPerfilUrl,
+        fotoGoogleUrl = usuario.fotoGoogleUrl
+    )
+}
     fun registrarUsuario(request: RegistroUsuarioRequest): RegistroUsuarioResponse {
         val gmailNormalizado = request.correo.trim().lowercase()
 
@@ -118,7 +135,9 @@ class UsuarioService(
             gmail = usuario.gmail,
             rol = usuario.rol,
             facultadesIds = usuario.facultadesIds,
-            mensaje = "Inicio de sesión exitoso"
+            mensaje = "Inicio de sesión exitoso",
+            fotoPerfilUrl = usuario.fotoPerfilUrl,
+            fotoGoogleUrl = usuario.fotoGoogleUrl
         )
     }
 
@@ -172,4 +191,79 @@ class UsuarioService(
             mensaje = "Perfil actualizado correctamente"
         )
     }
+
+    fun actualizarFotoPerfil(id: String, foto: MultipartFile, baseUrl: String): LoginUsuarioResponse  {
+    if (foto.isEmpty) {
+        throw IllegalArgumentException("Debe seleccionar una imagen")
+    }
+
+    val usuario = usuarioRepository.findById(id)
+        .orElseThrow { IllegalArgumentException("Usuario no encontrado") }
+
+    val tipoContenido = foto.contentType ?: ""
+
+    if (!tipoContenido.startsWith("image/")) {
+        throw IllegalArgumentException("El archivo debe ser una imagen")
+    }
+
+    val carpetaPerfiles = Paths.get("uploads", "perfiles")
+    Files.createDirectories(carpetaPerfiles)
+
+    val extension = when (tipoContenido) {
+        "image/png" -> ".png"
+        "image/webp" -> ".webp"
+        else -> ".jpg"
+    }
+
+    val nombreArchivo = "${usuario.id}_${UUID.randomUUID()}$extension"
+    val rutaArchivo = carpetaPerfiles.resolve(nombreArchivo)
+
+    foto.inputStream.use { input ->
+        Files.copy(input, rutaArchivo, StandardCopyOption.REPLACE_EXISTING)
+    }
+
+    val urlFoto = "$baseUrl/uploads/perfiles/$nombreArchivo"
+
+    val usuarioActualizado = usuarioRepository.save(
+        usuario.copy(
+            fotoPerfilUrl = urlFoto
+        )
+    )
+
+    return LoginUsuarioResponse(
+        id = usuarioActualizado.id,
+        nombre = usuarioActualizado.nombre,
+        apellido = usuarioActualizado.apellido,
+        gmail = usuarioActualizado.gmail,
+        rol = usuarioActualizado.rol,
+        facultadesIds = usuarioActualizado.facultadesIds,
+        mensaje = "Foto de perfil actualizada correctamente",
+        fotoPerfilUrl = usuarioActualizado.fotoPerfilUrl,
+        fotoGoogleUrl = usuarioActualizado.fotoGoogleUrl
+    )
+}
+
+   fun eliminarFotoPerfil(id: String): LoginUsuarioResponse {
+       val usuario = usuarioRepository.findById(id)
+          .orElseThrow { IllegalArgumentException("Usuario no encontrado") }
+
+     val usuarioActualizado = usuarioRepository.save(
+        usuario.copy(
+            fotoPerfilUrl = null
+        )
+     )
+
+      return LoginUsuarioResponse(
+        id = usuarioActualizado.id,
+        nombre = usuarioActualizado.nombre,
+        apellido = usuarioActualizado.apellido,
+        gmail = usuarioActualizado.gmail,
+        rol = usuarioActualizado.rol,
+        facultadesIds = usuarioActualizado.facultadesIds,
+        mensaje = "Foto de perfil eliminada correctamente",
+        fotoPerfilUrl = usuarioActualizado.fotoPerfilUrl,
+        fotoGoogleUrl = usuarioActualizado.fotoGoogleUrl
+      )
+ }
+
 }
