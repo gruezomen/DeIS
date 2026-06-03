@@ -91,7 +91,12 @@ fun ListaBancosScreen(
             errorCarga = false
 
             try {
-                val response = RetrofitInstance.api.obtenerBancosPreguntas()
+                val userId = com.conference.deis.network.UserSession.user?.id
+                val response = if (esAdmin || userId == null) {
+                    RetrofitInstance.api.obtenerBancosPreguntas()
+                } else {
+                    RetrofitInstance.api.obtenerBancosPorUsuario(userId)
+                }
 
                 if (response.isSuccessful) {
                     bancos = response.body() ?: emptyList()
