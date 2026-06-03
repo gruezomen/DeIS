@@ -38,6 +38,19 @@ import com.conference.deis.network.model.LogroItemResponse
 import com.conference.deis.network.model.LogrosUsuarioResponse
 import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.res.painterResource
+import com.conference.deis.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -169,44 +182,159 @@ private fun LogroCard(
     logro: LogroItemResponse,
     desbloqueado: Boolean
 ) {
+    val iconoLogro = obtenerIconoLogro(logro)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(22.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (desbloqueado) FieldBackground else Color(0xFFF3F3F3)
+            containerColor = if (desbloqueado) Color(0xFFF7FBFF) else Color(0xFFF1F1F1)
         )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = logro.titulo,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (desbloqueado) BlueBackground else Color.Gray
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            LogroIcono(
+                icono = iconoLogro,
+                desbloqueado = desbloqueado
             )
 
-            Text(
-                text = logro.descripcion,
-                fontSize = 14.sp,
-                color = Color.Black,
-                modifier = Modifier.padding(top = 6.dp)
-            )
+            Spacer(modifier = Modifier.width(14.dp))
 
-            Text(
-                text = if (desbloqueado) "Desbloqueado" else "Pendiente",
-                fontSize = 13.sp,
-                color = if (desbloqueado) Color(0xFF2E7D32) else Color.Gray,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-
-            if (desbloqueado && !logro.fechaDesbloqueo.isNullOrBlank()) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(
-                    text = "Fecha: ${logro.fechaDesbloqueo}",
-                    fontSize = 12.sp,
-                    color = Color.DarkGray,
-                    modifier = Modifier.padding(top = 4.dp)
+                    text = logro.titulo,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (desbloqueado) BlueBackground else Color(0xFF8A8A8A)
                 )
+
+                Text(
+                    text = logro.descripcion,
+                    fontSize = 14.sp,
+                    color = if (desbloqueado) Color(0xFF222222) else Color(0xFF777777),
+                    modifier = Modifier.padding(top = 5.dp)
+                )
+
+                EstadoLogroBadge(desbloqueado = desbloqueado)
+
+                if (desbloqueado && !logro.fechaDesbloqueo.isNullOrBlank()) {
+                    Text(
+                        text = "Fecha: ${logro.fechaDesbloqueo}",
+                        fontSize = 12.sp,
+                        color = Color.DarkGray,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
             }
         }
+    }
+}
+@Composable
+private fun LogroIcono(
+    icono: Int,
+    desbloqueado: Boolean
+) {
+    val matrizColor = ColorMatrix().apply {
+        setToSaturation(if (desbloqueado) 1f else 0f)
+    }
+
+    Box(
+        modifier = Modifier
+            .size(96.dp)
+            .clip(CircleShape)
+            .background(if (desbloqueado) Color(0xFFEAF7FF) else Color(0xFFE0E0E0))
+            .border(
+                width = 2.dp,
+                color = if (desbloqueado) BlueBackground else Color(0xFFBDBDBD),
+                shape = CircleShape
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = icono),
+            contentDescription = null,
+            modifier = Modifier
+                .size(86.dp)
+                .alpha(if (desbloqueado) 1f else 0.35f),
+            colorFilter = if (desbloqueado) {
+                null
+            } else {
+                ColorFilter.colorMatrix(matrizColor)
+            }
+        )
+    }
+}
+
+@Composable
+private fun EstadoLogroBadge(
+    desbloqueado: Boolean
+) {
+    Box(
+        modifier = Modifier
+            .padding(top = 8.dp)
+            .background(
+                color = if (desbloqueado) Color(0xFFE5F6E8) else Color(0xFFE0E0E0),
+                shape = RoundedCornerShape(50.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 5.dp)
+    ) {
+        Text(
+            text = if (desbloqueado) "Desbloqueado" else "Pendiente",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (desbloqueado) Color(0xFF2E7D32) else Color(0xFF777777)
+        )
+    }
+}
+
+private fun obtenerIconoLogro(logro: LogroItemResponse): Int {
+    val codigo = logro.codigo.trim().lowercase()
+    val titulo = logro.titulo.trim().lowercase()
+
+    return when {
+        codigo.contains("primera_practica") ||
+            codigo.contains("primer_paso") ||
+            titulo.contains("primer paso") -> R.drawable.logro_primer_paso
+
+        codigo.contains("cinco_practicas") ||
+            titulo.contains("constante") -> R.drawable.logro_constante
+
+        codigo.contains("primer_simulacro") ||
+            titulo.contains("primera prueba") -> R.drawable.logro_primera_prueba
+
+        codigo.contains("tres_simulacros") ||
+            titulo.contains("preparado") -> R.drawable.logro_preparado
+
+        codigo.contains("precision_alta") ||
+            titulo.contains("precisión alta") ||
+            titulo.contains("precision alta") -> R.drawable.logro_precision_alta
+
+        codigo.contains("sin_errores") ||
+            titulo.contains("sin errores") -> R.drawable.logro_sin_errores
+
+        codigo.contains("racha_7_dias") ||
+            codigo.contains("racha_fuerte") ||
+            titulo.contains("racha fuerte") -> R.drawable.logro_racha_fuerte
+
+        codigo.contains("coleccionista") ||
+            titulo.contains("coleccionista") -> R.drawable.logro_coleccionista
+
+        codigo.contains("racha_15_dias") ||
+            codigo.contains("disciplina_total") ||
+            titulo.contains("disciplina total") -> R.drawable.logro_disciplina_total
+
+        codigo.contains("racha_3_dias") ||
+            codigo.contains("en_racha") ||
+            titulo.contains("en racha") -> R.drawable.logro_en_racha
+
+        else -> R.drawable.logro_default
     }
 }
 
