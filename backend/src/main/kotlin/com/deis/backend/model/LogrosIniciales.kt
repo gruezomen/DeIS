@@ -43,6 +43,34 @@ object LogrosIniciales {
             descripcion = "Practica durante 3 días seguidos.",
             tipo = "RACHA_DIAS",
             condicionValor = 3
+        ),
+        Logro(
+            codigo = "SIN_ERRORES",
+            titulo = "Sin errores",
+            descripcion = "Completa una práctica sin fallar.",
+            tipo = "PRACTICA_SIN_ERRORES",
+            condicionValor = 100
+        ),
+        Logro(
+            codigo = "RACHA_7_DIAS",
+            titulo = "Racha fuerte",
+            descripcion = "Practica durante 7 días seguidos.",
+            tipo = "RACHA_DIAS",
+            condicionValor = 7
+        ),
+        Logro(
+            codigo = "COLECCIONISTA",
+            titulo = "Coleccionista",
+            descripcion = "Desbloquea 10 logros.",
+            tipo = "LOGROS_DESBLOQUEADOS",
+            condicionValor = 10
+        ),
+        Logro(
+            codigo = "RACHA_15_DIAS",
+            titulo = "Disciplina total",
+            descripcion = "Practica durante 15 días seguidos.",
+            tipo = "RACHA_DIAS",
+            condicionValor = 15
         )
     )
 }
