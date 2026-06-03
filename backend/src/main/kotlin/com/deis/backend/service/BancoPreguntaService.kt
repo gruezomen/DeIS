@@ -3,11 +3,13 @@ package com.deis.backend.service
 import com.deis.backend.dto.CrearBancoRequest
 import com.deis.backend.model.BancoPregunta
 import com.deis.backend.repository.BancoPreguntaRepository
+import com.deis.backend.repository.UsuarioRepository
 import org.springframework.stereotype.Service
 
 @Service
 class BancoPreguntaService(
-    private val bancoPreguntaRepository: BancoPreguntaRepository
+    private val bancoPreguntaRepository: BancoPreguntaRepository,
+    private val usuarioRepository: UsuarioRepository
 ) {
 
     fun crearBanco(request: CrearBancoRequest): BancoPregunta {
@@ -29,6 +31,27 @@ class BancoPreguntaService(
 
     fun obtenerTodosLosBancos(): List<BancoPregunta> {
         return bancoPreguntaRepository.findAll()
+    }
+
+    fun obtenerBancosPorUsuario(usuarioId: String): List<BancoPregunta> {
+        val usuario = usuarioRepository.findById(usuarioId).orElseThrow {
+            IllegalArgumentException("Usuario no encontrado")
+        }
+
+        // Si es administrador, quizás debería ver todos los bancos, 
+        // pero la solicitud específica dice "cuando el usuario se registra, selecciona las facultades... 
+        // mostrar únicamente los bancos asociados a las facultades que el estudiante está postulando".
+        // Generalmente los administradores no tienen facultades seleccionadas para postular.
+        
+        if (usuario.rol == "ADMIN") {
+            return bancoPreguntaRepository.findAll()
+        }
+
+        if (usuario.facultadesIds.isEmpty()) {
+            return emptyList()
+        }
+
+        return bancoPreguntaRepository.findByFacultadIdIn(usuario.facultadesIds)
     }
 
     fun obtenerBancoPorId(id: String): BancoPregunta {

@@ -29,6 +29,17 @@ class BancoPreguntaController(
         return ResponseEntity.ok(bancoPreguntaService.obtenerTodosLosBancos())
     }
 
+    @GetMapping("/usuario/{usuarioId}")
+    fun obtenerBancosPorUsuario(@PathVariable usuarioId: String): ResponseEntity<Any> {
+        return try {
+            ResponseEntity.ok(bancoPreguntaService.obtenerBancosPorUsuario(usuarioId))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("mensaje" to e.message))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(mapOf("mensaje" to "Error interno"))
+        }
+    }
+
     @GetMapping("/{id}")
     fun obtenerBancoPorId(@PathVariable id: String): ResponseEntity<Any> {
         return try {

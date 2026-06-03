@@ -57,6 +57,11 @@ interface ApiService {
     @GET("api/bancos-preguntas")
     suspend fun obtenerBancosPreguntas(): Response<List<BancoPregunta>>
 
+    @GET("api/bancos-preguntas/usuario/{usuarioId}")
+    suspend fun obtenerBancosPorUsuario(
+        @Path("usuarioId") usuarioId: String
+    ): Response<List<BancoPregunta>>
+
     @GET("api/bancos-preguntas/{id}")
     suspend fun obtenerBancoPorId(
         @Path("id") id: String
