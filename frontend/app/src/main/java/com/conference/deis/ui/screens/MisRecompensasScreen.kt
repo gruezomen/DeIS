@@ -71,6 +71,18 @@ fun MisRecompensasScreen(navController: NavHostController) {
             cargando = false
         }
     }
+    
+    val medallas = recompensasUsuario?.recompensas?.filter {
+    it.tipo == "MEDALLA"
+    }.orEmpty()
+
+   val marcos = recompensasUsuario?.recompensas?.filter {
+       it.tipo == "MARCO"
+    }.orEmpty()
+
+    val titulos = recompensasUsuario?.recompensas?.filter {
+      it.tipo == "TITULO"
+    }.orEmpty()
 
     val recompensasPractica = recompensasUsuario?.recompensas?.filter {
         it.tipo.contains("PRACTICA")
@@ -127,6 +139,9 @@ fun MisRecompensasScreen(navController: NavHostController) {
 
                 recompensasUsuario != null -> {
                     if (
+                        medallas.isEmpty() &&
+                        marcos.isEmpty() &&
+                        titulos.isEmpty() &&
                         recompensasPractica.isEmpty() &&
                         recompensasSimulacro.isEmpty() &&
                         recompensasRacha.isEmpty()
@@ -140,6 +155,35 @@ fun MisRecompensasScreen(navController: NavHostController) {
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
+                            if (medallas.isNotEmpty()) {
+    item {
+        TituloSeccionRecompensas("Medallitas de delfín")
+    }
+
+    items(medallas) { recompensa ->
+        RecompensaCard(recompensa)
+    }
+}
+
+if (marcos.isNotEmpty()) {
+    item {
+        TituloSeccionRecompensas("Marcos de perfil")
+    }
+
+    items(marcos) { recompensa ->
+        RecompensaCard(recompensa)
+    }
+}
+
+if (titulos.isNotEmpty()) {
+    item {
+        TituloSeccionRecompensas("Títulos de delfín")
+    }
+
+    items(titulos) { recompensa ->
+        RecompensaCard(recompensa)
+    }
+}
                             if (recompensasPractica.isNotEmpty()) {
                                 item {
                                     TituloSeccionRecompensas("Recompensas de práctica")
@@ -191,6 +235,9 @@ private fun TituloSeccionRecompensas(titulo: String) {
 @Composable
 private fun RecompensaCard(recompensa: RecompensaItemResponse) {
     val colorFondo = when (recompensa.tipo) {
+        "MEDALLA" -> Color(0xFFE0F7FA)
+        "MARCO" -> Color(0xFFE3F2FD)
+        "TITULO" -> Color(0xFFF1F8E9)
         "BAJO_PRACTICA" -> Color(0xFFFFF3E0)
         "MEDIO_PRACTICA" -> Color(0xFFE3F2FD)
         "ALTO_PRACTICA" -> Color(0xFFE8F5E9)
@@ -202,6 +249,9 @@ private fun RecompensaCard(recompensa: RecompensaItemResponse) {
     }
 
     val colorTexto = when (recompensa.tipo) {
+        "MEDALLA" -> Color(0xFF00838F)
+        "MARCO" -> Color(0xFF1565C0)
+        "TITULO" -> Color(0xFF2E7D32)
         "BAJO_PRACTICA" -> Color(0xFFE65100)
         "MEDIO_PRACTICA" -> Color(0xFF1565C0)
         "ALTO_PRACTICA" -> Color(0xFF2E7D32)
@@ -213,6 +263,9 @@ private fun RecompensaCard(recompensa: RecompensaItemResponse) {
     }
 
     val tipoLegible = when (recompensa.tipo) {
+        "MEDALLA" -> "Medallita de delfín"
+        "MARCO" -> "Marco de perfil"
+        "TITULO" -> "Título de delfín"
         "BAJO_PRACTICA" -> "Resultado bajo en práctica"
         "MEDIO_PRACTICA" -> "Resultado medio en práctica"
         "ALTO_PRACTICA" -> "Resultado alto en práctica"
