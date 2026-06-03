@@ -193,4 +193,9 @@ suspend fun guardarEquipamiento(
     @Path("usuarioId") usuarioId: String,
     @Body request: EquipamientoRecompensaRequest
 ): Response<EquipamientoRecompensaResponse>
+
+    @POST("api/push/token")
+    suspend fun registrarPushToken(
+        @Body request: RegistrarPushTokenRequest
+    ): Response<RegistrarPushTokenResponse>
 }
