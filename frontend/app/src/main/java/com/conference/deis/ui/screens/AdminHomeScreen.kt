@@ -72,7 +72,13 @@ fun AdminHomeScreen(navController: NavHostController) {
             cargandoResumen = true
 
             val responsePreguntas = RetrofitInstance.api.obtenerPreguntas()
-            val responseBancos = RetrofitInstance.api.obtenerBancosPreguntas()
+            val usuarioId = UserSession.user?.id?.toString()
+
+            val responseBancos = if (esAdmin || usuarioId.isNullOrBlank()) {
+                RetrofitInstance.api.obtenerBancosPreguntas()
+            } else {
+                RetrofitInstance.api.obtenerBancosPorUsuario(usuarioId)
+            }
 
             if (responsePreguntas.isSuccessful) {
                 totalPreguntas = responsePreguntas.body().orEmpty().size
