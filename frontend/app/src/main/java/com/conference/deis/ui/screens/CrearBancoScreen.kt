@@ -20,7 +20,6 @@ import com.conference.deis.R
 import com.conference.deis.network.RetrofitInstance
 import com.conference.deis.network.UserSession
 import com.conference.deis.network.model.CrearBancoRequest
-import com.conference.deis.network.model.Facultad
 import com.conference.deis.ui.theme.BlueBackground
 import kotlinx.coroutines.launch
 
@@ -34,27 +33,13 @@ fun CrearBancoScreen(navController: NavHostController) {
         )
         return
     }
-    var facultades by remember { mutableStateOf<List<Facultad>>(emptyList()) }
-    var facultadSeleccionada by remember { mutableStateOf<Facultad?>(null) }
-    var cargandoFacultades by remember { mutableStateOf(true) }
+    var facultadId by remember { mutableStateOf("") }
     var cargando by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    val facultades = listOf("Ciencias y Tecnologia", "Medicina", "Derecho", "Economia", "Arquitectura")
     var expanded by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        try {
-            val response = RetrofitInstance.api.obtenerFacultades()
-            if (response.isSuccessful) {
-                facultades = response.body() ?: emptyList()
-            }
-        } catch (e: Exception) {
-            Toast.makeText(context, "Error al cargar facultades", Toast.LENGTH_SHORT).show()
-        } finally {
-            cargandoFacultades = false
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -118,7 +103,7 @@ fun CrearBancoScreen(navController: NavHostController) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
-                    value = facultadSeleccionada?.nombre ?: "",
+                    value = facultadId,
                     onValueChange = {},
                     readOnly = true,
                     placeholder = { Text("Selecciona una facultad") },
@@ -140,21 +125,14 @@ fun CrearBancoScreen(navController: NavHostController) {
                     onDismissRequest = { expanded = false },
                     modifier = Modifier.background(Color.White)
                 ) {
-                    if (cargandoFacultades) {
+                    facultades.forEach { facultad ->
                         DropdownMenuItem(
-                            text = { Text("Cargando...") },
-                            onClick = { }
+                            text = { Text(facultad) },
+                            onClick = {
+                                facultadId = facultad
+                                expanded = false
+                            }
                         )
-                    } else {
-                        facultades.forEach { facultad ->
-                            DropdownMenuItem(
-                                text = { Text(facultad.nombre) },
-                                onClick = {
-                                    facultadSeleccionada = facultad
-                                    expanded = false
-                                }
-                            )
-                        }
                     }
                 }
             }
@@ -163,8 +141,7 @@ fun CrearBancoScreen(navController: NavHostController) {
 
             Button(
                 onClick = {
-                    val fId = facultadSeleccionada?.id ?: ""
-                    if (fId.isBlank()) {
+                    if (facultadId.isBlank()) {
                         Toast.makeText(context, "Por favor selecciona una facultad", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
@@ -178,7 +155,7 @@ fun CrearBancoScreen(navController: NavHostController) {
                     scope.launch {
                         cargando = true
                         try {
-                            val request = CrearBancoRequest(fId, adminId)
+                            val request = CrearBancoRequest(facultadId, adminId)
                             val response = RetrofitInstance.api.crearBanco(request)
 
                             if (response.isSuccessful) {
@@ -194,7 +171,7 @@ fun CrearBancoScreen(navController: NavHostController) {
                         }
                     }
                 },
-                enabled = !cargando && !cargandoFacultades,
+                enabled = !cargando,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
