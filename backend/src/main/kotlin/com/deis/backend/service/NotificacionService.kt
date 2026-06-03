@@ -40,12 +40,11 @@ class NotificacionService(
             val esAdmin = usuario.rol.equals("ADMINISTRADOR", ignoreCase = true)
             if (esAdmin) return@filter false
 
-            usuario.facultadesIds.any { facultadUsuario ->
-                val valor = facultadUsuario.trim()
-
-                (!facultadId.isNullOrBlank() && valor.equals(facultadId, ignoreCase = true)) ||
-                    (!facultadNombre.isNullOrBlank() && valor.equals(facultadNombre, ignoreCase = true))
-            }
+            coincideConFacultadesUsuario(
+                facultadesUsuario = usuario.facultadesIds,
+                facultadIdSimulacro = facultadId,
+                facultadNombreSimulacro = facultadNombre
+            )
         }
 
         val titulo = "Nuevo simulacro disponible"
@@ -74,5 +73,35 @@ class NotificacionService(
                 )
             )
         }
+    }
+
+    private fun coincideConFacultadesUsuario(
+        facultadesUsuario: List<String>,
+        facultadIdSimulacro: String?,
+        facultadNombreSimulacro: String?
+    ): Boolean {
+        val idSimulacro = facultadIdSimulacro.orEmpty().trim()
+        val nombreSimulacro = facultadNombreSimulacro.orEmpty().trim()
+
+        return facultadesUsuario.any { facultadUsuario ->
+            val valor = facultadUsuario.trim()
+
+            valor.equals(idSimulacro, ignoreCase = true) ||
+                valor.equals(nombreSimulacro, ignoreCase = true) ||
+                normalizarFacultad(valor) == normalizarFacultad(nombreSimulacro) ||
+                normalizarFacultad(valor) == normalizarFacultad(idSimulacro)
+        }
+    }
+
+    private fun normalizarFacultad(valor: String): String {
+        return valor
+            .trim()
+            .lowercase()
+            .replace("facultad de ", "")
+            .replace("á", "a")
+            .replace("é", "e")
+            .replace("í", "i")
+            .replace("ó", "o")
+            .replace("ú", "u")
     }
 }

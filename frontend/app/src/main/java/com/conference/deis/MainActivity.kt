@@ -14,12 +14,37 @@ import androidx.navigation.compose.rememberNavController
 import com.conference.deis.ui.screens.*
 import com.conference.deis.ui.screens.HistorialCompletoScreen
 import com.conference.deis.ui.screens.DetalleEstadisticasScreen
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        solicitarPermisoNotificacionesSiHaceFalta()
+
         setContent {
             DeISApp()
+        }
+    }
+
+    private fun solicitarPermisoNotificacionesSiHaceFalta() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val permisoConcedido = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!permisoConcedido) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    1001
+                )
+            }
         }
     }
 }
