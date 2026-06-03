@@ -52,6 +52,8 @@ import com.conference.deis.network.model.HistorialIntentoResponse
 import com.conference.deis.network.model.Simulacro
 import com.conference.deis.ui.theme.BlueBackground
 import kotlinx.coroutines.launch
+import androidx.compose.material3.OutlinedButton
+import com.conference.deis.ui.utils.programarRecordatorioSimulacro
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -291,7 +293,13 @@ fun ListaSimulacrosScreen(navController: NavHostController) {
                                         navController.navigate("detalle_intento/$intentoId")
                                     }
                                 },
-                                onEliminar = { simulacroAEliminar = simulacro }
+                                onEliminar = { simulacroAEliminar = simulacro },
+                                onRecordar = {
+                                    programarRecordatorioSimulacro(
+                                        context = context,
+                                        simulacro = simulacro
+                                    )
+                                }
                             )
                         }
                     }
@@ -308,7 +316,8 @@ private fun SimulacroCard(
     esAdmin: Boolean,
     onResolver: () -> Unit,
     onVerResultado: () -> Unit,
-    onEliminar: () -> Unit
+    onEliminar: () -> Unit,
+    onRecordar: () -> Unit
 ) {
     val estado = simulacro.estado.uppercase()
     val colorEstado = when (estado) {
@@ -424,13 +433,25 @@ private fun SimulacroCard(
                 }
 
                 else -> {
-                    Button(
-                        onClick = {},
-                        enabled = false,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Aún no disponible")
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {},
+                            enabled = false,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Aún no disponible")
+                        }
+
+                        if (!esAdmin && intento == null && estado == "PENDIENTE") {
+                            OutlinedButton(
+                                onClick = onRecordar,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Recordar 5 min antes")
+                            }
+                        }
                     }
                 }
             }
