@@ -48,6 +48,13 @@ import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
 import kotlinx.coroutines.launch
 
+
+data class RecompensaCatalogo(
+    val codigo: String,
+    val titulo: String,
+    val descripcion: String,
+    val tipo: String
+)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MisRecompensasScreen(navController: NavHostController) {
@@ -114,6 +121,90 @@ if (responseEquipamiento.isSuccessful) {
     val recompensasRacha = recompensasUsuario?.recompensas?.filter {
         it.tipo == "RACHA"
     }.orEmpty()
+    
+    val catalogoRecompensas = listOf(
+    RecompensaCatalogo(
+        codigo = "MEDALLA_ALETA_INICIAL",
+        titulo = "Aleta Inicial",
+        descripcion = "Se desbloquea al mantener una racha de 2 días.",
+        tipo = "MEDALLA"
+    ),
+    RecompensaCatalogo(
+        codigo = "MEDALLA_SALTO_SEMANAL",
+        titulo = "Salto Semanal",
+        descripcion = "Se desbloquea al mantener una racha de 7 días.",
+        tipo = "MEDALLA"
+    ),
+    RecompensaCatalogo(
+        codigo = "MEDALLA_NADO_IMPARABLE",
+        titulo = "Nado Imparable",
+        descripcion = "Se desbloquea al mantener una racha de 10 días.",
+        tipo = "MEDALLA"
+    ),
+    RecompensaCatalogo(
+        codigo = "MEDALLA_DELFIN_DIAMANTE",
+        titulo = "Delfín Diamante",
+        descripcion = "Se desbloquea al obtener 4 simulacros con nota igual o mayor a 80.",
+        tipo = "MEDALLA"
+    ),
+    RecompensaCatalogo(
+        codigo = "MARCO_OLA",
+        titulo = "Marco Ola",
+        descripcion = "Se desbloquea al sacar una nota igual o mayor a 51.",
+        tipo = "MARCO"
+    ),
+    RecompensaCatalogo(
+        codigo = "MARCO_CORAL",
+        titulo = "Marco Coral",
+        descripcion = "Se desbloquea al sacar una nota igual o mayor a 80.",
+        tipo = "MARCO"
+    ),
+    RecompensaCatalogo(
+        codigo = "MARCO_OCEANO_PROFUNDO",
+        titulo = "Marco Océano Profundo",
+        descripcion = "Se desbloquea al obtener 4 simulacros con nota igual o mayor a 80.",
+        tipo = "MARCO"
+    ),
+    RecompensaCatalogo(
+        codigo = "TITULO_DELFIN_NOVATO",
+        titulo = "Delfín Novato",
+        descripcion = "Se desbloquea al completar tu primera práctica.",
+        tipo = "TITULO"
+    ),
+    RecompensaCatalogo(
+        codigo = "TITULO_NADADOR_CONSTANTE",
+        titulo = "Nadador Constante",
+        descripcion = "Se desbloquea al mantener 2 días de racha.",
+        tipo = "TITULO"
+    ),
+    RecompensaCatalogo(
+        codigo = "TITULO_EXPLORADOR_ARRECIFE",
+        titulo = "Explorador del Arrecife",
+        descripcion = "Se desbloquea al mantener una semana completa de racha.",
+        tipo = "TITULO"
+    ),
+    RecompensaCatalogo(
+        codigo = "TITULO_DELFIN_ACADEMICO",
+        titulo = "Delfín Académico",
+        descripcion = "Se desbloquea al sacar una nota igual o mayor a 80.",
+        tipo = "TITULO"
+    ),
+    RecompensaCatalogo(
+        codigo = "TITULO_GUARDIAN_OCEANO",
+        titulo = "Guardián del Océano",
+        descripcion = "Se desbloquea al obtener 4 simulacros con nota igual o mayor a 80.",
+        tipo = "TITULO"
+    )
+)
+
+val codigosObtenidos = recompensasUsuario?.recompensas
+    ?.map { it.codigo }
+    ?.toSet()
+    ?: emptySet()
+
+val recompensasBloqueadas = catalogoRecompensas.filter {
+    it.codigo !in codigosObtenidos
+}
 
     fun equiparRecompensa(seleccionada: RecompensaItemResponse) {
         scope.launch {
@@ -190,7 +281,10 @@ if (responseEquipamiento.isSuccessful) {
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
+                           
                         ) {
+                            
+
                             if (medallas.isNotEmpty()) {
                                 item {
                                     TituloSeccionRecompensas("Medallitas de delfín")
@@ -274,6 +368,15 @@ if (responseEquipamiento.isSuccessful) {
                                     )
                                 }
                             }
+                             if (recompensasBloqueadas.isNotEmpty()) {
+    item {
+        TituloSeccionRecompensas("Por desbloquear")
+    }
+
+    items(recompensasBloqueadas) { recompensa ->
+        RecompensaBloqueadaCard(recompensa)
+    }
+}
                         }
                     }
                 }
@@ -424,6 +527,40 @@ private fun RecompensaCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun RecompensaBloqueadaCard(recompensa: RecompensaCatalogo) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFE0E0E0))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = recompensa.titulo,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.DarkGray
+            )
+
+            Text(
+                text = recompensa.descripcion,
+                fontSize = 14.sp,
+                color = Color.Gray,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+
+            Text(
+                text = "Bloqueada",
+                fontSize = 13.sp,
+                color = Color.DarkGray,
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
     }
 }
