@@ -25,8 +25,14 @@ class BancoPreguntaController(
     }
 
     @GetMapping
-    fun obtenerBancosPreguntas(): ResponseEntity<Any> {
-        return ResponseEntity.ok(bancoPreguntaService.obtenerTodosLosBancos())
+    fun obtenerBancosPreguntas(
+        @RequestParam(required = false) facultadesIds: List<String>?
+    ): ResponseEntity<Any> {
+        return if (facultadesIds.isNullOrEmpty()) {
+            ResponseEntity.ok(bancoPreguntaService.obtenerTodosLosBancos())
+        } else {
+            ResponseEntity.ok(bancoPreguntaService.obtenerBancosPorFacultades(facultadesIds))
+        }
     }
 
     @GetMapping("/usuario/{usuarioId}")

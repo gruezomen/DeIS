@@ -3,13 +3,15 @@ package com.deis.backend.service
 import com.deis.backend.dto.CrearBancoRequest
 import com.deis.backend.model.BancoPregunta
 import com.deis.backend.repository.BancoPreguntaRepository
+import com.deis.backend.repository.FacultadRepository
 import com.deis.backend.repository.UsuarioRepository
 import org.springframework.stereotype.Service
 
 @Service
 class BancoPreguntaService(
     private val bancoPreguntaRepository: BancoPreguntaRepository,
-    private val usuarioRepository: UsuarioRepository
+    private val usuarioRepository: UsuarioRepository,
+    private val facultadRepository: FacultadRepository
 ) {
 
     fun crearBanco(request: CrearBancoRequest): BancoPregunta {
@@ -33,17 +35,16 @@ class BancoPreguntaService(
         return bancoPreguntaRepository.findAll()
     }
 
+    fun obtenerBancosPorFacultades(facultadesIds: List<String>): List<BancoPregunta> {
+        return bancoPreguntaRepository.findByFacultadIdIn(facultadesIds)
+    }
+
     fun obtenerBancosPorUsuario(usuarioId: String): List<BancoPregunta> {
         val usuario = usuarioRepository.findById(usuarioId).orElseThrow {
             IllegalArgumentException("Usuario no encontrado")
         }
 
-        // Si es administrador, quizás debería ver todos los bancos, 
-        // pero la solicitud específica dice "cuando el usuario se registra, selecciona las facultades... 
-        // mostrar únicamente los bancos asociados a las facultades que el estudiante está postulando".
-        // Generalmente los administradores no tienen facultades seleccionadas para postular.
-        
-        if (usuario.rol == "ADMIN") {
+        if (usuario.rol == "ADMINISTRADOR") {
             return bancoPreguntaRepository.findAll()
         }
 
@@ -51,7 +52,35 @@ class BancoPreguntaService(
             return emptyList()
         }
 
-        return bancoPreguntaRepository.findByFacultadIdIn(usuario.facultadesIds)
+        // Obtener nombres de las facultades para los IDs que el usuario tenga
+        val facultadesDelUsuario = facultadRepository.findAllById(usuario.facultadesIds)
+        val nombresFacultadesUsuario = facultadesDelUsuario.map { it.nombre }
+        
+        // Combinar IDs y nombres para la normalización (soporta tanto lo antiguo como lo nuevo)
+        val valoresParaNormalizar = (usuario.facultadesIds + nombresFacultadesUsuario).map { normalizarTexto(it) }.distinct()
+
+        val todosLosBancos = bancoPreguntaRepository.findAll()
+
+        return todosLosBancos.filter { banco ->
+            val bancoFacultadId = banco.facultadId.trim()
+            val bancoFacultadNormalizada = normalizarTexto(bancoFacultadId)
+            
+            // Coincidencia exacta de ID, coincidencia de nombre normalizado
+            usuario.facultadesIds.contains(bancoFacultadId) || 
+            valoresParaNormalizar.any { it == bancoFacultadNormalizada }
+        }
+    }
+
+    private fun normalizarTexto(texto: String): String {
+        return texto.lowercase()
+            .trim()
+            .replace("facultad de ", "")
+            .replace("á", "a")
+            .replace("é", "e")
+            .replace("í", "i")
+            .replace("ó", "o")
+            .replace("ú", "u")
+            .replace("ñ", "n")
     }
 
     fun obtenerBancoPorId(id: String): BancoPregunta {
