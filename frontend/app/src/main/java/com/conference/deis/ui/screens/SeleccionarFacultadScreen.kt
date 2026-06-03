@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.conference.deis.network.RetrofitInstance
 import com.conference.deis.network.UserSession
+import com.conference.deis.network.model.Facultad
 import com.conference.deis.network.model.RegisterRequest
 import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
@@ -30,9 +31,23 @@ fun SeleccionarFacultadScreen(navController: NavHostController) {
     val scope = rememberCoroutineScope()
     val user = UserSession.user ?: return
 
-    val facultadesList = listOf("Ciencias y Tecnología", "Medicina", "Derecho", "Economía", "Arquitectura")
+    var facultadesList by remember { mutableStateOf<List<Facultad>>(emptyList()) }
     val facultadesSeleccionadas = remember { mutableStateListOf<String>() }
+    var cargandoFacultades by remember { mutableStateOf(true) }
     var guardando by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val response = RetrofitInstance.api.obtenerFacultades()
+            if (response.isSuccessful) {
+                facultadesList = response.body() ?: emptyList()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(context, "Error al cargar facultades", Toast.LENGTH_SHORT).show()
+        } finally {
+            cargandoFacultades = false
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -71,50 +86,56 @@ fun SeleccionarFacultadScreen(navController: NavHostController) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(facultadesList) { facultad ->
-                    val isSelected = facultadesSeleccionadas.contains(facultad)
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) BlueBackground.copy(alpha = 0.1f) else FieldBackground
-                        ),
-                        onClick = {
-                            if (isSelected) {
-                                facultadesSeleccionadas.remove(facultad)
-                            } else {
-                                facultadesSeleccionadas.add(facultad)
-                            }
-                        }
-                    ) {
-                        Row(
+            if (cargandoFacultades) {
+                CircularProgressIndicator(color = BlueBackground)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(facultadesList) { facultad ->
+                        // Usamos el nombre para mantener la compatibilidad con el filtrado normalizado
+                        val valorFacultad = facultad.nombre
+                        val isSelected = facultadesSeleccionadas.contains(valorFacultad)
+                        Card(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) BlueBackground.copy(alpha = 0.1f) else FieldBackground
+                            ),
+                            onClick = {
+                                if (isSelected) {
+                                    facultadesSeleccionadas.remove(valorFacultad)
+                                } else {
+                                    facultadesSeleccionadas.add(valorFacultad)
+                                }
+                            }
                         ) {
-                            Checkbox(
-                                checked = isSelected,
-                                onCheckedChange = {
-                                    if (isSelected) {
-                                        facultadesSeleccionadas.remove(facultad)
-                                    } else {
-                                        facultadesSeleccionadas.add(facultad)
-                                    }
-                                },
-                                colors = CheckboxDefaults.colors(checkedColor = BlueBackground)
-                            )
-                            Text(
-                                text = facultad,
-                                fontSize = 16.sp,
-                                color = Color.Black
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = {
+                                        if (isSelected) {
+                                            facultadesSeleccionadas.remove(valorFacultad)
+                                        } else {
+                                            facultadesSeleccionadas.add(valorFacultad)
+                                        }
+                                    },
+                                    colors = CheckboxDefaults.colors(checkedColor = BlueBackground)
+                                )
+                                Text(
+                                    text = facultad.nombre,
+                                    fontSize = 16.sp,
+                                    color = Color.Black
+                                )
+                            }
                         }
                     }
                 }
@@ -161,7 +182,7 @@ fun SeleccionarFacultadScreen(navController: NavHostController) {
                         }
                     }
                 },
-                enabled = !guardando && facultadesSeleccionadas.isNotEmpty(),
+                enabled = !guardando && facultadesSeleccionadas.isNotEmpty() && !cargandoFacultades,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
