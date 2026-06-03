@@ -4,7 +4,6 @@ import com.deis.backend.dto.CrearSimulacroRequest
 import com.deis.backend.dto.EstadoSimulacro
 import com.deis.backend.dto.SimulacroResponse
 import com.deis.backend.model.Simulacro
-import com.deis.backend.repository.FacultadRepository
 import com.deis.backend.repository.SimulacroRepository
 import com.deis.backend.repository.UsuarioRepository
 import org.springframework.stereotype.Service
@@ -19,8 +18,7 @@ import java.time.format.DateTimeParseException
 @Service
 class SimulacroService(
     private val simulacroRepository: SimulacroRepository,
-    private val usuarioRepository: UsuarioRepository,
-    private val facultadRepository: FacultadRepository
+    private val usuarioRepository: UsuarioRepository
 ) {
     private val zonaHorariaPorDefecto = "America/La_Paz"
 
@@ -104,27 +102,20 @@ class SimulacroService(
             NoSuchElementException("Usuario no encontrado")
         }
 
-        if (usuario.rol == "ADMINISTRADOR") {
-            return listarSimulacros()
-        }
+        val facultadesUsuario = usuario.facultadesIds
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
 
-        if (usuario.facultadesIds.isEmpty()) {
+        if (facultadesUsuario.isEmpty()) {
             return emptyList()
         }
-
-        // Obtener nombres de las facultades para los IDs que el usuario tenga
-        val facultadesDelUsuarioEntidades = facultadRepository.findAllById(usuario.facultadesIds)
-        val nombresFacultadesUsuario = facultadesDelUsuarioEntidades.map { it.nombre }
-        
-        // Combinar IDs y nombres para la normalización
-        val valoresParaNormalizar = (usuario.facultadesIds + nombresFacultadesUsuario).map { normalizarFacultad(it) }.distinct()
 
         return simulacroRepository.findAll()
             .filter { simulacro ->
                 simulacro.programado &&
                     !simulacro.eliminado &&
                     simulacro.bancoId == null &&
-                    coincideConFacultadesNormalizadas(simulacro, valoresParaNormalizar, usuario.facultadesIds)
+                    coincideConFacultadesUsuario(simulacro, facultadesUsuario)
             }
             .sortedByDescending { parsearFechaONull(it.horaInicio) ?: LocalDateTime.MIN }
             .map { mapearAResponse(it) }
@@ -198,19 +189,21 @@ class SimulacroService(
         )
     }
 
-    private fun coincideConFacultadesNormalizadas(
+    private fun coincideConFacultadesUsuario(
         simulacro: Simulacro,
-        valoresUsuarioNormalizados: List<String>,
-        idsUsuario: List<String>
+        facultadesUsuario: List<String>
     ): Boolean {
         val facultadIdSimulacro = simulacro.facultadId.orEmpty().trim()
         val facultadNombreSimulacro = simulacro.facultadNombre.orEmpty().trim()
 
-        val idNormalizado = normalizarFacultad(facultadIdSimulacro)
-        val nombreNormalizado = normalizarFacultad(facultadNombreSimulacro)
+        return facultadesUsuario.any { facultadUsuario ->
+            val valor = facultadUsuario.trim()
 
-        return idsUsuario.contains(facultadIdSimulacro) ||
-               valoresUsuarioNormalizados.any { it == idNormalizado || it == nombreNormalizado }
+            valor.equals(facultadIdSimulacro, ignoreCase = true) ||
+                valor.equals(facultadNombreSimulacro, ignoreCase = true) ||
+                normalizarFacultad(valor) == normalizarFacultad(facultadNombreSimulacro) ||
+                normalizarFacultad(valor) == normalizarFacultad(facultadIdSimulacro)
+        }
     }
 
     private fun normalizarFacultad(valor: String): String {
@@ -223,7 +216,6 @@ class SimulacroService(
             .replace("í", "i")
             .replace("ó", "o")
             .replace("ú", "u")
-            .replace("ñ", "n")
     }
 
     private fun calcularEstado(simulacro: Simulacro): EstadoSimulacro {

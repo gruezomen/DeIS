@@ -55,14 +55,7 @@ interface ApiService {
     ): Response<CreateQuestionResponse>
 
     @GET("api/bancos-preguntas")
-    suspend fun obtenerBancosPreguntas(
-        @Query("facultadesIds") facultadesIds: List<String>? = null
-    ): Response<List<BancoPregunta>>
-
-    @GET("api/bancos-preguntas/usuario/{usuarioId}")
-    suspend fun obtenerBancosPorUsuario(
-        @Path("usuarioId") usuarioId: String
-    ): Response<List<BancoPregunta>>
+    suspend fun obtenerBancosPreguntas(): Response<List<BancoPregunta>>
 
     @GET("api/bancos-preguntas/{id}")
     suspend fun obtenerBancoPorId(
