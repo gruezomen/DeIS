@@ -182,4 +182,15 @@ interface ApiService {
       suspend fun eliminarFotoPerfil(
         @Path("id") id: String
     ): Response<LoginResponse>
+
+    @GET("api/recompensas/usuario/{usuarioId}/equipamiento")
+suspend fun obtenerEquipamiento(
+    @Path("usuarioId") usuarioId: String
+): Response<EquipamientoRecompensaResponse>
+
+@PUT("api/recompensas/usuario/{usuarioId}/equipamiento")
+suspend fun guardarEquipamiento(
+    @Path("usuarioId") usuarioId: String,
+    @Body request: EquipamientoRecompensaRequest
+): Response<EquipamientoRecompensaResponse>
 }

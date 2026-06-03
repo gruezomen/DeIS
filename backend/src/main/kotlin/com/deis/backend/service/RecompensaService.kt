@@ -8,13 +8,18 @@ import com.deis.backend.repository.RecompensaObtenidaRepository
 import com.deis.backend.repository.RecompensaRepository
 import com.deis.backend.repository.PreuniversitarioRepository
 import org.springframework.stereotype.Service
+import com.deis.backend.dto.EquipamientoRecompensaRequest
+import com.deis.backend.dto.EquipamientoRecompensaResponse
+import com.deis.backend.model.EquipamientoRecompensa
+import com.deis.backend.repository.EquipamientoRecompensaRepository
 
 @Service
 class RecompensaService(
     private val recompensaRepository: RecompensaRepository,
     private val recompensaObtenidaRepository: RecompensaObtenidaRepository,
     private val intentoSimulacroRepository: IntentoSimulacroRepository,
-    private val preuniversitarioRepository: PreuniversitarioRepository
+    private val preuniversitarioRepository: PreuniversitarioRepository,
+    private val equipamientoRecompensaRepository: EquipamientoRecompensaRepository
 ) {
 
     fun guardarRecompensasPorResultado(
@@ -146,6 +151,7 @@ class RecompensaService(
 
     fun obtenerRecompensasUsuario(usuarioId: String): RecompensasUsuarioResponse {
         val obtenidas = recompensaObtenidaRepository.findByUsuarioId(usuarioId)
+        
         val mapaRecompensas = recompensaRepository.findAll().associateBy { it.codigo }
 
         val recompensas = obtenidas.mapNotNull { obtenida ->
@@ -176,4 +182,57 @@ class RecompensaService(
                 porcentaje >= 80
             }
     }
+
+    fun obtenerEquipamiento(usuarioId: String): EquipamientoRecompensaResponse {
+    val equipamiento = equipamientoRecompensaRepository.findByUsuarioId(usuarioId)
+
+    return EquipamientoRecompensaResponse(
+        usuarioId = usuarioId,
+        medallaCodigo = equipamiento?.medallaCodigo,
+        marcoCodigo = equipamiento?.marcoCodigo,
+        tituloCodigo = equipamiento?.tituloCodigo
+    )
+}
+
+fun guardarEquipamiento(
+    usuarioId: String,
+    request: EquipamientoRecompensaRequest
+): EquipamientoRecompensaResponse {
+    val actual = equipamientoRecompensaRepository.findByUsuarioId(usuarioId)
+
+    val medallaActualizada = when {
+        request.limpiarCampo == "MEDALLA" -> null
+        request.medallaCodigo != null -> request.medallaCodigo
+        else -> actual?.medallaCodigo
+    }
+
+    val marcoActualizado = when {
+        request.limpiarCampo == "MARCO" -> null
+        request.marcoCodigo != null -> request.marcoCodigo
+        else -> actual?.marcoCodigo
+    }
+
+    val tituloActualizado = when {
+        request.limpiarCampo == "TITULO" -> null
+        request.tituloCodigo != null -> request.tituloCodigo
+        else -> actual?.tituloCodigo
+    }
+
+    val actualizado = EquipamientoRecompensa(
+        id = actual?.id,
+        usuarioId = usuarioId,
+        medallaCodigo = medallaActualizada,
+        marcoCodigo = marcoActualizado,
+        tituloCodigo = tituloActualizado
+    )
+
+    val guardado = equipamientoRecompensaRepository.save(actualizado)
+
+    return EquipamientoRecompensaResponse(
+        usuarioId = guardado.usuarioId,
+        medallaCodigo = guardado.medallaCodigo,
+        marcoCodigo = guardado.marcoCodigo,
+        tituloCodigo = guardado.tituloCodigo
+    )
+}
 }

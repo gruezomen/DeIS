@@ -1,16 +1,20 @@
 package com.conference.deis.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -24,20 +28,25 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.conference.deis.R
 import com.conference.deis.network.RetrofitInstance
 import com.conference.deis.network.UserSession
+import com.conference.deis.network.model.EquipamientoRecompensaRequest
 import com.conference.deis.network.model.RecompensaItemResponse
 import com.conference.deis.network.model.RecompensasUsuarioResponse
 import com.conference.deis.ui.theme.BlueBackground
 import com.conference.deis.ui.theme.FieldBackground
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,20 +54,30 @@ fun MisRecompensasScreen(navController: NavHostController) {
     var recompensasUsuario by remember { mutableStateOf<RecompensasUsuarioResponse?>(null) }
     var cargando by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var equipamiento by remember {
+    mutableStateOf<com.conference.deis.network.model.EquipamientoRecompensaResponse?>(null)
+}
+    val scope = rememberCoroutineScope()
+    val apiService = RetrofitInstance.api
+    val usuarioId = UserSession.user?.id.orEmpty()
 
     LaunchedEffect(Unit) {
         try {
             cargando = true
             error = null
 
-            val usuarioId = UserSession.user?.id
-
-            if (usuarioId.isNullOrBlank()) {
+            if (usuarioId.isBlank()) {
                 error = "No se encontró la sesión del usuario."
                 return@LaunchedEffect
             }
 
-            val response = RetrofitInstance.api.obtenerRecompensasUsuario(usuarioId)
+            val response = apiService.obtenerRecompensasUsuario(usuarioId)
+
+           val responseEquipamiento = apiService.obtenerEquipamiento(usuarioId)
+
+if (responseEquipamiento.isSuccessful) {
+    equipamiento = responseEquipamiento.body()
+}
 
             if (response.isSuccessful) {
                 recompensasUsuario = response.body()
@@ -71,17 +90,17 @@ fun MisRecompensasScreen(navController: NavHostController) {
             cargando = false
         }
     }
-    
+
     val medallas = recompensasUsuario?.recompensas?.filter {
-    it.tipo == "MEDALLA"
+        it.tipo == "MEDALLA"
     }.orEmpty()
 
-   val marcos = recompensasUsuario?.recompensas?.filter {
-       it.tipo == "MARCO"
+    val marcos = recompensasUsuario?.recompensas?.filter {
+        it.tipo == "MARCO"
     }.orEmpty()
 
     val titulos = recompensasUsuario?.recompensas?.filter {
-      it.tipo == "TITULO"
+        it.tipo == "TITULO"
     }.orEmpty()
 
     val recompensasPractica = recompensasUsuario?.recompensas?.filter {
@@ -95,6 +114,25 @@ fun MisRecompensasScreen(navController: NavHostController) {
     val recompensasRacha = recompensasUsuario?.recompensas?.filter {
         it.tipo == "RACHA"
     }.orEmpty()
+
+    fun equiparRecompensa(seleccionada: RecompensaItemResponse) {
+        scope.launch {
+            val request = when (seleccionada.tipo) {
+                "MEDALLA" -> EquipamientoRecompensaRequest(medallaCodigo = seleccionada.codigo)
+                "MARCO" -> EquipamientoRecompensaRequest(marcoCodigo = seleccionada.codigo)
+                "TITULO" -> EquipamientoRecompensaRequest(tituloCodigo = seleccionada.codigo)
+                else -> null
+            }
+
+            if (request != null && usuarioId.isNotBlank()) {
+                val response = apiService.guardarEquipamiento(usuarioId, request)
+
+                if (response.isSuccessful) {
+                   equipamiento = response.body()
+                 }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -146,9 +184,7 @@ fun MisRecompensasScreen(navController: NavHostController) {
                         recompensasSimulacro.isEmpty() &&
                         recompensasRacha.isEmpty()
                     ) {
-                        TextoVacioRecompensas(
-                            "Aún no tienes recompensas registradas."
-                        )
+                        TextoVacioRecompensas("Aún no tienes recompensas registradas.")
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -156,41 +192,58 @@ fun MisRecompensasScreen(navController: NavHostController) {
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             if (medallas.isNotEmpty()) {
-    item {
-        TituloSeccionRecompensas("Medallitas de delfín")
-    }
+                                item {
+                                    TituloSeccionRecompensas("Medallitas de delfín")
+                                }
 
-    items(medallas) { recompensa ->
-        RecompensaCard(recompensa)
-    }
-}
+                                items(medallas) { recompensa ->
+                                    RecompensaCard(
+                                        recompensa = recompensa,
+                                        equipamiento = equipamiento,
+                                        onEquipar = { equiparRecompensa(it) }
+                                    )
+                                }
+                            }
 
-if (marcos.isNotEmpty()) {
-    item {
-        TituloSeccionRecompensas("Marcos de perfil")
-    }
+                            if (marcos.isNotEmpty()) {
+                                item {
+                                    TituloSeccionRecompensas("Marcos de perfil")
+                                }
 
-    items(marcos) { recompensa ->
-        RecompensaCard(recompensa)
-    }
-}
+                                items(marcos) { recompensa ->
+                                    RecompensaCard(
+                                        recompensa = recompensa,
+                                        equipamiento = equipamiento,
+                                        onEquipar = { equiparRecompensa(it) }
+                                    )
+                                }
+                            }
 
-if (titulos.isNotEmpty()) {
-    item {
-        TituloSeccionRecompensas("Títulos de delfín")
-    }
+                            if (titulos.isNotEmpty()) {
+                                item {
+                                    TituloSeccionRecompensas("Títulos de delfín")
+                                }
 
-    items(titulos) { recompensa ->
-        RecompensaCard(recompensa)
-    }
-}
+                                items(titulos) { recompensa ->
+                                    RecompensaCard(
+                                        recompensa = recompensa,
+                                        equipamiento = equipamiento,
+                                        onEquipar = { equiparRecompensa(it) }
+                                    )
+                                }
+                            }
+
                             if (recompensasPractica.isNotEmpty()) {
                                 item {
                                     TituloSeccionRecompensas("Recompensas de práctica")
                                 }
 
                                 items(recompensasPractica) { recompensa ->
-                                    RecompensaCard(recompensa)
+                                    RecompensaCard(
+                                        recompensa = recompensa,
+                                        equipamiento = equipamiento,
+                                        onEquipar = { equiparRecompensa(it) }
+                                    )
                                 }
                             }
 
@@ -200,7 +253,11 @@ if (titulos.isNotEmpty()) {
                                 }
 
                                 items(recompensasSimulacro) { recompensa ->
-                                    RecompensaCard(recompensa)
+                                    RecompensaCard(
+                                        recompensa = recompensa,
+                                        equipamiento = equipamiento,
+                                        onEquipar = { equiparRecompensa(it) }
+                                    )
                                 }
                             }
 
@@ -210,7 +267,11 @@ if (titulos.isNotEmpty()) {
                                 }
 
                                 items(recompensasRacha) { recompensa ->
-                                    RecompensaCard(recompensa)
+                                    RecompensaCard(
+                                        recompensa = recompensa,
+                                        equipamiento = equipamiento,
+                                        onEquipar = { equiparRecompensa(it) }
+                                    )
                                 }
                             }
                         }
@@ -233,7 +294,11 @@ private fun TituloSeccionRecompensas(titulo: String) {
 }
 
 @Composable
-private fun RecompensaCard(recompensa: RecompensaItemResponse) {
+private fun RecompensaCard(
+    recompensa: RecompensaItemResponse,
+    equipamiento: com.conference.deis.network.model.EquipamientoRecompensaResponse?,
+    onEquipar: (RecompensaItemResponse) -> Unit
+) {
     val colorFondo = when (recompensa.tipo) {
         "MEDALLA" -> Color(0xFFE0F7FA)
         "MARCO" -> Color(0xFFE3F2FD)
@@ -276,40 +341,88 @@ private fun RecompensaCard(recompensa: RecompensaItemResponse) {
         else -> recompensa.tipo
     }
 
+    val imagenRecompensa = when (recompensa.codigo) {
+        "MEDALLA_ALETA_INICIAL" -> R.drawable.medalla_inicio
+        "MEDALLA_SALTO_SEMANAL" -> R.drawable.medalla_constancia
+        "MEDALLA_NADO_IMPARABLE" -> R.drawable.medalla_disciplina
+        "MEDALLA_DELFIN_DIAMANTE" -> R.drawable.medalla_excelencia
+        "MEDALLA_DELFIN_OCULTO" -> R.drawable.dragon_badge
+        "MARCO_OLA" -> R.drawable.plantilla1
+        "MARCO_CORAL" -> R.drawable.plantilla2
+        "MARCO_OCEANO_PROFUNDO" -> R.drawable.plantilla3
+        else -> null
+    }
+    
+    val estaEquipado = when (recompensa.tipo) {
+    "MEDALLA" -> equipamiento?.medallaCodigo == recompensa.codigo
+    "MARCO" -> equipamiento?.marcoCodigo == recompensa.codigo
+    "TITULO" -> equipamiento?.tituloCodigo == recompensa.codigo
+    else -> false
+}
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = colorFondo)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = recompensa.titulo,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = colorTexto
-            )
-
-            Text(
-                text = recompensa.descripcion,
-                fontSize = 14.sp,
-                color = Color.Black,
-                modifier = Modifier.padding(top = 6.dp)
-            )
-
-            Text(
-                text = "Tipo: $tipoLegible",
-                fontSize = 13.sp,
-                color = colorTexto,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-
-            if (!recompensa.fechaObtencion.isNullOrBlank()) {
-                Text(
-                    text = "Obtenida: ${recompensa.fechaObtencion}",
-                    fontSize = 12.sp,
-                    color = Color.DarkGray,
-                    modifier = Modifier.padding(top = 4.dp)
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (imagenRecompensa != null) {
+                Image(
+                    painter = painterResource(id = imagenRecompensa),
+                    contentDescription = recompensa.titulo,
+                    modifier = Modifier
+                        .size(96.dp)
+                        .padding(end = 12.dp)
                 )
+            }
+
+            Column {
+                Text(
+                    text = recompensa.titulo,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colorTexto
+                )
+
+                Text(
+                    text = recompensa.descripcion,
+                    fontSize = 14.sp,
+                    color = Color.Black,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+
+                Text(
+                    text = "Tipo: $tipoLegible",
+                    fontSize = 13.sp,
+                    color = colorTexto,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+
+                if (!recompensa.fechaObtencion.isNullOrBlank()) {
+                    Text(
+                        text = "Obtenida: ${recompensa.fechaObtencion}",
+                        fontSize = 12.sp,
+                        color = Color.DarkGray,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+
+                if (
+                    recompensa.tipo == "MEDALLA" ||
+                    recompensa.tipo == "MARCO" ||
+                    recompensa.tipo == "TITULO"
+                ) {
+                    Button(
+                        onClick = { onEquipar(recompensa) },
+                        enabled = !estaEquipado,
+                        modifier = Modifier.padding(top = 10.dp)
+                    ) {
+                        Text(if (estaEquipado) "Equipado" else "Equipar")
+                    }
+                }
             }
         }
     }
