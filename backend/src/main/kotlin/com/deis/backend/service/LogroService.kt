@@ -13,6 +13,54 @@ class LogroService(
     private val logroDesbloqueadoRepository: LogroDesbloqueadoRepository
 ) {
 
+    private fun intentarDesbloquear(
+    usuarioId: String,
+    codigo: String,
+    nuevosLogros: MutableList<LogroDesbloqueado>
+    ) {
+        val logro = logroRepository.findByCodigo(codigo) ?: return
+
+        val yaExiste = logroDesbloqueadoRepository
+            .existsByUsuarioIdAndLogroCodigo(usuarioId, codigo)
+
+        if (!yaExiste) {
+            val desbloqueado = LogroDesbloqueado(
+                usuarioId = usuarioId,
+                logroCodigo = logro.codigo
+            )
+
+            logroDesbloqueadoRepository.save(desbloqueado)
+            nuevosLogros.add(desbloqueado)
+        }
+    }
+
+    private fun verificarLogroColeccionista(
+        usuarioId: String,
+        nuevosLogros: MutableList<LogroDesbloqueado>
+    ) {
+        val codigoColeccionista = "COLECCIONISTA"
+
+        val yaExiste = logroDesbloqueadoRepository
+            .existsByUsuarioIdAndLogroCodigo(usuarioId, codigoColeccionista)
+
+        if (yaExiste) return
+
+        val logroColeccionista = logroRepository.findByCodigo(codigoColeccionista) ?: return
+
+        val logrosActuales = logroDesbloqueadoRepository.findByUsuarioId(usuarioId)
+
+        val cantidadSinColeccionista = logrosActuales.count {
+            it.logroCodigo != codigoColeccionista
+        }
+
+        if (cantidadSinColeccionista >= logroColeccionista.condicionValor - 1) {
+            intentarDesbloquear(
+                usuarioId = usuarioId,
+                codigo = codigoColeccionista,
+                nuevosLogros = nuevosLogros
+            )
+        }
+    }
     fun verificarLogrosPractica(
         usuarioId: String,
         totalPracticasCompletadas: Int,
@@ -20,41 +68,42 @@ class LogroService(
     ): List<LogroDesbloqueado> {
         val nuevosLogros = mutableListOf<LogroDesbloqueado>()
 
-        fun intentarDesbloquear(codigo: String) {
-            println("Buscando logro con código: $codigo")
-
-            val logro = logroRepository.findByCodigo(codigo)
-
-            println("Resultado encontrado: $logro")
-
-            if (logro == null) {
-                return
-            }
-
-            val yaExiste = logroDesbloqueadoRepository
-                .existsByUsuarioIdAndLogroCodigo(usuarioId, codigo)
-
-            if (!yaExiste) {
-                val desbloqueado = LogroDesbloqueado(
-                    usuarioId = usuarioId,
-                    logroCodigo = codigo
-                )
-                logroDesbloqueadoRepository.save(desbloqueado)
-                nuevosLogros.add(desbloqueado)
-            }
-        }
-
         if (totalPracticasCompletadas >= 1) {
-            intentarDesbloquear("PRIMERA_PRACTICA")
+            intentarDesbloquear(
+                usuarioId = usuarioId,
+                codigo = "PRIMERA_PRACTICA",
+                nuevosLogros = nuevosLogros
+            )
         }
 
         if (totalPracticasCompletadas >= 5) {
-            intentarDesbloquear("CINCO_PRACTICAS")
+            intentarDesbloquear(
+                usuarioId = usuarioId,
+                codigo = "CINCO_PRACTICAS",
+                nuevosLogros = nuevosLogros
+            )
         }
 
         if (porcentajeAciertos >= 90) {
-            intentarDesbloquear("PRECISION_ALTA")
+            intentarDesbloquear(
+                usuarioId = usuarioId,
+                codigo = "PRECISION_ALTA",
+                nuevosLogros = nuevosLogros
+            )
         }
+
+        if (porcentajeAciertos == 100) {
+            intentarDesbloquear(
+                usuarioId = usuarioId,
+                codigo = "SIN_ERRORES",
+                nuevosLogros = nuevosLogros
+            )
+        }
+
+        verificarLogroColeccionista(
+            usuarioId = usuarioId,
+            nuevosLogros = nuevosLogros
+        )
 
         return nuevosLogros
     }
@@ -65,33 +114,34 @@ class LogroService(
     ): List<LogroDesbloqueado> {
         val nuevosLogros = mutableListOf<LogroDesbloqueado>()
 
-        fun intentarDesbloquear(codigo: String) {
-            println("Buscando logro con código: $codigo")
-
-            val logro = logroRepository.findByCodigo(codigo)
-
-            println("Resultado encontrado: $logro")
-
-            if (logro == null) {
-                return
-            }
-
-            val yaExiste = logroDesbloqueadoRepository
-                .existsByUsuarioIdAndLogroCodigo(usuarioId, codigo)
-
-            if (!yaExiste) {
-                val desbloqueado = LogroDesbloqueado(
-                    usuarioId = usuarioId,
-                    logroCodigo = codigo
-                )
-                logroDesbloqueadoRepository.save(desbloqueado)
-                nuevosLogros.add(desbloqueado)
-            }
-        }
-
         if (diasConsecutivos >= 3) {
-            intentarDesbloquear("RACHA_3_DIAS")
+            intentarDesbloquear(
+                usuarioId = usuarioId,
+                codigo = "RACHA_3_DIAS",
+                nuevosLogros = nuevosLogros
+            )
         }
+
+        if (diasConsecutivos >= 7) {
+            intentarDesbloquear(
+                usuarioId = usuarioId,
+                codigo = "RACHA_7_DIAS",
+                nuevosLogros = nuevosLogros
+            )
+        }
+
+        if (diasConsecutivos >= 15) {
+            intentarDesbloquear(
+                usuarioId = usuarioId,
+                codigo = "RACHA_15_DIAS",
+                nuevosLogros = nuevosLogros
+            )
+        }
+
+        verificarLogroColeccionista(
+            usuarioId = usuarioId,
+            nuevosLogros = nuevosLogros
+        )
 
         return nuevosLogros
     }
