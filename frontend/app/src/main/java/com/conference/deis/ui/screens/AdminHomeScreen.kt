@@ -46,6 +46,7 @@ import androidx.navigation.NavHostController
 import com.conference.deis.R
 import com.conference.deis.network.RetrofitInstance
 import com.conference.deis.network.UserSession
+import com.conference.deis.network.SessionStorage
 import com.conference.deis.ui.components.ActionBox
 import com.conference.deis.ui.components.InfoCard
 import com.conference.deis.ui.theme.BlueBackground
@@ -54,10 +55,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminHomeScreen(navController: NavHostController) {
+    val context = LocalContext.current
     var totalPreguntas by remember { mutableStateOf(0) }
     var totalBancos by remember { mutableStateOf(0) }
     var cargandoResumen by remember { mutableStateOf(true) }
@@ -256,6 +259,9 @@ fun AdminHomeScreen(navController: NavHostController) {
         text = { Text("Cerrar sesión") },
         onClick = {
             menuExpandido = false
+            UserSession.user = null
+            SessionStorage.limpiar(context)
+
             navController.navigate("login") {
                 popUpTo(0)
             }

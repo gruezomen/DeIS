@@ -52,20 +52,32 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             ?: message.data["body"]
             ?: "Tienes una nueva notificación."
 
-        mostrarNotificacion(titulo, cuerpo)
+        val simulacroId = message.data["simulacroId"]
+
+        mostrarNotificacion(
+            titulo = titulo,
+            cuerpo = cuerpo,
+            simulacroId = simulacroId
+        )
     }
 
     private fun mostrarNotificacion(
         titulo: String,
-        cuerpo: String
+        cuerpo: String,
+        simulacroId: String?
     ) {
         val channelId = "push_simulacros"
         crearCanalSiHaceFalta(channelId)
 
-        val intent = Intent(this, MainActivity::class.java)
+        val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra("destino", "lista_simulacros")
+            putExtra("simulacroId", simulacroId)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
         val pendingIntent = PendingIntent.getActivity(
             this,
-            0,
+            simulacroId?.hashCode() ?: 0,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

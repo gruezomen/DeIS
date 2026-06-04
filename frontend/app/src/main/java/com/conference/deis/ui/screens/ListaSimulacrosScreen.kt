@@ -175,7 +175,16 @@ fun ListaSimulacrosScreen(navController: NavHostController) {
             CenterAlignedTopAppBar(
                 title = { Text("Simulacros") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(
+                        onClick = {
+                            val pudoVolver = navController.popBackStack()
+                            if (!pudoVolver) {
+                                navController.navigate("home") {
+                                    popUpTo(0)
+                                }
+                            }
+                        }
+                    ) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Volver",
