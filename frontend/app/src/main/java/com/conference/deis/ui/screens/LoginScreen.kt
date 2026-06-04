@@ -29,6 +29,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.launch
+import com.conference.deis.ui.utils.registrarTokenPushEnBackend
 
 @Composable
 fun LoginScreen(navController: NavHostController) {
@@ -71,6 +72,7 @@ fun LoginScreen(navController: NavHostController) {
                             if (response.isSuccessful && response.body() != null) {
                                 val user = response.body()!!
                                 com.conference.deis.network.UserSession.user = user
+                                registrarTokenPushEnBackend()
                                 Toast.makeText(context, "Bienvenido ${user.nombre}", Toast.LENGTH_SHORT).show()
                                 
                                 val destination = if (user.facultadesIds.isEmpty()) "seleccionar_facultad" else "success"
@@ -165,6 +167,7 @@ fun LoginScreen(navController: NavHostController) {
                             if (response.isSuccessful && response.body() != null) {
                                 val userResponse = response.body()!!
                                 com.conference.deis.network.UserSession.user = userResponse
+                                registrarTokenPushEnBackend()
                                 Toast.makeText(
                                     context,
                                     userResponse.mensaje,
