@@ -15,12 +15,14 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import com.deis.backend.service.NotificacionService
+import com.deis.backend.service.PushNotificationService
 
 @Service
 class SimulacroService(
     private val simulacroRepository: SimulacroRepository,
     private val usuarioRepository: UsuarioRepository,
-    private val notificacionService: NotificacionService
+    private val notificacionService: NotificacionService,
+    private val pushNotificationService: PushNotificationService
 ) {
     private val zonaHorariaPorDefecto = "America/La_Paz"
 
@@ -86,17 +88,45 @@ class SimulacroService(
         )
 
         val guardado = simulacroRepository.save(simulacro)
-            notificacionService.crearNotificacionesPorFacultad(
-                simulacroId = guardado.id,
-                nombreSimulacro = guardado.nombre,
-                facultadId = guardado.facultadId,
-                facultadNombre = guardado.facultadNombre,
-                fechaInicio = guardado.horaInicio,
-                fechaFin = guardado.horaFin,
-                creadoPor = guardado.creadoPor
-            )
+        notificacionService.crearNotificacionesPorFacultad(
+            simulacroId = guardado.id,
+            nombreSimulacro = guardado.nombre,
+            facultadId = guardado.facultadId,
+            facultadNombre = guardado.facultadNombre,
+            fechaInicio = guardado.horaInicio,
+            fechaFin = guardado.horaFin,
+            creadoPor = guardado.creadoPor
+        )
 
-            return mapearAResponse(guardado)
+        val usuariosDestino = usuarioRepository.findAll().filter { usuario ->
+            val esAdmin = usuario.rol.equals("ADMINISTRADOR", ignoreCase = true)
+            if (esAdmin) return@filter false
+
+            usuario.facultadesIds.any { facultadUsuario ->
+                val valor = facultadUsuario.trim()
+
+                valor.equals(guardado.facultadId, ignoreCase = true) ||
+                    valor.equals(guardado.facultadNombre, ignoreCase = true) ||
+                    normalizarFacultad(valor) == normalizarFacultad(guardado.facultadNombre.orEmpty()) ||
+                    normalizarFacultad(valor) == normalizarFacultad(guardado.facultadId.orEmpty())
+            }
+        }.mapNotNull { usuario ->
+            val id = usuario.id
+            if (!guardado.creadoPor.isNullOrBlank() && id == guardado.creadoPor) {
+                null
+            } else {
+                id
+            }
+        }
+
+        pushNotificationService.enviarPushNuevoSimulacro(
+            usuarioIds = usuariosDestino,
+            nombreSimulacro = guardado.nombre,
+            facultadNombre = guardado.facultadNombre,
+            simulacroId = guardado.id
+        )
+
+        return mapearAResponse(guardado)
     }
 
     fun listarSimulacros(): List<SimulacroResponse> {
