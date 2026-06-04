@@ -24,7 +24,10 @@ class SimulacroRecordatorioReceiver : BroadcastReceiver() {
         val channelId = "recordatorios_simulacros"
         crearCanalSiHaceFalta(context, channelId)
 
-        val abrirAppIntent = Intent(context, MainActivity::class.java)
+        val abrirAppIntent = Intent(context, MainActivity::class.java).apply {
+            putExtra("destino", "lista_simulacros")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
         val pendingIntent = PendingIntent.getActivity(
             context,
             0,

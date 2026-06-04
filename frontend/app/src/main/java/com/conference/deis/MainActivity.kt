@@ -20,16 +20,25 @@ import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.conference.deis.ui.utils.registrarTokenPushEnBackend
+import android.content.Intent
 
+var destinoPendienteDesdeNotificacion: String? = null
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         solicitarPermisoNotificacionesSiHaceFalta()
 
+        destinoPendienteDesdeNotificacion = intent?.getStringExtra("destino")
+
         setContent {
             DeISApp()
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        destinoPendienteDesdeNotificacion = intent.getStringExtra("destino")
     }
 
     private fun solicitarPermisoNotificacionesSiHaceFalta() {

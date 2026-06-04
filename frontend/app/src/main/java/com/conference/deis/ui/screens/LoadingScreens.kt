@@ -21,14 +21,42 @@ import androidx.navigation.NavHostController
 import com.conference.deis.R
 import com.conference.deis.ui.components.LogoSection
 import com.conference.deis.ui.theme.BlueBackground
+import com.conference.deis.destinoPendienteDesdeNotificacion
+import com.conference.deis.network.UserSession
+import androidx.compose.ui.platform.LocalContext
+import com.conference.deis.network.SessionStorage
 import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(navController: NavHostController) {
+    val context = LocalContext.current
+
     LaunchedEffect(Unit) {
         delay(1800)
-        navController.navigate("login") {
-            popUpTo("splash") { inclusive = true }
+
+        if (UserSession.user == null) {
+            UserSession.user = SessionStorage.restaurarUsuario(context)
+        }
+
+        val destinoPendiente = destinoPendienteDesdeNotificacion
+        val usuarioActual = UserSession.user
+
+        if (destinoPendiente == "lista_simulacros" && usuarioActual != null) {
+            destinoPendienteDesdeNotificacion = null
+            navController.navigate("lista_simulacros") {
+                popUpTo("splash") { inclusive = true }
+            }
+            return@LaunchedEffect
+        }
+
+        if (usuarioActual != null) {
+            navController.navigate("home") {
+                popUpTo("splash") { inclusive = true }
+            }
+        } else {
+            navController.navigate("login") {
+                popUpTo("splash") { inclusive = true }
+            }
         }
     }
 
