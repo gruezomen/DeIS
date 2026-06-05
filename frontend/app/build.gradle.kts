@@ -36,13 +36,27 @@ android {
     }
 
     buildTypes {
+	debug {
+        buildConfigField(
+            "String",
+            "BASE_URL",
+            "\"http://192.168.1.17:8080/\""
+        )
+    }
+
         release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
+        buildConfigField(
+            "String",
+            "BASE_URL",
+            "\"https://deis-movil.onrender.com/\""
+        )
+
+        isMinifyEnabled = false
+        proguardFiles(
+            getDefaultProguardFile("proguard-android-optimize.txt"),
+            "proguard-rules.pro"
+        )
+     }
     }
 
     compileOptions {
