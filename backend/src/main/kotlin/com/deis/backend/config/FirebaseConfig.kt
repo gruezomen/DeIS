@@ -4,24 +4,25 @@ import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import jakarta.annotation.PostConstruct
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Configuration
-import java.io.FileInputStream
+import java.io.ByteArrayInputStream
 
 @Configuration
-class FirebaseConfig(
-    @Value("\${firebase.service-account-path}")
-    private val serviceAccountPath: String
-) {
+class FirebaseConfig {
 
     @PostConstruct
     fun init() {
         if (FirebaseApp.getApps().isNotEmpty()) return
 
-        val serviceAccount = FileInputStream(serviceAccountPath)
+        val serviceAccountJson = System.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+            ?: throw IllegalStateException("FIREBASE_SERVICE_ACCOUNT_JSON no está configurado")
+
+        val credentials = GoogleCredentials.fromStream(
+            ByteArrayInputStream(serviceAccountJson.toByteArray(Charsets.UTF_8))
+        )
 
         val options = FirebaseOptions.builder()
-            .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+            .setCredentials(credentials)
             .build()
 
         FirebaseApp.initializeApp(options)
