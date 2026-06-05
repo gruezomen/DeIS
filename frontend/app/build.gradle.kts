@@ -14,9 +14,12 @@ if (localPropertiesFile.exists()) {
     localPropertiesFile.inputStream().use { localProperties.load(it) }
 }
 
+val debugBaseUrl = localProperties.getProperty("DEBUG_BASE_URL")
+    ?: "http://10.0.2.2:8080/"
 
-val baseUrl = localProperties.getProperty("BASE_URL")
-    ?: error("Falta BASE_URL en frontend/local.properties")
+val releaseBaseUrl = localProperties.getProperty("RELEASE_BASE_URL")
+    ?: "https://deis-movil.onrender.com/"
+
 val googleClientId = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID") ?: ""
 
 android {
@@ -29,34 +32,26 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-	buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
-	buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleClientId\"")
+
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleClientId\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
-	debug {
-        buildConfigField(
-            "String",
-            "BASE_URL",
-            "\"http://192.168.1.17:8080/\""
-        )
-    }
+        debug {
+            buildConfigField("String", "BASE_URL", "\"$debugBaseUrl\"")
+        }
 
         release {
-        buildConfigField(
-            "String",
-            "BASE_URL",
-            "\"https://deis-movil.onrender.com/\""
-        )
+            buildConfigField("String", "BASE_URL", "\"$releaseBaseUrl\"")
 
-        isMinifyEnabled = false
-        proguardFiles(
-            getDefaultProguardFile("proguard-android-optimize.txt"),
-            "proguard-rules.pro"
-        )
-     }
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
     }
 
     compileOptions {
@@ -69,7 +64,7 @@ android {
     }
 
     buildFeatures {
-	buildConfig = true
+        buildConfig = true
         compose = true
     }
 }
